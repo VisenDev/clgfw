@@ -1,0 +1,36 @@
+image: debian/stable
+environment:
+  ROSWELL_RELEASE: 21.06.14.110
+  ROSWELL_HOME: /home/build/.roswell
+  ROSWELL_BRANCH: release
+packages:
+  - wget
+sources:
+  - https://git.sr.ht/~shunter/posix-shm
+tasks:
+  - install-roswell: |
+      wget --no-verbose -O- https://github.com/roswell/roswell/releases/download/v$ROSWELL_RELEASE/roswell-$ROSWELL_RELEASE-linux-x86_64.tar.bz2 | tar -jx
+      PATH=~/roswell:$PATH
+
+      # Register posix-shm with ASDF
+      ASDF_REG_CONF_DIR=~/.config/common-lisp/source-registry.conf.d
+      mkdir -p $ASDF_REG_CONF_DIR
+      echo "(:tree \"$HOME/posix-shm\")" > $ASDF_REG_CONF_DIR/ci.conf
+
+      # Use lisp impl and print configuration
+      ros install sbcl-bin
+      ros use sbcl-bin
+      ros config
+  - build: |
+      PATH=~/roswell:$PATH
+      # Fetch deps
+      ros --eval '(ql:quickload :posix-shm/test)'
+  - test-sbcl: |
+      PATH=~/roswell:$PATH
+      ros use sbcl-bin
+      ros --system parachute --system posix-shm/test \
+        --eval '(setf *debugger-hook* (lambda (e h) (print e) (uiop:quit 1))) (parachute:test-toplevel :xyz.shunter.posix-shm.test)'
+triggers:
+  - action: email
+    condition: failure
+    to: builds@shunter.xyz
