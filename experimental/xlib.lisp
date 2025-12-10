@@ -1,0 +1,77 @@
+(defpackage clgfw
+  (:use cl)
+  (:export :init-window :close-window :window-should-close :begin-drawing :end-drawing :draw-pixel :*state*))
+(in-package clgfw)
+
+(defparameter *state* (make-hash-table))
+
+#+linux 
+(progn
+  (cffi:define-foreign-library libx11 (t "libX11.so"))
+  (cffi:use-foreign-library libx11)
+
+  ;;(cffi:defctype x11-display :pointer)
+  ;;(cffi:defctype x11-window :ulong)
+  ;;(cffi:defctype x11-event :pointer)
+
+  (defconstant NoEventMask			          0)  
+  (defconstant KeyPressMask			          (ash 1 0))
+  (defconstant KeyReleaseMask			        (ash 1 1))
+  (defconstant ButtonPressMask			      (ash 1 2))
+  (defconstant ButtonReleaseMask		      (ash 1 3))
+  (defconstant EnterWindowMask			      (ash 1 4))
+  (defconstant LeaveWindowMask			      (ash 1 5))
+  (defconstant PointerMotionMask		      (ash 1 6))
+  (defconstant PointerMotionHintMask	  	(ash 1 7))
+  (defconstant Button1MotionMask		      (ash 1 8))
+  (defconstant Button2MotionMask		      (ash 1 9))
+  (defconstant Button3MotionMask		      (ash 1 10))
+  (defconstant Button4MotionMask		      (ash 1 11))
+  (defconstant Button5MotionMask		      (ash 1 12))
+  (defconstant ButtonMotionMask		        (ash 1 13))
+  (defconstant KeymapStateMask			      (ash 1 14))
+  (defconstant ExposureMask			          (ash 1 15))
+  (defconstant VisibilityChangeMask	  	  (ash 1 16))
+  (defconstant StructureNotifyMask		    (ash 1 17))
+  (defconstant ResizeRedirectMask		      (ash 1 18))
+  (defconstant SubstructureNotifyMask		  (ash 1 19))
+  (defconstant SubstructureRedirectMask	  (ash 1 20))
+  (defconstant FocusChangeMask			      (ash 1 21))
+  (defconstant PropertyChangeMask		      (ash 1 22))
+  (defconstant ColormapChangeMask		      (ash 1 23))
+  (defconstant OwnerGrabButtonMask		    (ash 1 24))
+
+  (cffi:defcfun ("XOpenDisplay" x-open-display) :pointer (name :string))
+  (cffi:defcfun ("XCreateSimpleWindow" x-create-simple-window) :pointer (display :pointer) (parent-window :pointer) (x :int) (y :int) (width :uint) (height :uint) (border :ulong) (background :ulong))
+  (cffi:defcfun ("XDefaultRootWindow" x-default-root-window) :pointer (display :pointer))
+  (cffi:defcfun ("XMapWindow" x-map-window) :int (display :pointer) (window :pointer))
+  (cffi:defcfun ("XSelectInput" x-select-input) :int (display :pointer) (window :pointer) (mask :long))
+  (cffi:defcfun ("XNextEvent" x-next-event) :int (display :pointer) (event-return :pointer))
+  (cffi:defcfun ("XInternAtom" x-intern-atom) :ulong (display :pointer) (name :string) (only-if-exists :int))
+  (cffi:defcfun ("XSetWMProtocols" x-set-wm-protocols) :int (display :pointer) (window :ulong) (protocols :pointer) (count :int))
+
+
+  ;;; Helper: register for WM_DELETE_WINDOW
+  (defun register-wm-delete (display window)
+    (let ((atom (x-intern-atom display "WM_DELETE_WINDOW" 0)))
+      ;; allocate space for one Atom (unsigned long)
+      (cffi:with-foreign-pointer (atom-ptr :ulong 1)
+                                 (cffi:mem-aref atom-ptr :ulong 0 atom)
+                                 (x-set-wm-protocols display window atom-ptr 1))))
+
+  (defun init-window () 
+    (setf (gethash :event *state*) (cffi:foreign-alloc :char :initial-element 0 :count 256))
+    (setf (gethash :display *state*) (x-open-display (cffi:null-pointer)))
+    (setf (gethash :window *state*)  (x-create-simple-window (gethash :display *state*) (x-default-root-window (gethash :display *state*)) 0 0 500 500 200 0))
+    (x-map-window (gethash :display *state*) (gethash :window *state*))
+    (register-wm-delete (gethash :display *state) (gethash :window *state*))
+    )
+  (defun begin-drawing ()
+    (x-next-event (gethash :display *state*) (gethash :event *state*))
+    )
+  (defun close-window ()
+    (cffi:foreign-free (gethash :event *state*))
+    )
+
+  )
+
