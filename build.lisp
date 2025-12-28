@@ -1,7 +1,7 @@
 (declaim (optimize (speed 0) (debug 3) (safety 3)))
 ;(sb-ext:restrict-compiler-policy 'debug 3)
 
-(eval-when (:compile-toplevel :load-toplevel)
+(eval-when (:compile-toplevel :load-toplevel :execute)
   (load "./3rdparty/asdf/build/asdf.lisp"))
 
 
