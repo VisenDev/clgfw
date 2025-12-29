@@ -1,3 +1,6 @@
+(eval-when (:load-toplevel :compile-toplevel :execute)
+  (unless (find-package 'xlib)
+    (ql:quickload "clx")))
 (defpackage #:clgfw/x11
   (:use #:cl)
   (:export #:init-window
@@ -32,13 +35,29 @@
                   :height height
                   :background black
                   :parent (xlib:screen-root screen)
-                  :event-mask (xlib:make-event-mask :leave-window :exposure :property-change :button-press :key-press)))
+                  :event-mask (xlib:make-event-mask
+                               :leave-window
+                               :exposure
+                               :property-change
+                               :structure-notify
+                               :button-press
+                               :key-press)))
+    (xlib::set-wm-protocols
+     window
+     '("WM_DELETE_WINDOW"))
+    
     (xlib:set-wm-properties
      window
      :name title
      :width width
      :height height
      )
+    ;; (xlib:change-window-attribute
+    ;;  display
+    ;;  my-window
+    ;;  :event-mask
+    ;;  (xlib:make-event-mask
+    ;;   :structure-notify :property-change))
     (setf gcontext (xlib:create-gcontext
                     :drawable window
                     :background black
@@ -46,9 +65,8 @@
     (xlib:map-window window)
     (xlib:display-finish-output display)
     (xlib:display-force-output display)
-    state
-    )
-)
+    state)
+  )
 
 (defun test-render (state)
   (multiple-value-bind (x y) (xlib:query-pointer (window state))
@@ -60,10 +78,34 @@
   (xlib:close-display (display win) :abort nil))
 
 (defun test-main ()
-  (let* ((win (init-window 100 100 "foo")))
-    (loop
-          (test-render win))
-    (close-window win)))
+  (let* ((win (init-window 100 100 "foo"))
+         (display (display win))
+         (wm-delete (xlib:intern-atom display "WM_DELETE_WINDOW")))
+    (unwind-protect                                              
+         (loop :while t
+               :do
+                  (test-render win)
+                  (format t "frame~%")
+                  (xlib:event-case (display)
+                    (:client-message (type data)
+                                     ;; TYPE is an atom
+                                     ;; DATA is a vector of 32-bit values
+                                     (when (and (eq type :wm_protocols)
+                                                (= (aref data 0) wm-delete))
+                                       (format t "WM_DELETE_WINDOW received~%")
+                                       (return-from test-main)))
+                    (:destroy-notify ()
+                                     (format t "Attempted to quit!~%")
+                                     (return-from test-main))
+                    (t () t))
+                  (sleep 0.01)
+               )                                           
+      (close-window win))                                      
+    
+    ;; (loop
+    ;;   (test-render win))
+    ;; (close-window win)
+    ))
     
 ;;     ;; (unwind-protect
 ;;     ;;      (loop :while 
