@@ -32,7 +32,7 @@
                   :height height
                   :background black
                   :parent (xlib:screen-root screen)
-                  :event-mask (xlib:make-event-mask :leave-window :exposure)))
+                  :event-mask (xlib:make-event-mask :leave-window :exposure :property-change :button-press :key-press)))
     (xlib:set-wm-properties
      window
      :name title
@@ -44,28 +44,41 @@
                     :background black
                     :foreground white))
     (xlib:map-window window)
+    (xlib:display-finish-output display)
+    (xlib:display-force-output display)
     state
-    ;; (loop
-    ;;   (xlib:process-event display
-    ;;                       :handler (lambda (&rest args)
-    ;;                                  (format t "args: ~a~%" args)
-    ;;                                  t)))
     )
 )
 
-;; (defun begin-drawing (win)
-;;   ()
-;;   (xlib:event-case display
-;;     ())
-;;   (xlib:process-event display
-;;                       :handler (lambda (&rest args)
-;;                                  (format t "args: ~a~%" args)
-;;                                  t))
-;;   (xlib:prc)
-;;   )
+(defun test-render (state)
+  (multiple-value-bind (x y) (xlib:query-pointer (window state))
+    (xlib:draw-rectangle (window state) (gcontext state) x y 100 100 (white state))
+    (xlib:display-force-output (display state))))
+
 
 (defun close-window (win)
   (xlib:close-display (display win) :abort nil))
+
+(defun test-main ()
+  (let* ((win (init-window 100 100 "foo")))
+    (loop
+          (test-render win))
+    (close-window win)))
+    
+;;     ;; (unwind-protect
+;;     ;;      (loop :while 
+;;     ;;            (xlib:event-case ((display win))
+;;     ;;              (:exposure
+;;     ;;               (count)
+;;     ;;               (test-render win))
+;;     ;;              (:destroy-notify ()
+;;     ;;                               (format t "window closed~%"))
+;;     ;;              ))
+;;     ;;   (close-window win))
+;;     ))
+
+
+
 
 ;;(defun init-window (width height title)
 ;;  (let* ((s (make-instance 'state))
@@ -101,63 +114,63 @@
 ;;(defun close-window (state)
 ;;  (xlib:close-display (display state)))
 
- ;; (
- ;; (let ((display nil)                     ; ; ; ;
- ;;       (abort t))                              ; ; ; ;
- ;;   (unwind-protect                         ; ; ; ;
- ;;        (progn                                  ; ; ; ;
- ;;          (setq display (open-display host))      ; ; ; ;
- ;;          (multiple-value-prog1                   ; ; ; ;
- ;;              (let* ((screen (display-default-screen display)) ; ; ; ;
- ;;                     (black (screen-black-pixel screen))     ; ; ; ;
- ;;                     (white (screen-white-pixel screen))     ; ; ; ;
- ;;                     (font (open-font display font))         ; ; ; ;
- ;;                     (border 1)			; Minimum margin around the text ; ; ; ;
- ;;                     (width (+ (text-width font string) (* 2 border))) ; ; ; ;
- ;;                     (height (+ (max-char-ascent font) (max-char-descent font) (* 2 border))) ; ; ; ;
- ;;                     (x (truncate (- (screen-width screen) width) 2)) ; ; ; ;
- ;;                     (y (truncate (- (screen-height screen) height) 2)) ; ; ; ;
- ;;                     (window (create-window :parent (screen-root screen) ; ; ; ;
- ;;                                            :x x :y y :width width :height height   ; ; ; ;
- ;;                                            :background black                       ; ; ; ;
- ;;                                            :border white                           ; ; ; ;
- ;;                                            :border-width 1                         ; ; ; ;
- ;;                                            :colormap (screen-default-colormap screen) ; ; ; ;
- ;;                                            :bit-gravity :center                    ; ; ; ;
- ;;                                            :event-mask '(:exposure :button-press))) ; ; ; ;
- ;;                     (gcontext (create-gcontext :drawable window ; ; ; ;
- ;;                                                :background black                       ; ; ; ;
- ;;                                                :foreground white                       ; ; ; ;
- ;;                                                :font font)))                           ; ; ; ;
- ;;                ;; Set window manager hints  ; ; ; ;
- ;;                (set-wm-properties window               ; ; ; ;
- ;;                                   :name 'hello-world                      ; ; ; ;
- ;;                                   :icon-name string                       ; ; ; ;
- ;;                                   :resource-name string                   ; ; ; ;
- ;;                                   :resource-class 'hello-world            ; ; ; ;
- ;;                                   :command (list* 'hello-world host args) ; ; ; ;
- ;;                                   :x x :y y :width width :height height   ; ; ; ;
- ;;                                   :min-width width :min-height height     ; ; ; ;
- ;;                                   :input :off :initial-state :normal)     ; ; ; ;
- ;;                (map-window window)		; Map the window ; ; ; ;
- ;;                ;; Handle events             ; ; ; ;
- ;;                (event-case (display :discard-p t :force-output-p t) ; ; ; ;
- ;;                  (exposure  ;; Come here on exposure events ; ; ; ;
- ;;                   (window count)                          ; ; ; ;
- ;;                   (when (zerop count) ;; Ignore all but the last exposure event ; ; ; ;
- ;;                     (with-state (window)                    ; ; ; ;
- ;;                       (let ((x (truncate (- (drawable-width window) width) 2)) ; ; ; ;
- ;;                             (y (truncate (- (+ (drawable-height window) ; ; ; ;
- ;;                                                (max-char-ascent font))                 ; ; ; ;
- ;;                                             (max-char-descent font))                ; ; ; ;
- ;;                                          2)))                                    ; ; ; ;
- ;;                         ;; Draw text centered in widnow ; ; ; ;
- ;;                         (clear-area window)                     ; ; ; ;
- ;;                         (draw-glyphs window gcontext x y string))) ; ; ; ;
- ;;                     ;; Returning non-nil causes event-case to exit ; ; ; ;
- ;;                     nil))                                   ; ; ; ;
- ;;                  (button-press () t)))  ;; Pressing any mouse-button exits ; ; ; ;
- ;;            (setq abort nil)))                      ; ; ; ;
- ;;     ;; Ensure display is closed when done ; ; ; ;
- ;;     (when display                           ; ; ; ;
- ;;       (close-display display :abort abort)))))
+;; (
+;; (let ((display nil)                     ; ; ; ;
+;;       (abort t))                              ; ; ; ;
+;;   (unwind-protect                         ; ; ; ;
+;;        (progn                                  ; ; ; ;
+;;          (setq display (open-display host))      ; ; ; ;
+;;          (multiple-value-prog1                   ; ; ; ;
+;;              (let* ((screen (display-default-screen display)) ; ; ; ;
+;;                     (black (screen-black-pixel screen))     ; ; ; ;
+;;                     (white (screen-white-pixel screen))     ; ; ; ;
+;;                     (font (open-font display font))         ; ; ; ;
+;;                     (border 1)			; Minimum margin around the text ; ; ; ;
+;;                     (width (+ (text-width font string) (* 2 border))) ; ; ; ;
+;;                     (height (+ (max-char-ascent font) (max-char-descent font) (* 2 border))) ; ; ; ;
+;;                     (x (truncate (- (screen-width screen) width) 2)) ; ; ; ;
+;;                     (y (truncate (- (screen-height screen) height) 2)) ; ; ; ;
+;;                     (window (create-window :parent (screen-root screen) ; ; ; ;
+;;                                            :x x :y y :width width :height height   ; ; ; ;
+;;                                            :background black                       ; ; ; ;
+;;                                            :border white                           ; ; ; ;
+;;                                            :border-width 1                         ; ; ; ;
+;;                                            :colormap (screen-default-colormap screen) ; ; ; ;
+;;                                            :bit-gravity :center                    ; ; ; ;
+;;                                            :event-mask '(:exposure :button-press))) ; ; ; ;
+;;                     (gcontext (create-gcontext :drawable window ; ; ; ;
+;;                                                :background black                       ; ; ; ;
+;;                                                :foreground white                       ; ; ; ;
+;;                                                :font font)))                           ; ; ; ;
+;;                ;; Set window manager hints  ; ; ; ;
+;;                (set-wm-properties window               ; ; ; ;
+;;                                   :name 'hello-world                      ; ; ; ;
+;;                                   :icon-name string                       ; ; ; ;
+;;                                   :resource-name string                   ; ; ; ;
+;;                                   :resource-class 'hello-world            ; ; ; ;
+;;                                   :command (list* 'hello-world host args) ; ; ; ;
+;;                                   :x x :y y :width width :height height   ; ; ; ;
+;;                                   :min-width width :min-height height     ; ; ; ;
+;;                                   :input :off :initial-state :normal)     ; ; ; ;
+;;                (map-window window)		; Map the window ; ; ; ;
+;;                ;; Handle events             ; ; ; ;
+;;                (event-case (display :discard-p t :force-output-p t) ; ; ; ;
+;;                  (exposure  ;; Come here on exposure events ; ; ; ;
+;;                   (window count)                          ; ; ; ;
+;;                   (when (zerop count) ;; Ignore all but the last exposure event ; ; ; ;
+;;                     (with-state (window)                    ; ; ; ;
+;;                       (let ((x (truncate (- (drawable-width window) width) 2)) ; ; ; ;
+;;                             (y (truncate (- (+ (drawable-height window) ; ; ; ;
+;;                                                (max-char-ascent font))                 ; ; ; ;
+;;                                             (max-char-descent font))                ; ; ; ;
+;;                                          2)))                                    ; ; ; ;
+;;                         ;; Draw text centered in widnow ; ; ; ;
+;;                         (clear-area window)                     ; ; ; ;
+;;                         (draw-glyphs window gcontext x y string))) ; ; ; ;
+;;                     ;; Returning non-nil causes event-case to exit ; ; ; ;
+;;                     nil))                                   ; ; ; ;
+;;                  (button-press () t)))  ;; Pressing any mouse-button exits ; ; ; ;
+;;            (setq abort nil)))                      ; ; ; ;
+;;     ;; Ensure display is closed when done ; ; ; ;
+;;     (when display                           ; ; ; ;
+;;       (close-display display :abort abort)))))

@@ -2,8 +2,8 @@
 ;(sb-ext:restrict-compiler-policy 'debug 3)
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (load "./3rdparty/asdf/build/asdf.lisp"))
-
+  (unless (find-package 'asdf)
+    (load "./3rdparty/asdf/build/asdf.lisp")))
 
 ;; Force ASDF to look here for systems.
 (asdf:initialize-source-registry
