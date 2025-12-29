@@ -8,7 +8,7 @@
            #:draw-rectangle
            #:get-mouse-x
            #:get-mouse-y
-           #:is-mouse-button-pressed
+           #:is-mouse-button-down
            #:get-window-width
            #:get-window-height
 

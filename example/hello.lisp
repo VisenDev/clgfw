@@ -11,5 +11,5 @@
                             :x (clgfw:get-mouse-x state) :y (clgfw:get-mouse-y state)
                             :width 10 :height 10
                             :r 200 :g 100
-                            :b (if (clgfw:is-mouse-button-pressed state :left) 100 200)))))
+                            :b (if (clgfw:is-mouse-button-down state :left) 100 200)))))
 
