@@ -1,5 +1,12 @@
 (in-package #:clgfw)
 
+(defstruct color
+  (r 0 :type (integer 0 256))
+  (g 0 :type (integer 0 256))
+  (b 0 :type (integer 0 256)))
+
+(deftype mouse-button () '(member :left :right :middle))
+
 (defmacro with-window (name (width height title) &body body)
   `(let ((,name (init-window ,width ,height ,title)))
      (unwind-protect

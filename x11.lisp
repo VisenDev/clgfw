@@ -8,6 +8,9 @@
 (defclass state ()
   ((window-should-keep-running  :accessor window-should-keep-running :initform t)
    (wm-delete-atom :accessor wm-delete-atom)
+   (mouse-left-button-down :accessor mouse-left-button-down :initform nil)
+   (mouse-middle-button-down :accessor mouse-middle-button-down :initform nil)
+   (mouse-right-button-down :accessor mouse-right-button-down :initform nil)
    (black :accessor black)
    (white :accessor white)
    (font :accessor font)
@@ -38,7 +41,9 @@
                                :property-change
                                :structure-notify
                                :button-press
-                               :key-press)))
+                               :button-release
+                               :key-press
+                               )))
     (xlib::set-wm-protocols
      window
      '("WM_DELETE_WINDOW"))
@@ -62,7 +67,7 @@
   )
 
 (defun draw-rectangle (state &key x y width height r g b)
-  (let* ((hash (format nil "~a~a~a" r g b))
+  (let* ((hash (format nil "~a-~a-~a" r g b))
          (colormap (colormap state))
          (pixel (ignore-errors (xlib:lookup-color colormap hash))))
     (unless pixel
@@ -82,20 +87,52 @@
     (declare (ignore x))
     y))
 
+(declaim (ftype (function (state mouse-button) boolean) is-mouse-button-pressed))
+(defun is-mouse-button-pressed (state button)
+  (ecase button
+    (:left (mouse-left-button-down state))
+    (:right (mouse-right-button-down state))
+    (:middle (mouse-middle-button-down state))))
+
+(defun get-window-width (state)
+  (xlib:drawable-width (window state)))
+(defun get-window-height (state)
+  (xlib:drawable-height (window state)))
+
 (defun begin-drawing (state)
   (declare (ignore state)))
 
-(defun end-drawing (state)
-  (xlib:display-force-output (display state))
-  (when (xlib:event-listen (display state))
-    (xlib:event-case ((display state))
+(defun end-drawing (state &aux display)
+  (setf display (display state))
+  (xlib:display-force-output display)
+  (when (xlib:event-listen display)
+    (xlib:event-case (display)
+      ;; (:resize-request (width height)
+      ;;                  (format t "Window resized to ~a/~a~%" width height)
+      ;;                  (setf (xlib:drawable-height (window state)) height)
+      ;;                  (setf (xlib:drawable-width (window state)) width))
+      (:button-press (code)
+                     (ecase code
+                       (1 (setf (mouse-left-button-down state) t))
+                       (2 (setf (mouse-middle-button-down state) t))
+                       (3 (setf (mouse-right-button-down state) t)))
+                     t
+                     )
+      (:button-release (code)
+                     (ecase code
+                       (1 (setf (mouse-left-button-down state) nil))
+                       (2 (setf (mouse-middle-button-down state) nil))
+                       (3 (setf (mouse-right-button-down state) nil)))
+                     t
+                     )
       (:client-message (type data)
                        ;; TYPE is an atom
                        ;; DATA is a vector of 32-bit values
                        (when (and (eq type :wm_protocols)
                                   (eq (aref data 0) (wm-delete-atom state)))
                          (setf (window-should-keep-running state) nil)
-                         (return-from end-drawing)))
+                         (return-from end-drawing))
+                       t)
       (:destroy-notify ()
                        (setf (window-should-keep-running state) nil)
                        (return-from end-drawing))

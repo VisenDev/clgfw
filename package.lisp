@@ -8,6 +8,11 @@
            #:draw-rectangle
            #:get-mouse-x
            #:get-mouse-y
+           #:is-mouse-button-pressed
+           #:get-window-width
+           #:get-window-height
+
+           ;; Utility wrappers
            #:with-window
            #:with-drawing
            #:while-running
