@@ -12,6 +12,12 @@
            #:get-window-width
            #:get-window-height
 
+           ;; Common functions between implementations
+           #:make-color
+           #:color-r
+           #:color-g
+           #:color-b
+
            ;; Utility wrappers
            #:with-window
            #:with-drawing
