@@ -32,6 +32,8 @@
    xdg-surface
    xdg-toplevel
    (wl-keyboard :initform nil)
+   (wl-pointer :initform nil)
+   cursor-surface
 
    ;; State
    (width :type wl-int)
@@ -41,7 +43,16 @@
    (xkb-state :initform (cffi:null-pointer))
    (messages :initform (make-ring-buffer))
    (press-map :initform (make-array 4 :element-type 'bit)
-              :documentation "Simple bit-vector to hold WASD key states")))
+              :documentation "Simple bit-vector to hold WASD key states")
+   (ptr-x :initform nil)
+   (ptr-y :initform nil)
+   (btn-left? :initform nil)
+   (btn-right? :initform nil)
+   (btn-mid? :initform nil)
+   (radius :initform 50)
+   latest-pointer-serial
+   (custom-cursor-on? :initform nil)
+   ))
 
 ;; For use with app slot press-map
 (defconstant +w+ 0)
