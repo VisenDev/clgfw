@@ -29,11 +29,14 @@
    wl-shm
    wl-compositor
    xdg-wm-base
+   wl-seat
 
    ;; Objects
    wl-surface
    xdg-surface
    xdg-toplevel
+   (wl-pointer :initform nil)
+   (wl-keyboard :initform nil)
    (pool :initform nil)
    
    shm
@@ -43,18 +46,81 @@
    (front-buffer :accessor front-buffer :type render-buffer)
    (back-buffer :accessor back-buffer :type render-buffer)
    
+   ;; State
+   (pointer-x :initform nil)
+   (pointer-y :initform nil)
    (need-next-frame-p :accessor need-next-frame :initform t)
    (window-resized-p :accessor window-resized-p :initform t)
    (width :initform 640 :accessor width)
    (height :initform 480 :accessor height)
-
-   ;; State
-   (offset :initform 0.0)
-   (last-frame :initform 0)
    (configured :accessor configured :initform nil)
    (window-should-close-p :initform nil :accessor window-should-close-p))
   
   (:documentation "An example Wayland application"))
+
+(defun handle-pointer (app &rest event)
+  (with-slots (width height pointer-x pointer-y
+                     buttons hover-cell) app
+    (event-case event
+      ;; Update pointer position
+      (:enter (serial surface x y)
+       (declare (ignore serial surface))
+       (setf pointer-x x pointer-y y))
+      (:leave (serial surface)
+       (declare (ignore serial surface))
+       (setf pointer-x nil pointer-y nil))
+      (:motion (time-ms x y)
+       (declare (ignore time-ms))
+       (setf pointer-x x pointer-y y))
+      ;; Update active cell state based on mousedown location
+      (:button (serial time-ms button state)
+       (declare (ignore serial time-ms))
+       (when (= button input-event-codes:+btn-left+)
+         (format t "Left mouse is ~a~%" state)
+         ;; (setf hover-active? (eq state :pressed))
+         ;; (when (and hover-cell (eq state :pressed))
+         ;;   (destructuring-bind (x y) hover-cell
+         ;;     (funcall (cdr (aref buttons y x)) app)))
+         ))
+      ;; Update hover cell
+      ;; (:frame ()
+      ;;  (block cells
+      ;;    (when hover-active?
+      ;;      (return-from cells))
+      ;;    (when (and pointer-x pointer-y)
+      ;;      (do-cells (x y)
+      ;;        (multiple-value-bind (cx cy cw ch) (cell-region x y width height)
+      ;;          (when (and (<= cx pointer-x (+ cx cw))
+      ;;                     (<= cy pointer-y (+ cy ch)))
+      ;;            (setf hover-cell (list x y))
+      ;;            (return-from cells)))))
+      ;;    (setf hover-cell nil))
+      ;;  (draw-and-commit app))
+      )))
+
+(defun handle-seat (ctx &rest event)
+  (with-slots (wl-seat wl-pointer wl-keyboard) ctx
+    (event-case event
+      (:capabilities (capabilities)
+       (if (member :pointer capabilities)
+           (unless wl-pointer
+             (setf wl-pointer (wl-seat.get-pointer wl-seat))
+             (push (alexandria:curry 'handle-pointer ctx)
+                   (wl-proxy-hooks wl-pointer)))
+           (when wl-pointer
+             (destroy-proxy wl-pointer)
+             (setf wl-pointer nil)))
+       (if (member :keyboard capabilities)
+           (unless wl-keyboard
+             (setf wl-keyboard (wl-seat.get-keyboard wl-seat))
+
+             ;;TODO uncomment this
+             ;; (push (alexandria:curry 'handle-keyboard ctx)
+             ;;       (wl-proxy-hooks wl-keyboard))
+             )
+           (when wl-keyboard
+             (destroy-proxy wl-keyboard)
+             (setf wl-keyboard nil)))))))
 
 (defun ensure-buffer-memory-allocated (ctx)
   (unless (window-resized-p ctx) (return-from ensure-buffer-memory-allocated))
@@ -185,29 +251,94 @@
              (setf (need-next-frame ctx) t)
              ))))
 
-(defun handle-registry (app registry &rest event)
-  (with-slots (wl-shm wl-compositor xdg-wm-base) app
+#|
+(defun handle-keydown (app sym)
+  (cond
+    ((<= #K"0" sym #K"9") (push-digit (- sym #K"0") app))
+    ((= sym #K"BackSpace") (pop-digit app))
+    ((= sym #K"plus") (push-op #'+ app))
+    ((= sym #K"minus") (push-op #'- app))
+    ((= sym #K"asterisk") (push-op #'* app))
+    ((= sym #K"slash") (push-op #'floor app))
+    ((= sym #K"Escape") (clear-calc app))
+    ((or (= sym #K"equal")
+         (= sym #K"Return"))
+     (eval-calc app))))
+
+(defun handle-keyboard (app &rest event)
+  (with-slots (xkb-context xkb-keymap xkb-state) app
+    (event-case event
+      ;; Set or update the keyboard key-map
+      (:keymap (format fd size)
+       (let ((shm (shm:make-shm fd)))
+         (unwind-protect
+           (progn
+             (assert (eq format :xkb-v1))
+             (shm:with-mmap (ptr shm size :prot '(:read) :flags '(:private))
+               (let* ((keymap (xkb:xkb-keymap-new-from-string
+                                xkb-context ptr :text-v1 ()))
+                      (state (xkb:xkb-state-new keymap)))
+                 (xkb:xkb-keymap-unref xkb-keymap)
+                 (xkb:xkb-state-unref xkb-state)
+                 (setf xkb-keymap keymap
+                       xkb-state state))))
+           (shm:close-shm shm))))
+
+      ;; Pass thru mod key updates to the xkb state machine
+      (:modifiers (serial depressed latched locked group)
+       (declare (ignore serial))
+       (xkb:xkb-state-update-mask
+         xkb-state depressed latched locked 0 0 group))
+
+      ;; Handle keys as focus enters the surface
+      (:enter (serial surface keys)
+       (declare (ignore serial surface))
+       (dotimes (i (length keys))
+         (let* ((keycode (+ 8 (aref keys i)))
+                (sym (xkb:xkb-state-key-get-one-sym xkb-state keycode)))
+           (when (plusp sym)
+             (handle-keydown app sym))))
+       (draw-and-commit app))
+
+      ;; Handle keys as they're pressed
+      (:key (serial time-ms key state)
+       (declare (ignore serial time-ms))
+       (let* ((keycode (+ 8 key))
+              (sym (xkb:xkb-state-key-get-one-sym xkb-state keycode)))
+         (when (and (plusp sym) (eq state :pressed))
+           (handle-keydown app sym)))
+       (draw-and-commit app)))))
+|#
+
+(defun handle-registry (ctx registry &rest event)
+  (with-slots (wl-shm wl-compositor xdg-wm-base wl-seat wl-registry) ctx
     (event-case event
       (:global (name interface version)
-       (declare (ignore version))
-       (case (alexandria:when-let ((it (find-interface-named interface)))
-               (class-name it))
-         (wl-shm
-           (format t "found shm~%")
-           (setf wl-shm (wl-registry.bind
-                          registry name 'wl-shm 1)))
-         (wl-compositor
-           (format t "found compositor~%")
-           (setf wl-compositor (wl-registry.bind
-                                 registry name 'wl-compositor 4)))
-         (xdg-wm-base
-           (format t "found xdg~%")
-           (setf xdg-wm-base (wl-registry.bind
-                               registry name 'xdg-wm-base 1))
-           (push (evelambda
-                   (:ping (serial)
-                    (xdg-wm-base.pong xdg-wm-base serial)))
-                 (wl-proxy-hooks xdg-wm-base))))))))
+               (declare (ignore version))
+               (case (alexandria:when-let ((it (find-interface-named interface)))
+                       (class-name it))
+                 (wl-shm
+                  (format t "found shm~%")
+                  (setf wl-shm (wl-registry.bind
+                                registry name 'wl-shm 1)))
+                 (wl-seat
+                  (format t "Found seat~%")
+                  (setf wl-seat (wl-registry.bind
+                                 wl-registry name 'wl-seat 5))
+                  (push (alexandria:curry 'handle-seat ctx)
+                        (wl-proxy-hooks wl-seat)))
+                 (wl-compositor
+                  (format t "found compositor~%")
+                  (setf wl-compositor (wl-registry.bind
+                                       registry name 'wl-compositor 4)))
+                 (xdg-wm-base
+                  (format t "found xdg~%")
+                  (setf xdg-wm-base (wl-registry.bind
+                                     registry name 'xdg-wm-base 1))
+                  (push (evelambda
+                          (:ping (serial)
+                                 (xdg-wm-base.pong xdg-wm-base serial)))
+                        (wl-proxy-hooks xdg-wm-base))))))))
 
 (defmethod close-window ((ctx ctx/wayland))
   (with-slots (shm pool) ctx
