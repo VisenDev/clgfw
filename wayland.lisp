@@ -37,6 +37,44 @@
   
   (:documentation "An example Wayland application"))
 
+(defun render-frame (app)
+  (with-slots (wl-shm offset) app
+    (let* ((width 640)
+           (height 480)
+           (stride (* width 4))
+           (size (* stride height))
+           (offset* (floor (mod offset 8)))
+           buffer
+           shm
+           pool-data
+           )
+      (setf shm (posix-shm:open-shm* :direction :io))
+      (posix-shm:truncate-shm shm size)
+      (setf pool-data (posix-shm:mmap-shm shm size))
+      (with-proxy (pool (wl-shm.create-pool wl-shm (posix-shm:shm-fd shm) size))
+        (setf buffer (wl-shm-pool.create-buffer
+                      pool 0 width height stride
+                      :xrgb8888)))
+      (dotimes (y height)
+        (dotimes (x width)
+          (setf (cffi:mem-aref pool-data :uint32 (+ (* y width) x))
+                (if (< (mod (+ (+ x offset*)
+                               (* (floor (+ y offset*) 8) 8)) 16)
+                       8)
+                    #xff666666
+                    #xffeeeeee))))
+      (push (evelambda
+              (:release ()
+                        ;; Sent by the compositor when it's no longer using this buffer.
+                        (destroy-proxy buffer)))
+            (wl-proxy-hooks buffer))
+
+      (posix-shm:close-shm shm)
+      (posix-shm:munmap pool-data size)
+      buffer
+      )
+    ))
+
 (defun draw-frame (app)
   (with-slots (wl-shm offset) app
     (let* ((width 640)
@@ -48,8 +86,8 @@
       (posix-shm:with-open-shm-and-mmap* (shm pool-data (:direction :io) (size))
         (with-proxy (pool (wl-shm.create-pool wl-shm (posix-shm:shm-fd shm) size))
           (setf buffer (wl-shm-pool.create-buffer
-                         pool 0 width height stride
-                         :xrgb8888)))
+                        pool 0 width height stride
+                        :xrgb8888)))
 
         ;; Draw checkerboxed background
         (dotimes (y height)
@@ -63,8 +101,8 @@
 
         (push (evelambda
                 (:release ()
-                 ;; Sent by the compositor when it's no longer using this buffer.
-                 (destroy-proxy buffer)))
+                          ;; Sent by the compositor when it's no longer using this buffer.
+                          (destroy-proxy buffer)))
               (wl-proxy-hooks buffer))
         buffer))))
 
@@ -85,7 +123,7 @@
         (incf offset (* (/ (- time last-frame) 1000.0) 24)))
 
       ;; Submit a new frame for this event
-      (let ((wl-buffer (draw-frame app)))
+      (let ((wl-buffer (render-frame app)))
         (wl-surface.attach wl-surface wl-buffer 0 0)
         (wl-surface.damage-buffer
           wl-surface 0 0 +most-positive-wl-int+ +most-positive-wl-int+)
@@ -146,7 +184,7 @@
       (push (evelambda
               (:configure (serial)
                           (xdg-surface.ack-configure xdg-surface serial)
-                          (let ((buffer (draw-frame app)))
+                          (let ((buffer (render-frame app)))
                             (wl-surface.attach wl-surface buffer 0 0)
                             (wl-surface.commit wl-surface))))
             (wl-proxy-hooks xdg-surface))
