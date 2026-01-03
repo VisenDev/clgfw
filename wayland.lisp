@@ -34,16 +34,17 @@
    wl-surface
    xdg-surface
    xdg-toplevel
-   pool
+   (pool :initform nil)
    
    shm
-   (backing-pool-data :accessor backing-pool-data)
-   (backing-pool-data-size :accessor backing-pool-data-size)
+   (backing-pool-data :accessor backing-pool-data :initform nil)
+   (backing-pool-data-size :accessor backing-pool-data-size :initform nil)
    
    (front-buffer :accessor front-buffer :type render-buffer)
    (back-buffer :accessor back-buffer :type render-buffer)
    
-   (need-next-frame :accessor need-next-frame :initform t)
+   (need-next-frame-p :accessor need-next-frame :initform t)
+   (window-resized-p :accessor window-resized-p :initform t)
    (width :initform 640 :accessor width)
    (height :initform 480 :accessor height)
 
@@ -51,16 +52,61 @@
    (offset :initform 0.0)
    (last-frame :initform 0)
    (configured :accessor configured :initform nil)
-   (window-should-close :initform nil :accessor window-should-close))
+   (window-should-close-p :initform nil :accessor window-should-close-p))
   
   (:documentation "An example Wayland application"))
 
+(defun ensure-buffer-memory-allocated (ctx)
+  (unless (window-resized-p ctx) (return-from ensure-buffer-memory-allocated))
+
+  (format t "Reallocating memory due to window resize~%")
+
+  ;; Reset window resized flag
+  (setf (window-resized-p ctx) nil)
+  
+  (with-slots (shm wl-shm pool backing-pool-data
+               backing-pool-data-size width height
+               front-buffer back-buffer) ctx
+
+    ;; Free old memory if allocated
+    (unless (null backing-pool-data)
+      (assert backing-pool-data-size)
+      (assert pool)
+      (wl-shm-pool.destroy pool)
+      (posix-shm:munmap (backing-pool-data ctx) (backing-pool-data-size ctx)))
+    
+    ;; Allocate new memory  
+    (let* ((stride (* width 4))
+           (buffer-size (* height stride))
+           (total-size (* buffer-size 2))
+           )
+      (posix-shm:truncate-shm shm total-size)
+      (setf pool (wl-shm.create-pool wl-shm (posix-shm:shm-fd shm) total-size))
+      (setf (backing-pool-data ctx) (posix-shm:mmap-shm shm total-size))
+      (setf (backing-pool-data-size ctx) total-size)
+      (setf front-buffer
+            (make-instance 'render-buffer
+                           :pool-data (backing-pool-data ctx)
+                           :buffer (wl-shm-pool.create-buffer
+                                    pool 0 width height stride :xrgb8888)))
+      (setf back-buffer
+            (make-instance 'render-buffer
+                           :pool-data (cffi:inc-pointer (backing-pool-data ctx) buffer-size)
+                           :buffer (wl-shm-pool.create-buffer
+                                    pool buffer-size width height stride :xrgb8888)))
+      (push (evelambda (:release ())) (wl-proxy-hooks (buffer front-buffer)))
+      (push (evelambda (:release ())) (wl-proxy-hooks (buffer back-buffer)))
+      )))
+
 (defmethod begin-drawing ((ctx ctx/wayland))
+  (ensure-buffer-memory-allocated ctx)
   )
 
 (defmethod end-drawing ((ctx ctx/wayland))
-  (when (window-should-close ctx)
+  (when (window-should-close-p ctx)
     (return-from end-drawing))
+  
+  (ensure-buffer-memory-allocated ctx)
   
   (unless (configured ctx)
     (loop
@@ -99,16 +145,27 @@
     result))
 
 (defmethod draw-rectangle ((ctx ctx/wayland) x y w h color)
+  (when (or (zerop (width ctx))
+            (zerop (height ctx)))
+    (format t "NOTE: skipping rendering...~%")
+    (return-from draw-rectangle))
+
+  (ensure-buffer-memory-allocated ctx)
   (let* ((pool-data (pool-data (back-buffer ctx)))
-         (stride (* (width ctx) 4))        ; bytes per row
+         (stride (* (width ctx) 4))     ; bytes per row
          (row-pixels (/ stride 4))
          (x-end (min (+ x w) (width ctx)))
-         (y-end (min (+ y h) (height ctx))))
+         (y-end (min (+ y h) (height ctx)))
+         (xrgb (color-to-xrbg color)))
+    (declare (type fixnum x-end y-end x y w h))
+      
     (loop :for dy :from y :below y-end :do
-      (loop :for dx :from x :below x-end :do
+      (loop
+        :with dy-offset = (* dy row-pixels)
+        :for dx :from x :below x-end :do
         (setf (cffi:mem-aref pool-data :uint32
-                              (+ dx (* dy row-pixels)))
-              (color-to-xrbg color))))))
+                             (+ dx dy-offset))
+              xrgb)))))
 
 
 (defun handle-frame-callback (ctx callback &rest event)
@@ -153,11 +210,14 @@
                  (wl-proxy-hooks xdg-wm-base))))))))
 
 (defmethod close-window ((ctx ctx/wayland))
-  (with-slots (shm) ctx
+  (with-slots (shm pool) ctx
     (posix-shm:close-shm shm)
+    (wl-shm-pool.destroy pool)
     (posix-shm:munmap (backing-pool-data ctx) (backing-pool-data-size ctx)))
 
   (wl-display-disconnect (wl-display ctx)))
+
+
 
 (defun init-window/wayland (width height title)
   (declare (ignore width height))
@@ -176,37 +236,7 @@
 
       ;; Allocate shm
       (setf shm (posix-shm:open-shm* :direction :io))
-      (let* ((stride (* width 4))
-             (buffer-size (* height stride))
-             (total-size (* buffer-size 2))
-             )
-        (posix-shm:truncate-shm shm total-size)
-        (setf pool (wl-shm.create-pool wl-shm (posix-shm:shm-fd shm) total-size))
-        (setf (backing-pool-data ctx) (posix-shm:mmap-shm shm total-size))
-        (setf (backing-pool-data-size ctx) total-size)
-        (setf front-buffer
-              (make-instance 'render-buffer
-                             :pool-data (backing-pool-data ctx)
-                             :buffer (wl-shm-pool.create-buffer
-                                      pool 0 width height stride :xrgb8888)
-                             ))
-        (setf back-buffer
-              (make-instance 'render-buffer
-                             :pool-data (cffi:inc-pointer (backing-pool-data ctx) buffer-size)
-                             :buffer (wl-shm-pool.create-buffer
-                                      pool buffer-size width height stride :xrgb8888)
-                             ))
-         (push (evelambda
-                 (:release ()
-                           ))
-               (wl-proxy-hooks (buffer front-buffer)))
-
-         (push (evelambda
-                 (:release ()
-                           ))
-               (wl-proxy-hooks (buffer back-buffer)))
-        )
-
+      (ensure-buffer-memory-allocated ctx)
 
       ;; Create the surface & give it the toplevel role
       (setf wl-surface (wl-compositor.create-surface wl-compositor)
@@ -215,7 +245,7 @@
             xdg-toplevel (xdg-surface.get-toplevel xdg-surface))
       (push (evlambda
               (:close ()
-                      (setf (window-should-close ctx) t)))
+                      (setf (window-should-close-p ctx) t)))
             (wl-proxy-hooks xdg-toplevel))
       (push (evelambda
               (:configure (serial)
@@ -224,6 +254,20 @@
                           (setf (configured ctx) t)
                           ))
             (wl-proxy-hooks xdg-surface))
+      (push (evlambda
+              (:configure (new-width new-height states)
+                          (declare (ignore states))
+
+                          (format t "Window resized to ~ax~a~%" new-width new-height)
+                          ;; Adjust the height and draw a new frame
+                          (if (or (zerop new-width) (zerop new-height))
+                              (setf width 480 height 360)
+                              (setf width new-width height new-height))
+                          (setf (window-resized-p ctx) t)
+                          )
+              (:close ()
+                      (setf (window-should-close-p ctx) t)))
+            (wl-proxy-hooks xdg-toplevel))
       (xdg-toplevel.set-title xdg-toplevel title)
       (wl-surface.commit wl-surface)
 
@@ -243,17 +287,17 @@
         (y 35)
         (dx 1)
         (dy 1))
-    (loop :until (window-should-close app) :do
+    (loop :until (window-should-close-p app) :do
           (begin-drawing app)
-          (draw-rectangle app 0 0 300 300 (make-color :r 130 :g 200 :b 220))
+          (draw-rectangle app 0 0 (width app) (height app) (make-color :r 130 :g 200 :b 220))
           (draw-rectangle app x y 30 30 (make-color :r 10 :g 200 :b 20))
           (when (> x 270)
             (setf dx -1))
-          (when (< x 0)
+          (when (<= x 0)
             (setf dx 1))
           (when (> y 270)
             (setf dy -1))
-          (when (< y 0)
+          (when (<= y 0)
             (setf dy 1))
           (setf x (+ x dx))
           (setf y (+ y dy))
