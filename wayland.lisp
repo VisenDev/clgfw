@@ -47,8 +47,12 @@
    (back-buffer :accessor back-buffer :type render-buffer)
    
    ;; State
-   (pointer-x :initform nil)
-   (pointer-y :initform nil)
+   (mouse-x :initform 0 :accessor mouse-x :type fixnum)
+   (mouse-y :initform 0 :accessor mouse-y :type fixnum)
+   (mouse-left-button-down :accessor mouse-left-button-down :initform nil)
+   (mouse-middle-button-down :accessor mouse-middle-button-down :initform nil)
+   (mouse-right-button-down :accessor mouse-right-button-down :initform nil)
+
    (need-next-frame-p :accessor need-next-frame :initform t)
    (window-resized-p :accessor window-resized-p :initform t)
    (width :initform 640 :accessor width)
@@ -58,44 +62,72 @@
   
   (:documentation "An example Wayland application"))
 
-(defun handle-pointer (app &rest event)
-  (with-slots (width height pointer-x pointer-y
-                     buttons hover-cell) app
+(defmethod is-mouse-button-down ((ctx ctx/wayland) (button symbol))
+  (ecase button
+    (:left (mouse-left-button-down ctx))
+    (:right (mouse-right-button-down ctx))
+    (:middle (mouse-middle-button-down ctx))))
+
+(defmethod get-window-width ((ctx ctx/wayland))
+  (width ctx))
+
+(defmethod get-window-height ((ctx ctx/wayland))
+  (height ctx))
+
+(defmethod get-mouse-x ((ctx ctx/wayland))
+  (mouse-x ctx))
+
+(defmethod get-mouse-y ((ctx ctx/wayland))
+  (mouse-y ctx))
+
+(defmethod window-should-keep-running ((ctx ctx/wayland))
+  (not (window-should-close-p ctx)))
+
+(defun handle-pointer (ctx &rest event)
+  (with-slots (width height mouse-x mouse-y
+               buttons hover-cell) ctx
     (event-case event
       ;; Update pointer position
       (:enter (serial surface x y)
-       (declare (ignore serial surface))
-       (setf pointer-x x pointer-y y))
+              (declare (ignore serial surface))
+              (setf mouse-x x mouse-y y))
       (:leave (serial surface)
-       (declare (ignore serial surface))
-       (setf pointer-x nil pointer-y nil))
+              (declare (ignore serial surface))
+              (setf mouse-x 0 mouse-y 0))
       (:motion (time-ms x y)
-       (declare (ignore time-ms))
-       (setf pointer-x x pointer-y y))
+               (declare (ignore time-ms))
+               (setf mouse-x x mouse-y y))
       ;; Update active cell state based on mousedown location
       (:button (serial time-ms button state)
-       (declare (ignore serial time-ms))
-       (when (= button input-event-codes:+btn-left+)
-         (format t "Left mouse is ~a~%" state)
-         ;; (setf hover-active? (eq state :pressed))
-         ;; (when (and hover-cell (eq state :pressed))
-         ;;   (destructuring-bind (x y) hover-cell
-         ;;     (funcall (cdr (aref buttons y x)) app)))
-         ))
+               (declare (ignore serial time-ms))
+               (cond
+                 ((= button input-event-codes:+btn-left+) (setf (mouse-left-button-down ctx) (eq state :pressed)))
+                 ((= button input-event-codes:+btn-right+) (setf (mouse-right-button-down ctx) (eq state :pressed)))
+                 ((= button input-event-codes:+btn-middle+) (setf (mouse-middle-button-down ctx) (eq state :pressed)))
+                 )
+               ;; (when (= button input-event-codes:+btn-left+)
+               ;;   (setf (mouse-left-button-down))
+               ;;   (format t "Left mouse is ~a~%" state)
+               ;;   ;; (setf hover-active? (eq state :pressed))
+               ;;   ;; (when (and hover-cell (eq state :pressed))
+               ;;   ;;   (destructuring-bind (x y) hover-cell
+               ;;   ;;     (funcall (cdr (aref buttons y x)) ctx)))
+               ;;   )
+               )
       ;; Update hover cell
       ;; (:frame ()
       ;;  (block cells
       ;;    (when hover-active?
       ;;      (return-from cells))
-      ;;    (when (and pointer-x pointer-y)
+      ;;    (when (and mouse-x mouse-y)
       ;;      (do-cells (x y)
       ;;        (multiple-value-bind (cx cy cw ch) (cell-region x y width height)
-      ;;          (when (and (<= cx pointer-x (+ cx cw))
-      ;;                     (<= cy pointer-y (+ cy ch)))
+      ;;          (when (and (<= cx mouse-x (+ cx cw))
+      ;;                     (<= cy mouse-y (+ cy ch)))
       ;;            (setf hover-cell (list x y))
       ;;            (return-from cells)))))
       ;;    (setf hover-cell nil))
-      ;;  (draw-and-commit app))
+      ;;  (draw-and-commit ctx))
       )))
 
 (defun handle-seat (ctx &rest event)
@@ -220,15 +252,15 @@
   (let* ((pool-data (pool-data (back-buffer ctx)))
          (stride (* (width ctx) 4))     ; bytes per row
          (row-pixels (/ stride 4))
-         (x-end (min (+ x w) (width ctx)))
-         (y-end (min (+ y h) (height ctx)))
+         (x-end (the fixnum (floor (min (+ x w) (width ctx)))))
+         (y-end (the fixnum (floor (min (+ y h) (height ctx)))))
          (xrgb (color-to-xrbg color)))
-    (declare (type fixnum x-end y-end x y w h))
+    ;; (declare (type fixnum x-end y-end x y w h))
       
-    (loop :for dy :from y :below y-end :do
+    (loop :for dy :from (the fixnum (floor y)) :below y-end :do
       (loop
         :with dy-offset = (* dy row-pixels)
-        :for dx :from x :below x-end :do
+        :for dx :from (the fixnum (floor x)) :below x-end :do
         (setf (cffi:mem-aref pool-data :uint32
                              (+ dx dy-offset))
               xrgb)))))
