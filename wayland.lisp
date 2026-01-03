@@ -17,7 +17,7 @@
 ;;; This work isn't licensed yet
 ;;; See LICENSE for more details.
 
-(defclass superapp ()
+(defclass ctx/wayland ()
   (;; Globals
    (wl-display :accessor wl-display)
    wl-registry
@@ -29,6 +29,15 @@
    wl-surface
    xdg-surface
    xdg-toplevel
+   
+   shm
+   pool-data
+   (front-buffer :accessor front-buffer :initform nil)
+   (back-buffer :accessor back-buffer)
+   back-buffer-size
+   (need-next-frame :accessor need-next-frame :initform nil)
+   (width :initform 640 :accessor width)
+   (height :initform 480 :accessor height)
 
    ;; State
    (offset :initform 0.0)
@@ -36,6 +45,71 @@
    (window-should-close :initform nil :accessor window-should-close))
   
   (:documentation "An example Wayland application"))
+
+(defmethod begin-drawing ((ctx ctx/wayland))
+  (with-slots (wl-shm width height shm pool-data back-buffer back-buffer-size) ctx
+    (let* ((stride (* width 4))
+           (size (* stride height))
+           )
+
+      ;;TODO creating the shm should be happen in init-window/wayland, not here
+      (setf shm (posix-shm:open-shm* :direction :io))
+            (posix-shm:truncate-shm shm size)
+      (setf pool-data (posix-shm:mmap-shm shm size))
+
+      
+      (with-proxy (pool (wl-shm.create-pool wl-shm (posix-shm:shm-fd shm) size))
+        (setf back-buffer (wl-shm-pool.create-buffer
+                           pool 0 width height stride
+                           :xrgb8888)))
+      (push (evelambda
+              (:release ()
+                        ;; Sent by the compositor when it's no longer using this buffer.
+                        (destroy-proxy back-buffer)))
+            (wl-proxy-hooks back-buffer))
+      )
+    )
+  )
+
+(defmethod end-drawing ((ctx ctx/wayland))
+  ;; (posix-shm:close-shm shm)
+  ;; (posix-shm:munmap pool-data size)
+
+  (loop :until (need-next-frame ctx)
+        :do (sleep 0.001)
+            (wl-display-dispatch-event (wl-display ctx)))
+  (with-slots (wl-surface) ctx
+    (let ((wl-buffer (back-buffer ctx)))
+      (wl-surface.attach wl-surface wl-buffer 0 0)
+      (wl-surface.damage-buffer
+       wl-surface 0 0 +most-positive-wl-int+ +most-positive-wl-int+)
+      (wl-surface.commit wl-surface)))
+
+  ;;swap front and back buffer
+  (let* ((fb (front-buffer ctx))
+         (bb (back-buffer ctx)))
+    (setf (front-buffer ctx) bb)
+    (setf (back-buffer ctx) fb))
+  )
+
+(defun color-to-xrbg (color)
+  (declare (type color color))
+  (let* ((result #xff)
+         (result (ash result 8))
+         (result (+ result (color-r color)))
+         (result (ash result 8))
+         (result (+ result (color-g color)))
+         (result (ash result 8))
+         (result (+ result (color-b color)))
+         )
+    result))
+
+(defmethod draw-rectangle ((ctx ctx/wayland) x y width height color)
+  (with-slots (pool-data) ctx
+    (loop :for dx :from x :below (min width (width ctx)) :do
+      (loop :for dy :from y :below (min height (width ctx)) :do
+        (setf (cffi:mem-aref pool-data :uint32 (+ dx (* dy (width ctx))))
+              (color-to-xrbg color))))))
 
 (defun render-frame (app)
   (with-slots (wl-shm offset) app
@@ -106,30 +180,57 @@
               (wl-proxy-hooks buffer))
         buffer))))
 
+(defun my/handle-frame-callback (ctx callback &rest event)
+  (event-ecase event
+    (:done (time)
+           (declare (ignore time))
+           (with-slots (last-frame offset wl-surface) ctx
+             ;; Destroy this callback
+             (destroy-proxy callback)
+
+             ;; Request another frame
+             (setf callback (wl-surface.frame wl-surface))
+             (push (alexandria:curry 'my/handle-frame-callback ctx callback)
+                   (wl-proxy-hooks callback))
+
+             (setf (need-next-frame ctx) t)
+
+             ;; Update scroll amount at 24px/second
+
+             ;; Submit a new frame for this event
+             ;; (let ((wl-buffer (render-frame app)))
+             ;;   (wl-surface.attach wl-surface wl-buffer 0 0)
+             ;;   (wl-surface.damage-buffer
+             ;;     wl-surface 0 0 +most-positive-wl-int+ +most-positive-wl-int+)
+             ;;   (wl-surface.commit wl-surface))
+
+             ;; (setf last-frame time)
+             ))))
+
 (defun handle-frame-callback (app callback &rest event)
   (event-ecase event
     (:done (time)
-     (with-slots (last-frame offset wl-surface) app
-       ;; Destroy this callback
-       (destroy-proxy callback)
+           (with-slots (last-frame offset wl-surface) app
+             ;; Destroy this callback
+             (destroy-proxy callback)
 
-       ;; Request another frame
-       (setf callback (wl-surface.frame wl-surface))
-       (push (alexandria:curry 'handle-frame-callback app callback)
-             (wl-proxy-hooks callback))
+             ;; Request another frame
+             (setf callback (wl-surface.frame wl-surface))
+             (push (alexandria:curry 'handle-frame-callback app callback)
+                   (wl-proxy-hooks callback))
 
-      ;; Update scroll amount at 24px/second
-      (unless (zerop last-frame)
-        (incf offset (* (/ (- time last-frame) 1000.0) 24)))
+             ;; Update scroll amount at 24px/second
+             (unless (zerop last-frame)
+               (incf offset (* (/ (- time last-frame) 1000.0) 24)))
 
-      ;; Submit a new frame for this event
-      (let ((wl-buffer (render-frame app)))
-        (wl-surface.attach wl-surface wl-buffer 0 0)
-        (wl-surface.damage-buffer
-          wl-surface 0 0 +most-positive-wl-int+ +most-positive-wl-int+)
-        (wl-surface.commit wl-surface))
+             ;; Submit a new frame for this event
+             (let ((wl-buffer (render-frame app)))
+               (wl-surface.attach wl-surface wl-buffer 0 0)
+               (wl-surface.damage-buffer
+                wl-surface 0 0 +most-positive-wl-int+ +most-positive-wl-int+)
+               (wl-surface.commit wl-surface))
 
-      (setf last-frame time)))))
+             (setf last-frame time)))))
 
 (defun handle-registry (app registry &rest event)
   (with-slots (wl-shm wl-compositor xdg-wm-base) app
@@ -155,12 +256,12 @@
                     (xdg-wm-base.pong xdg-wm-base serial)))
                  (wl-proxy-hooks xdg-wm-base))))))))
 
-(defmethod close-window ((app superapp))
-  (wl-display-disconnect (wl-display app)))
+(defmethod close-window ((ctx ctx/wayland))
+  (wl-display-disconnect (wl-display ctx)))
 
 (defun init-window/wayland (width height title)
   (declare (ignore width height title))
-  (let ((app (make-instance 'superapp)))
+  (let ((app (make-instance 'ctx/wayland)))
     (with-slots (wl-display wl-registry wl-shm wl-compositor
                  xdg-wm-base wl-surface xdg-surface xdg-toplevel)
         app
@@ -192,7 +293,7 @@
       (wl-surface.commit wl-surface)
 
       (let ((cb (wl-surface.frame wl-surface)))
-        (push (alexandria:curry 'handle-frame-callback app cb)
+        (push (alexandria:curry 'my/handle-frame-callback app cb)
               (wl-proxy-hooks cb)))
 
       ;; (loop (wl-display-dispatch-event display))
@@ -208,3 +309,11 @@
                :do (wl-display-dispatch-event (wl-display app)))
       (close-window app))
  ))
+
+(defun my/run ()
+  (let ((app (init-window/wayland 100 100 "foo")))
+    (loop :until (window-should-close app) :do
+          (begin-drawing app)
+          (draw-rectangle app 10 10 30 30 (make-color :r 10 :g 200 :b 20))
+          (end-drawing app))
+    (close-window app)))
