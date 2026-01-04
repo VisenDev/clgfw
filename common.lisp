@@ -1,9 +1,9 @@
 (in-package #:clgfw)
 
 (defclass color ()
-  ((r :initarg :r :accessor color-r :initform 0 :type (integer 0 256))
-   (g :initarg :g :accessor color-g :initform 0 :type (integer 0 256))
-   (b :initarg :b :accessor color-b :initform 0 :type (integer 0 256))))
+  ((r :initarg :r :accessor color-r :initform 0 :type (integer 0 255))
+   (g :initarg :g :accessor color-g :initform 0 :type (integer 0 255))
+   (b :initarg :b :accessor color-b :initform 0 :type (integer 0 255))))
 
 (defun make-color (&key (r 0) (b 0) (g 0))
   (make-instance 'color :r r :g g :b b)
@@ -11,6 +11,7 @@
 
 (deftype mouse-button () '(member :left :right :middle))
 
+;; Perhaps add init-window as a generic function?
 (defgeneric close-window (ctx))
 (defgeneric window-should-keep-running (ctx))
 (defgeneric begin-drawing (ctx))
@@ -19,6 +20,7 @@
 (defgeneric get-mouse-x (ctx))
 (defgeneric get-mouse-y (ctx))
 (defgeneric is-mouse-button-down (ctx button))
+(defgeneric is-key-down (ctx key))
 (defgeneric get-window-width (ctx))
 (defgeneric get-window-height (ctx))
 
@@ -44,12 +46,6 @@
     (with-drawing ,state ,@body))
   )
 
-
-
-
-
-
-;;; MIGHT OR MIGHT NOT DELETE THIS
 (deftype key ()
   '(member
     :quote                              ; key: '
