@@ -47,11 +47,16 @@
    (back-buffer :accessor back-buffer :type render-buffer)
    
    ;; State
+   (xkb-context :initform (xkb:xkb-context-new ()))
+   (xkb-keymap :initform (cffi:null-pointer))
+   (xkb-state :initform (cffi:null-pointer))
+
    (mouse-x :initform 0 :accessor mouse-x :type fixnum)
    (mouse-y :initform 0 :accessor mouse-y :type fixnum)
    (mouse-left-button-down :accessor mouse-left-button-down :initform nil)
    (mouse-middle-button-down :accessor mouse-middle-button-down :initform nil)
    (mouse-right-button-down :accessor mouse-right-button-down :initform nil)
+   (keyboard-state :accessor keyboard-state :initform (make-hash-table :test 'eq :size 256))
 
    (need-next-frame-p :accessor need-next-frame :initform t)
    (window-resized-p :accessor window-resized-p :initform t)
@@ -67,6 +72,10 @@
     (:left (mouse-left-button-down ctx))
     (:right (mouse-right-button-down ctx))
     (:middle (mouse-middle-button-down ctx))))
+
+(defmethod is-key-down ((ctx ctx/wayland) key)
+  (assert (typep key 'key) (key) "~a is not a valid clgfw key" key)
+  (gethash key (keyboard-state ctx) nil))
 
 (defmethod get-window-width ((ctx ctx/wayland))
   (width ctx))
@@ -145,10 +154,8 @@
        (if (member :keyboard capabilities)
            (unless wl-keyboard
              (setf wl-keyboard (wl-seat.get-keyboard wl-seat))
-
-             ;;TODO uncomment this
-             ;; (push (alexandria:curry 'handle-keyboard ctx)
-             ;;       (wl-proxy-hooks wl-keyboard))
+             (push (alexandria:curry 'handle-keyboard ctx)
+                   (wl-proxy-hooks wl-keyboard))
              )
            (when wl-keyboard
              (destroy-proxy wl-keyboard)
@@ -283,64 +290,198 @@
              (setf (need-next-frame ctx) t)
              ))))
 
-#|
-(defun handle-keydown (app sym)
-  (cond
-    ((<= #K"0" sym #K"9") (push-digit (- sym #K"0") app))
-    ((= sym #K"BackSpace") (pop-digit app))
-    ((= sym #K"plus") (push-op #'+ app))
-    ((= sym #K"minus") (push-op #'- app))
-    ((= sym #K"asterisk") (push-op #'* app))
-    ((= sym #K"slash") (push-op #'floor app))
-    ((= sym #K"Escape") (clear-calc app))
-    ((or (= sym #K"equal")
-         (= sym #K"Return"))
-     (eval-calc app))))
+#.(set-dispatch-macro-character
+    #\# #\K (lambda (s c n &aux str keysym)
+              (declare (ignore c n))
+              (setq str (read s))
+              (setq keysym (xkb:xkb-keysym-from-name str '(:no-flags)))
+              keysym
+              ))
 
-(defun handle-keyboard (app &rest event)
-  (with-slots (xkb-context xkb-keymap xkb-state) app
+(declaim (ftype (function (integer) key) convert-key))
+(defun convert-key (sym)
+  (alexandria:eswitch (sym :test '=)
+    ;; letters
+    (#K"A" :a)   (#K"a" :a)
+    (#K"B" :b)   (#K"b" :b)
+    (#K"C" :c)   (#K"c" :c)
+    (#K"D" :d)   (#K"d" :d)
+    (#K"E" :e)   (#K"e" :e)
+    (#K"F" :f)   (#K"f" :f)
+    (#K"G" :g)   (#K"g" :g)
+    (#K"H" :h)   (#K"h" :h)
+    (#K"I" :i)   (#K"i" :i)
+    (#K"J" :j)   (#K"j" :j)
+    (#K"K" :k)   (#K"k" :k)
+    (#K"L" :l)   (#K"l" :l)
+    (#K"M" :m)   (#K"m" :m)
+    (#K"N" :n)   (#K"n" :n)
+    (#K"O" :o)   (#K"o" :o)
+    (#K"P" :p)   (#K"p" :p)
+    (#K"Q" :q)   (#K"q" :q)
+    (#K"R" :r)   (#K"r" :r)
+    (#K"S" :s)   (#K"s" :s)
+    (#K"T" :t)   (#K"t" :t)
+    (#K"U" :u)   (#K"u" :u)
+    (#K"V" :v)   (#K"v" :v)
+    (#K"W" :w)   (#K"w" :w)
+    (#K"X" :x)   (#K"x" :x)
+    (#K"Y" :y)   (#K"y" :y)
+    (#K"Z" :z)   (#K"z" :z)
+
+    ;; numbers
+    (#K"0" :zero)
+    (#K"1" :one)
+    (#K"2" :two)
+    (#K"3" :three)
+    (#K"4" :four)
+    (#K"5" :five)
+    (#K"6" :six)
+    (#K"7" :seven)
+    (#K"8" :eight)
+    (#K"9" :nine)
+
+    ;; punctuation
+    (#K"minus" :minus)
+    (#K"equal" :equal)
+    (#K"semicolon" :semicolon)
+    (#K"apostrophe" :quote)
+    (#K"comma" :comma)
+    (#K"period" :period)
+    (#K"slash" :slash)
+    (#K"grave" :backtick)
+    (#K"bracketleft" :left-bracket)
+    (#K"bracketright" :right-bracket)
+    (#K"backslash" :backslash)
+
+    ;; whitespace / control
+    (#K"space" :space)
+    (#K"Return" :enter)
+    (#K"Escape" :escape)
+    (#K"Tab" :tab)
+    (#K"BackSpace" :backspace)
+    (#K"Insert" :insert)
+    (#K"Delete" :delete)
+    (#K"Home" :home)
+    (#K"End" :end)
+    (#K"Page_Up" :page-up)
+    (#K"Page_Down" :page-down)
+
+    ;; arrows
+    (#K"Left" :left)
+    (#K"Right" :right)
+    (#K"Up" :up)
+    (#K"Down" :down)
+
+    ;; modifiers
+    (#K"Shift_L" :left-shift)
+    (#K"Shift_R" :right-shift)
+    (#K"Control_L" :left-control)
+    (#K"Control_R" :right-control)
+    (#K"Alt_L" :left-alt)
+    (#K"Alt_R" :right-alt)
+    (#K"Super_L" :left-super)
+    (#K"Super_R" :right-super)
+    (#K"Meta_L" :left-meta)
+    (#K"Meta_R" :right-meta)
+    (#K"Hyper_L" :left-hyper)
+    (#K"Hyper_R" :right-hyper)
+
+    ;; lock / system
+    (#K"Caps_Lock" :caps-lock)
+    (#K"Scroll_Lock" :scroll-lock)
+    (#K"Num_Lock" :num-lock)
+    (#K"Print" :print-screen)
+    (#K"Pause" :pause)
+    (#K"Menu" :kb-menu)
+
+    ;; function keys
+    (#K"F1" :f1)
+    (#K"F2" :f2)
+    (#K"F3" :f3)
+    (#K"F4" :f4)
+    (#K"F5" :f5)
+    (#K"F6" :f6)
+    (#K"F7" :f7)
+    (#K"F8" :f8)
+    (#K"F9" :f9)
+    (#K"F10" :f10)
+    (#K"F11" :f11)
+    (#K"F12" :f12)
+
+    ;; keypad
+    (#K"KP_0" :keypad-0)
+    (#K"KP_1" :keypad-1)
+    (#K"KP_2" :keypad-2)
+    (#K"KP_3" :keypad-3)
+    (#K"KP_4" :keypad-4)
+    (#K"KP_5" :keypad-5)
+    (#K"KP_6" :keypad-6)
+    (#K"KP_7" :keypad-7)
+    (#K"KP_8" :keypad-8)
+    (#K"KP_9" :keypad-9)
+    (#K"KP_Decimal" :keypad-decimal)
+    (#K"KP_Divide" :keypad-divide)
+    (#K"KP_Multiply" :keypad-multiply)
+    (#K"KP_Subtract" :keypad-subtract)
+    (#K"KP_Add" :keypad-add)
+    (#K"KP_Enter" :keypad-enter)
+    (#K"KP_Equal" :keypad-equal)))
+
+;;reset readtable
+#.(setf *readtable* (copy-readtable nil))
+
+(defun handle-keydown (ctx sym)
+  (setf (gethash (convert-key sym) (keyboard-state ctx)) t))
+
+(defun handle-keyup (ctx sym)
+  (setf (gethash (convert-key sym) (keyboard-state ctx)) nil))
+
+(defun handle-keyboard (ctx &rest event)
+  (with-slots (xkb-context xkb-keymap xkb-state) ctx
     (event-case event
       ;; Set or update the keyboard key-map
       (:keymap (format fd size)
-       (let ((shm (shm:make-shm fd)))
-         (unwind-protect
-           (progn
-             (assert (eq format :xkb-v1))
-             (shm:with-mmap (ptr shm size :prot '(:read) :flags '(:private))
-               (let* ((keymap (xkb:xkb-keymap-new-from-string
-                                xkb-context ptr :text-v1 ()))
-                      (state (xkb:xkb-state-new keymap)))
-                 (xkb:xkb-keymap-unref xkb-keymap)
-                 (xkb:xkb-state-unref xkb-state)
-                 (setf xkb-keymap keymap
-                       xkb-state state))))
-           (shm:close-shm shm))))
+               (let ((shm (posix-shm:make-shm fd)))
+                 (unwind-protect
+                      (progn
+                        (assert (eq format :xkb-v1))
+                        (posix-shm:with-mmap (ptr shm size :prot '(:read) :flags '(:private))
+                          (let* ((keymap (xkb:xkb-keymap-new-from-string
+                                          xkb-context ptr :text-v1 ()))
+                                 (state (xkb:xkb-state-new keymap)))
+                            (xkb:xkb-keymap-unref xkb-keymap)
+                            (xkb:xkb-state-unref xkb-state)
+                            (setf xkb-keymap keymap
+                                  xkb-state state))))
+                   (posix-shm:close-shm shm))))
 
       ;; Pass thru mod key updates to the xkb state machine
       (:modifiers (serial depressed latched locked group)
-       (declare (ignore serial))
-       (xkb:xkb-state-update-mask
-         xkb-state depressed latched locked 0 0 group))
+                  (declare (ignore serial))
+                  (xkb:xkb-state-update-mask
+                   xkb-state depressed latched locked 0 0 group))
 
       ;; Handle keys as focus enters the surface
-      (:enter (serial surface keys)
-       (declare (ignore serial surface))
-       (dotimes (i (length keys))
-         (let* ((keycode (+ 8 (aref keys i)))
-                (sym (xkb:xkb-state-key-get-one-sym xkb-state keycode)))
-           (when (plusp sym)
-             (handle-keydown app sym))))
-       (draw-and-commit app))
+      ;; (:enter (serial surface keys)
+      ;;         (declare (ignore serial surface))
+      ;;         (dotimes (i (length keys))
+      ;;           (let* ((keycode (+ 8 (aref keys i)))
+      ;;                  (sym (xkb:xkb-state-key-get-one-sym xkb-state keycode)))
+      ;;             (when (plusp sym)
+      ;;               (if (eq state :pressed)
+      ;;                   (handle-keydown ctx sym)
+      ;;                   (handle-keyup ctx sym))))))
 
       ;; Handle keys as they're pressed
       (:key (serial time-ms key state)
-       (declare (ignore serial time-ms))
-       (let* ((keycode (+ 8 key))
-              (sym (xkb:xkb-state-key-get-one-sym xkb-state keycode)))
-         (when (and (plusp sym) (eq state :pressed))
-           (handle-keydown app sym)))
-       (draw-and-commit app)))))
-|#
+            (declare (ignore serial time-ms))
+            (let* ((keycode (+ 8 key))
+                   (sym (xkb:xkb-state-key-get-one-sym xkb-state keycode)))
+              (when (plusp sym)
+                (if (eq state :pressed)
+                    (handle-keydown ctx sym)
+                    (handle-keyup ctx sym))))))))
 
 (defun handle-registry (ctx registry &rest event)
   (with-slots (wl-shm wl-compositor xdg-wm-base wl-seat wl-registry) ctx
@@ -381,6 +522,7 @@
   (wl-display-disconnect (wl-display ctx)))
 
 
+;;; TODO: I need to configure what the initial cursor looks like
 
 (defun init-window/wayland (width height title)
   (declare (ignore width height))
@@ -444,25 +586,31 @@
     )
   )
 
+
+;;; Temporary testing code
 (defun my/run ()
   (let ((app (init-window/wayland 100 100 "foo"))
         (x 10)
         (y 35)
         (dx 1)
-        (dy 1))
-    (loop :until (window-should-close-p app) :do
-          (begin-drawing app)
-          (draw-rectangle app 0 0 (width app) (height app) (make-color :r 130 :g 200 :b 220))
-          (draw-rectangle app x y 30 30 (make-color :r 10 :g 200 :b 20))
-          (when (> x 270)
-            (setf dx -1))
-          (when (<= x 0)
-            (setf dx 1))
-          (when (> y 270)
-            (setf dy -1))
-          (when (<= y 0)
-            (setf dy 1))
-          (setf x (+ x dx))
-          (setf y (+ y dy))
-          (end-drawing app))
+        (dy 1)
+        (bg1 (make-color :r 130 :g 200 :b 220))
+        (bg2 (make-color :r 200 :g 120 :b 230)))
+    (loop :until (window-should-close-p app)
+          :for bg = (if (is-key-down app :left-shift) bg1 bg2)
+          :do
+             (begin-drawing app)
+             (draw-rectangle app 0 0 (width app) (height app) bg)
+             (draw-rectangle app x y 30 30 (make-color :r 10 :g 200 :b 20))
+             (when (> x 270)
+               (setf dx -1))
+             (when (<= x 0)
+               (setf dx 1))
+             (when (> y 270)
+               (setf dy -1))
+             (when (<= y 0)
+               (setf dy 1))
+             (setf x (+ x dx))
+             (setf y (+ y dy))
+             (end-drawing app))
     (close-window app)))
