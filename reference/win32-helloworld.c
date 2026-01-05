@@ -1,3 +1,9 @@
+/* REFERENCE CODE TAKEN FROM HERE
+  
+  https://github.com/microsoft/Windows-classic-samples/blob/main/Samples/Win7Samples/begin/LearnWin32/HelloWorld/cpp/main.cpp
+
+*/
+
 #define UNICODE
 #define _UNICODE
 
