@@ -4,20 +4,22 @@
   :license "Apache-2"
   :description "Common Lisp General Framework for Windowing"
   :depends-on (;; X11
-               (:feature :linux "clx")
+               #-abcl(:feature :linux "clx")
 
                ;; WAYLAND
-               (:feature :linux "wayflan")
-               (:feature :linux "posix-shm")
-               (:feature :linux "input-event-codes")
-               (:feature :linux "cl-xkb")
+               #-abcl(:feature :linux "wayflan")
+               #-abcl(:feature :linux "posix-shm")
+               #-abcl(:feature :linux "input-event-codes")
+               #-abcl(:feature :linux "cl-xkb")
+
                )
   :serial t
   :components ((:file "package")
                (:file "common")
-               (:file "x11" :if-feature :linux)
-               (:file "wayland" :if-feature :linux)
-               (:file "linux" :if-feature :linux)
+               #-abcl(:file "x11" :if-feature :linux)
+               #-abcl(:file "wayland" :if-feature :linux)
+               #-abcl(:file "linux" :if-feature :linux)
+               #+abcl(:file "jvm")
                ))
 
 (defsystem "clgfw/example/hello"
