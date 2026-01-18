@@ -11,6 +11,12 @@
                (:feature :linux "posix-shm")
                (:feature :linux "input-event-codes")
                (:feature :linux "cl-xkb")
+               (:feature :linux "cffi")
+
+               ;; COCOA
+               (:feature (:or :darwin :macos) "cffi")
+               (:feature (:or :darwin :macos) "cffi-libffi")
+               (:feature (:or :darwin :macos) "cffi-object")
                )
   :serial t
   :components ((:file "package")
