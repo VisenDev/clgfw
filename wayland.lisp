@@ -1,17 +1,7 @@
-(defpackage #:clgfw/wayland
-  (:use #:cl #:clgfw/common #:wayflan #:wayflan-client #:wayflan-client.xdg-shell)
-  (:export #:init-window
-           #:close-window
-           #:window-should-keeping-running
-           #:begin-drawing
-           #:end-drawing
-           #:draw-rectangle
-           #:get-mouse-x
-           #:get-mouse-y
-           #:is-mouse-button-down
-           #:get-window-width
-           #:get-window-height))
-(in-package #:clgfw/wayland)
+(in-package #:clgfw)
+
+
+#.(use-package '(#:wayflan #:wayflan-client #:wayflan-client.xdg-shell))
 
 ;;; This program is based on several examples from the wayflan repo
 ;;;
@@ -32,7 +22,7 @@
            :documentation "The wayland buffer made from the pool data")
    ))
 
-(defclass ctx ()
+(defclass ctx/wayland ()
   (;; Globals
    (wl-display :accessor wl-display)
    wl-registry
@@ -40,7 +30,6 @@
    wl-compositor
    xdg-wm-base
    wl-seat
-   zxdg-decoration-manager
 
    ;; Objects
    wl-surface
@@ -78,29 +67,29 @@
   
   (:documentation "An example Wayland application"))
 
-(defun is-mouse-button-down (ctx button)
+(defmethod is-mouse-button-down ((ctx ctx/wayland) (button symbol))
   (ecase button
     (:left (mouse-left-button-down ctx))
     (:right (mouse-right-button-down ctx))
     (:middle (mouse-middle-button-down ctx))))
 
-(defun is-key-down (ctx key)
+(defmethod is-key-down ((ctx ctx/wayland) key)
   (assert (typep key 'key) (key) "~a is not a valid clgfw key" key)
   (gethash key (keyboard-state ctx) nil))
 
-(defun get-window-width (ctx)
+(defmethod get-window-width ((ctx ctx/wayland))
   (width ctx))
 
-(defun get-window-height (ctx)
+(defmethod get-window-height ((ctx ctx/wayland))
   (height ctx))
 
-(defun get-mouse-x (ctx)
+(defmethod get-mouse-x ((ctx ctx/wayland))
   (mouse-x ctx))
 
-(defun get-mouse-y (ctx)
+(defmethod get-mouse-y ((ctx ctx/wayland))
   (mouse-y ctx))
 
-(defun window-should-keep-running (ctx)
+(defmethod window-should-keep-running ((ctx ctx/wayland))
   (not (window-should-close-p ctx)))
 
 (defun handle-pointer (ctx &rest event)
@@ -214,11 +203,11 @@
       (push (evelambda (:release ())) (wl-proxy-hooks (buffer back-buffer)))
       )))
 
-(defun begin-drawing (ctx)
+(defmethod begin-drawing ((ctx ctx/wayland))
   (ensure-buffer-memory-allocated ctx)
   )
 
-(defun end-drawing (ctx)
+(defmethod end-drawing ((ctx ctx/wayland))
   (when (window-should-close-p ctx)
     (return-from end-drawing))
   
@@ -260,7 +249,7 @@
          )
     result))
 
-(defun draw-rectangle (ctx x y w h color)
+(defmethod draw-rectangle ((ctx ctx/wayland) x y w h color)
   (when (or (zerop (width ctx))
             (zerop (height ctx)))
     (format t "NOTE: skipping rendering...~%")
@@ -520,11 +509,11 @@
                   (setf xdg-wm-base (wl-registry.bind
                                      registry name 'xdg-wm-base 1))
                   (push (evelambda
-                         (:ping (serial)
-                                (xdg-wm-base.pong xdg-wm-base serial)))
+                          (:ping (serial)
+                                 (xdg-wm-base.pong xdg-wm-base serial)))
                         (wl-proxy-hooks xdg-wm-base))))))))
 
-(defun close-window (ctx)
+(defmethod close-window ((ctx ctx/wayland))
   (with-slots (shm pool) ctx
     (posix-shm:close-shm shm)
     (wl-shm-pool.destroy pool)
@@ -535,10 +524,9 @@
 
 ;;; TODO: I need to configure what the initial cursor looks like
 
-(defun init-window (width height title)
+(defun init-window/wayland (width height title)
   (declare (ignore width height))
-  
-  (let ((ctx (make-instance 'ctx)))
+  (let ((ctx (make-instance 'ctx/wayland)))
     (with-slots (wl-display wl-registry wl-shm wl-compositor
                  xdg-wm-base wl-surface xdg-surface xdg-toplevel
                  width height shm front-buffer back-buffer pool)
