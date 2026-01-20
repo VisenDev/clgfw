@@ -9,6 +9,7 @@
            #:get-mouse-x
            #:get-mouse-y
            #:is-mouse-button-down
+           #:is-key-pressed
            #:get-window-width
            #:get-window-height
 

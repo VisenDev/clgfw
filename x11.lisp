@@ -18,7 +18,12 @@
    (screen :accessor screen)
    (window :accessor window)
    (gcontext :accessor gcontext)
-   (colormap :accessor colormap)))
+   (colormap :accessor colormap)
+   (keyboard-state :accessor keyboard-state :initform (make-hash-table :test 'eq :size 256))))
+
+(defmethod is-key-down ((ctx ctx/x11) key)
+  (assert (typep key 'key) (key) "~a is not a valid clgfw key" key)
+  (gethash key (keyboard-state ctx) nil))
 
 (defun init-window/x11 (width height title &aux ctx)
   "Initialize the x11 window and return the created ctx"
@@ -108,6 +113,14 @@
 (defmethod begin-drawing ((ctx ctx/x11))
   (declare (ignore ctx)))
 
+(defun convert-keycode (ctx code)
+  "Converts an X11 keycode to a clgfw key"
+  (let* ((index (xlib:default-keysym-index (display ctx) code 0))
+         (sym (xlib:keycode->keysym (display ctx) code index)))
+    (typecase sym
+      (character (char->key sym))
+      (symbol (assert (typep sym 'key)) sym))))
+
 (defmethod end-drawing ((ctx ctx/x11) &aux display)
   (setf display (display ctx))
   (xlib:display-force-output display)
@@ -118,12 +131,12 @@
       ;;                  (setf (xlib:drawable-height (window ctx)) height)
       ;;                  (setf (xlib:drawable-width (window ctx)) width))
       (:key-press (code)
-                  (format t "TODO handle keypress: ~S~%" (xlib:keysym->character
-                                                          display
-                                                          (xlib:keycode->keysym
-                                                           display
-                                                           code
-                                                           (xlib:default-keysym-index display code 0))))
+                  (assert (keyboard-state ctx))
+                  (setf (gethash (convert-keycode ctx code) (keyboard-state ctx)) t)
+                  t)
+      (:key-release (code)
+                    (assert (keyboard-state ctx))
+                    (setf (gethash (convert-keycode ctx code) (keyboard-state ctx)) nil)
                   t)
       (:button-press (code)
                      (ecase code
