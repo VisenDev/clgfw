@@ -1,4 +1,16 @@
-(in-package #:clgfw)
+(defpackage #:clgfw/common
+  (:use #:cl)
+  (:export ;; Common functions between implementations
+           #:make-color
+           #:color-r
+           #:color-g
+           #:color-b
+
+           ;; IO type definitions
+           #:mouse-button
+           #:key
+           ))
+(in-package #:clgfw/common)
 
 (defclass color ()
   ((r :initarg :r :accessor color-r :initform 0 :type (integer 0 255))
@@ -12,17 +24,17 @@
 (deftype mouse-button () '(member :left :right :middle))
 
 ;; Perhaps add init-window as a generic function?
-(defgeneric close-window (ctx))
-(defgeneric window-should-keep-running (ctx))
-(defgeneric begin-drawing (ctx))
-(defgeneric end-drawing (ctx))
-(defgeneric draw-rectangle (ctx x y width height color))
-(defgeneric get-mouse-x (ctx))
-(defgeneric get-mouse-y (ctx))
-(defgeneric is-mouse-button-down (ctx button))
-(defgeneric is-key-down (ctx key))
-(defgeneric get-window-width (ctx))
-(defgeneric get-window-height (ctx))
+;;(defgeneric close-window (ctx))
+;;(defgeneric window-should-keep-running (ctx))
+;;(defgeneric begin-drawing (ctx))
+;;(defgeneric end-drawing (ctx))
+;;(defgeneric draw-rectangle (ctx x y width height color))
+;;(defgeneric get-mouse-x (ctx))
+;;(defgeneric get-mouse-y (ctx))
+;;(defgeneric is-mouse-button-down (ctx button))
+;;(defgeneric is-key-down (ctx key))
+;;(defgeneric get-window-width (ctx))
+;;(defgeneric get-window-height (ctx))
 
 (defmacro with-window (name (width height title) &body body)
   `(let ((,name (init-window ,width ,height ,title)))

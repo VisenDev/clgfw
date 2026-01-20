@@ -4,23 +4,34 @@
   :license "Apache-2"
   :description "Common Lisp General Framework for Windowing"
   :depends-on (;; X11
-               #-abcl(:feature :linux "clx")
+               (:feature :linux "clx")
 
                ;; WAYLAND
-               #-abcl(:feature :linux "wayflan")
-               #-abcl(:feature :linux "posix-shm")
-               #-abcl(:feature :linux "input-event-codes")
-               #-abcl(:feature :linux "cl-xkb")
+               (:feature :linux "wayflan")
+               (:feature :linux "posix-shm")
+               (:feature :linux "input-event-codes")
+               (:feature :linux "cl-xkb")
 
                )
   :serial t
-  :components ((:file "package")
-               (:file "common")
-               #-abcl(:file "x11" :if-feature :linux)
-               #-abcl(:file "wayland" :if-feature :linux)
-               #-abcl(:file "linux" :if-feature :linux)
-               #+abcl(:file "jvm")
-               ))
+  :components (:module "src"
+               :components ((:file "common")
+                            (:module "linux"
+                             :if-feature :linux
+                             :components ((:file "x11")
+                                          (:file "wayland")
+                                          (:file "linux")))
+                            (:module "macos"
+                             :if-feature (:or :macos :darwin)
+                             :components ((:file "clozure" :if-feature :ccl)
+                                          (:file "objc" :if-feature (:not :ccl)))
+                                     )
+                            (:module "web"
+                             :if-feature :jscl
+                             :components ((:file "web")))
+                            (:module "jvm"
+                             :if-feature :abcl
+                             :components ((:file "jvm"))))))
 
 (defsystem "clgfw/example/hello"
   :depends-on ("clgfw")
