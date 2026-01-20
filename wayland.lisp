@@ -51,8 +51,8 @@
    (xkb-keymap :initform (cffi:null-pointer))
    (xkb-state :initform (cffi:null-pointer))
 
-   (mouse-x :initform 0 :accessor mouse-x :type fixnum)
-   (mouse-y :initform 0 :accessor mouse-y :type fixnum)
+   (mouse-x :initform 0 :accessor mouse-x :type number)
+   (mouse-y :initform 0 :accessor mouse-y :type number)
    (mouse-left-button-down :accessor mouse-left-button-down :initform nil)
    (mouse-middle-button-down :accessor mouse-middle-button-down :initform nil)
    (mouse-right-button-down :accessor mouse-right-button-down :initform nil)
