@@ -23,13 +23,13 @@
 ;;; ==== PLAYER ====
 (defclass player (entity) ())
 (defmethod update (ctx level (player player))
-  (when (clgfw:is-key-down ctx :j)
+  (when (clgfw:is-key-pressed ctx :j)
     (incf (y player)))
-  (when (clgfw:is-key-down ctx :k)
+  (when (clgfw:is-key-pressed ctx :k)
     (decf (y player)))
-  (when (clgfw:is-key-down ctx :h)
+  (when (clgfw:is-key-pressed ctx :h)
     (decf (x player)))
-  (when (clgfw:is-key-down ctx :l)
+  (when (clgfw:is-key-pressed ctx :l)
     (incf (x player)))
   )
 
@@ -37,13 +37,13 @@
 (defmethod render (ctx level (player player))
   (unless *red*
     (setf *red* (clgfw:make-color :r 200 :g 10 :b 10)))
-  (clgfw:draw-rectangle
-   ctx
-   (x player)
-   (y player)
-   (tilesize level)
-   (tilesize level)
-   *red*))
+  (let ((sz (tilesize level)))
+    (clgfw:draw-rectangle
+     ctx
+     (* sz (x player))
+     (* sz (y player))
+     sz sz
+     *red*)))
 
 (defclass level ()
   ((tilesize :accessor tilesize :initform 40)
@@ -88,12 +88,10 @@
 (defun create-level ()
   (make-instance 'level
                  :map (create-map)
-                 :entities (list (make-instance 'player))))
+                 :entities (list (make-instance 'player :x 1 :y 1))))
 
 (defun main ()
-  (let* ((level (create-level))
-        ;; (ctx (clgfw::init-window/x11 800 800 "Hello"))
-         )
+  (let* ((level (create-level)))
     (clgfw:with-window ctx (800 800 "Hello")
       (clgfw:while-running/with-drawing ctx
         (when (clgfw:is-key-down ctx :q)

@@ -1,5 +1,7 @@
 (in-package #:clgfw)
 
+;;;; TODO
+;;;; implement is-key-pressed and is-key-released for wayland
 
 #.(use-package '(#:wayflan #:wayflan-client #:wayflan-client.xdg-shell))
 

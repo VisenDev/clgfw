@@ -19,11 +19,22 @@
    (window :accessor window)
    (gcontext :accessor gcontext)
    (colormap :accessor colormap)
-   (keyboard-state :accessor keyboard-state :initform (make-hash-table :test 'eq :size 256))))
+   (keyboard-state :accessor keyboard-state :initform (make-hash-table :test 'eq :size 256))
+   (pressed-keys :accessor pressed-keys
+                 :initform (make-array 256 :element-type 'symbol :fill-pointer 0 :initial-element nil)
+                 :documentation "A vector of all the keys which have been pressed this frame")
+   (released-keys :accessor released-keys
+                 :initform (make-array 256 :element-type 'symbol :fill-pointer 0 :initial-element nil)
+                 :documentation "A vector of all the keys which have been released this frame")
+   ))
 
 (defmethod is-key-down ((ctx ctx/x11) key)
   (assert (typep key 'key) (key) "~a is not a valid clgfw key" key)
   (gethash key (keyboard-state ctx) nil))
+
+(defmethod is-key-pressed ((ctx ctx/x11) key)
+  (assert (typep key 'key) (key) "~a is not a valid clgfw key" key)
+  (find key (pressed-keys ctx)))
 
 (defun init-window/x11 (width height title &aux ctx)
   "Initialize the x11 window and return the created ctx"
@@ -142,16 +153,22 @@ allocates the color"
 (defun convert-keycode (ctx code)
   "Converts an X11 keycode to a clgfw key"
   (let* ((index (xlib:default-keysym-index (display ctx) code 0))
-         (sym (xlib:keycode->keysym (display ctx) code index)))
-    (typecase sym
-      (integer (char->key (code-char sym)))
-      (character (char->key sym))
-      (symbol (assert (typep sym 'key)) sym)
-      (t (error "unsupported type ~a" sym))
-      )))
+         (sym (xlib:keycode->keysym (display ctx) code index))
+         (key
+           (typecase sym
+             (integer (char->key (code-char sym)))
+             (character (char->key sym))
+             (symbol (assert (typep sym 'key)) sym)
+             (t (error "unsupported type ~a" sym))
+             )))
+    key
+    ))
 
 (defmethod end-drawing ((ctx ctx/x11) &aux display)
   (setf display (display ctx))
+  
+  (setf (fill-pointer (pressed-keys ctx)) 0) ;;reset pressed keys
+  (setf (fill-pointer (released-keys ctx)) 0) ;;reset released keys
 
   (xlib:display-force-output display)
   (sleep 0.001)
@@ -162,12 +179,16 @@ allocates the color"
       ;;                  (setf (xlib:drawable-height (window ctx)) height)
       ;;                  (setf (xlib:drawable-width (window ctx)) width))
       (:key-press (code)
-                  (assert (keyboard-state ctx))
-                  (setf (gethash (print (convert-keycode ctx code)) (keyboard-state ctx)) t)
+                  (let ((key (convert-keycode ctx code)))
+                    (when key
+                      (vector-push key (pressed-keys ctx))
+                      (setf (gethash key (keyboard-state ctx)) t)))
                   t)
       (:key-release (code)
-                    (assert (keyboard-state ctx))
-                    (setf (gethash (print (convert-keycode ctx code)) (keyboard-state ctx)) nil)
+                    (let ((key (convert-keycode ctx code)))
+                      (when key
+                        (vector-push key (released-keys ctx))
+                        (setf (gethash key (keyboard-state ctx)) nil)))
                     t)
       (:button-press (code)
                      (ecase code

@@ -23,8 +23,18 @@
 (defgeneric get-mouse-y (ctx))
 (defgeneric is-mouse-button-down (ctx button))
 (defgeneric is-key-down (ctx key))
+(defgeneric is-key-pressed (ctx key)
+  (:documentation
+   "Like is-key-down, but only return true on the frame that the key is first pressed"))
+(defgeneric is-key-released (ctx key)
+  (:documentation
+   "Like is-key-pressed, but only returns true when the key is released"))
 (defgeneric get-window-width (ctx))
 (defgeneric get-window-height (ctx))
+
+(defun is-key-up (ctx key)
+  "Inverse is-key-down"
+  (not (is-key-down ctx key)))
 
 (defmacro with-window (name (width height title) &body body)
   `(let ((,name (init-window ,width ,height ,title)))
@@ -259,16 +269,16 @@
     ((#\y #\Y) :y)
     ((#\z #\Z) :z)
 
-    (#\0 :zero)
-    (#\1 :one)
-    (#\2 :two)
-    (#\3 :three)
-    (#\4 :four)
-    (#\5 :five)
-    (#\6 :six)
-    (#\7 :seven)
-    (#\8 :eight)
-    (#\9 :nine)
+    ((#\0 #\)) :zero)
+    ((#\1 #\!) :one)
+    ((#\2 #\@) :two)
+    ((#\3 #\#) :three)
+    ((#\4 #\$) :four)
+    ((#\5 #\%) :five)
+    ((#\6 #\^) :six)
+    ((#\7 #\&) :seven)
+    ((#\8 #\*) :eight)
+    ((#\9 #\() :nine)
 
     (#\' :quote)
     (#\, :comma)
