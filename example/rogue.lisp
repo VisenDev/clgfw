@@ -71,8 +71,9 @@
                  :entities (list (make-instance 'player))))
 
 (defun main ()
-  (let* ((level (create-level)))
-    (clgfw:with-window ctx (800 800 "Hello")
+  (let* ((level (create-level))
+         (ctx (clgfw::init-window/x11 800 800 "Hello")))
+    (progn;clgfw:with-window ctx (800 800 "Hello")
       (clgfw:while-running/with-drawing ctx
 
         ;; Update
