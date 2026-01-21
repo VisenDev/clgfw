@@ -12,6 +12,7 @@
                #-abcl(:feature :linux "input-event-codes")
                #-abcl(:feature :linux "cl-xkb")
 
+               "alexandria"
                )
   :serial t
   :components ((:file "package")

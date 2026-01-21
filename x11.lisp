@@ -49,6 +49,7 @@
                                :button-press
                                :button-release
                                :key-press
+                               :key-release
                                )))
     (xlib::set-wm-protocols
      window
@@ -137,7 +138,6 @@
                   (assert (keyboard-state ctx))
                   (setf (gethash (print (convert-keycode ctx code)) (keyboard-state ctx)) t)
                   t)
-      (:key-down )
       (:key-release (code)
                     (assert (keyboard-state ctx))
                     (setf (gethash (print (convert-keycode ctx code)) (keyboard-state ctx)) nil)

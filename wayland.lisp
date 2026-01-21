@@ -266,8 +266,8 @@
       
     (loop :for dy :from (the fixnum (floor y)) :below y-end :do
       (loop
-        :with dy-offset = (* dy row-pixels)
-        :for dx :from (the fixnum (floor x)) :below x-end :do
+        :with dy-offset = (* (max 0 dy) row-pixels)
+        :for dx :from (the fixnum (max 0 (floor x))) :below x-end :do
         (setf (cffi:mem-aref pool-data :uint32
                              (+ dx dy-offset))
               xrgb)))))

@@ -23,9 +23,14 @@
 ;;; ==== PLAYER ====
 (defclass player (entity) ())
 (defmethod update (ctx level (player player))
-  (when (clgfw::is-key-down ctx :j)
-    (incf (y player))
-    )
+  (when (clgfw:is-key-down ctx :j)
+    (incf (y player)))
+  (when (clgfw:is-key-down ctx :k)
+    (decf (y player)))
+  (when (clgfw:is-key-down ctx :h)
+    (decf (x player)))
+  (when (clgfw:is-key-down ctx :l)
+    (incf (x player)))
   )
 (defmethod render (ctx level (player player))
   (clgfw:draw-rectangle
@@ -72,9 +77,12 @@
 
 (defun main ()
   (let* ((level (create-level))
-         (ctx (clgfw::init-window/x11 800 800 "Hello")))
-    (progn;clgfw:with-window ctx (800 800 "Hello")
+        ;; (ctx (clgfw::init-window/x11 800 800 "Hello"))
+         )
+    (clgfw:with-window ctx (800 800 "Hello")
       (clgfw:while-running/with-drawing ctx
+        (when (clgfw:is-key-down ctx :q)
+          (return-from main))
 
         ;; Update
         (loop :for e :in (entities level)
