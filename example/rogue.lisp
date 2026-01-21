@@ -32,14 +32,18 @@
   (when (clgfw:is-key-down ctx :l)
     (incf (x player)))
   )
+
+(defparameter *red* nil)
 (defmethod render (ctx level (player player))
+  (unless *red*
+    (setf *red* (clgfw:make-color :r 200 :g 10 :b 10)))
   (clgfw:draw-rectangle
    ctx
    (x player)
    (y player)
    (tilesize level)
    (tilesize level)
-   (clgfw:make-color :r 200)))
+   *red*))
 
 (defclass level ()
   ((tilesize :accessor tilesize :initform 40)
@@ -58,17 +62,28 @@
       #(0 1 0 0 0 0 0 0 0 0 0 0 0)
       #(0 0 0 0 0 0 0 0 0 0 0 0 0)))
 
+(defparameter *solid* nil)
+(defparameter *empty* nil)
+
+
 (defun render-map (ctx level)
-  (loop :with solid = (clgfw:make-color :r 100 :g 100 :b 100)
-        :with empty = (clgfw:make-color :r 200 :g 200 :b 200)
-        :with sz = (tilesize level)
+  (unless *solid*
+    (setf *solid* (clgfw:make-color :r 100 :g 100 :b 100)))
+  (unless *empty*
+    (setf *empty* (clgfw:make-color :r 200 :g 200 :b 200)))
+  (clgfw:draw-rectangle ctx 0 0
+                        (clgfw:get-window-width ctx)
+                        (clgfw:get-window-height ctx)
+                        *solid*)
+  
+  (loop :with sz = (tilesize level)
         :for row :across (tilemap level)
         :for y :from 0 :by sz
         :do
            (loop :for tile :across row
                  :for x :from 0 :by sz
-                 :for color = (if (= tile 1) solid empty)
-                 :do (clgfw:draw-rectangle ctx x y sz sz color))))
+                 :when (= tile 1)
+                   :do (clgfw:draw-rectangle ctx x y sz sz *empty*))))
 
 (defun create-level ()
   (make-instance 'level

@@ -73,22 +73,47 @@
     ctx)
   )
 
-(defmethod draw-rectangle ((ctx ctx/x11) (x number) (y number)
-                           (width number) (height number) (color color))
+(defclass color/x11 (color)
+  ((xlib-color :accessor xlib-color)))
+
+(defun hash-color (color)
+  "computes a hash from a color"
+  (let* ((hash (color-r color))
+         (hash (ash hash 8))
+         (hash (logior hash (color-b color)))
+         (hash (ash hash 8))
+         (hash (logior hash (color-g color))))
+    hash))
+
+(defun ensure-color-is-in-colormap (ctx color)
+  "Computes a hash for the color to see if it is in the colormap already, otherwise, 
+allocates the color"
   (let* ((r (color-r color))
          (g (color-g color))
          (b (color-b color))
-         (hash (format nil "~a-~a-~a" r g b))
          (colormap (colormap ctx))
-         (pixel (ignore-errors (xlib:lookup-color colormap hash))))
-    (unless pixel
-      (setf pixel (xlib:alloc-color colormap
-                                    (xlib:make-color 
-                                     :red (/ r 256)  
-                                     :green (/ g 256)
-                                     :blue (/ b 256)))))
-    (setf (xlib:gcontext-foreground (gcontext ctx)) pixel)
-    (xlib:draw-rectangle (window ctx) (gcontext ctx) x y width height t))
+         (color (ignore-errors (xlib:lookup-color colormap (hash-color color)))))
+    (if color color
+        (xlib:alloc-color colormap
+                          (xlib:make-color 
+                           :red (/ r 256)  
+                           :green (/ g 256)
+                           :blue (/ b 256))))))
+
+(defun get-xlib-color (ctx color)
+  (if (slot-exists-p color 'xlib-color)
+      (slot-value color 'xlib-color)
+      ;else
+      (progn
+        (change-class color 'color/x11)
+        (setf (xlib-color color) (ensure-color-is-in-colormap ctx color))))
+  )
+
+(defmethod draw-rectangle ((ctx ctx/x11) (x number) (y number)
+                           (width number) (height number) (color color))
+  
+  (setf (xlib:gcontext-foreground (gcontext ctx)) (get-xlib-color ctx color))
+  (xlib:draw-rectangle (window ctx) (gcontext ctx) x y width height t)
   )
 
 (defmethod get-mouse-x ((ctx ctx/x11))
@@ -127,7 +152,9 @@
 
 (defmethod end-drawing ((ctx ctx/x11) &aux display)
   (setf display (display ctx))
+
   (xlib:display-force-output display)
+  (sleep 0.001)
   (when (xlib:event-listen display)
     (xlib:event-case (display)
       ;; (:resize-request (width height)
