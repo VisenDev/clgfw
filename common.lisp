@@ -9,10 +9,11 @@
   (make-instance 'color :r r :g g :b b)
   )
 
-(defmacro clampf (place &optional (min 0) (max most-positive-fixnum))
-  `(setf ,place (alexandria:clamp ,place ,min ,max)))
-
 (deftype mouse-button () '(member :left :right :middle))
+
+(defun init-window (width height title)
+  #+linux (funcall 'init-window/linux width height title)
+  #-linux (error "Only linux is supported right now"))
 
 (defgeneric close-window (ctx))
 (defgeneric window-should-keep-running (ctx))

@@ -65,7 +65,19 @@
    (width :initform 640 :accessor width)
    (height :initform 480 :accessor height)
    (configured :accessor configured :initform nil)
-   (window-should-close-p :initform nil :accessor window-should-close-p))
+   (window-should-close-p :initform nil :accessor window-should-close-p)
+   (pressed-keys :accessor pressed-keys
+                 :initform (make-array 256
+                                       :element-type 'symbol
+                                       :fill-pointer 0
+                                       :initial-element nil)
+                 :documentation "A vector of all the keys which have been pressed this frame")
+   (released-keys :accessor released-keys
+                 :initform (make-array 256 :element-type 'symbol
+                                           :fill-pointer 0
+                                           :initial-element nil)
+                 :documentation "A vector of all the keys which have been released this frame")
+   )
   
   (:documentation "An example Wayland application"))
 
@@ -78,6 +90,14 @@
 (defmethod is-key-down ((ctx ctx/wayland) key)
   (assert (typep key 'key) (key) "~a is not a valid clgfw key" key)
   (gethash key (keyboard-state ctx) nil))
+
+(defmethod is-key-pressed ((ctx ctx/wayland) key)
+  (assert (typep key 'key) (key) "~a is not a valid clgfw key" key)
+  (find key (pressed-keys ctx)))
+
+(defmethod is-key-released ((ctx ctx/wayland) key)
+  (assert (typep key 'key) (key) "~a is not a valid clgfw key" key)
+  (find key (pressed-keys ctx)))
 
 (defmethod get-window-width ((ctx ctx/wayland))
   (width ctx))
@@ -212,6 +232,9 @@
 (defmethod end-drawing ((ctx ctx/wayland))
   (when (window-should-close-p ctx)
     (return-from end-drawing))
+
+  (setf (fill-pointer (pressed-keys ctx)) 0)
+  (setf (fill-pointer (released-keys ctx)) 0)
   
   (ensure-buffer-memory-allocated ctx)
   
@@ -434,10 +457,14 @@
 #.(setf *readtable* (copy-readtable nil))
 
 (defun handle-keydown (ctx sym)
-  (setf (gethash (convert-key sym) (keyboard-state ctx)) t))
+  (let ((key (convert-key sym)))
+    (vector-push key (pressed-keys ctx))
+    (setf (gethash key (keyboard-state ctx)) t)))
 
 (defun handle-keyup (ctx sym)
-  (setf (gethash (convert-key sym) (keyboard-state ctx)) nil))
+  (let ((key (convert-key sym)))
+    (vector-push key (released-keys ctx))
+    (setf (gethash key (keyboard-state ctx)) nil)))
 
 (defun handle-keyboard (ctx &rest event)
   (with-slots (xkb-context xkb-keymap xkb-state) ctx

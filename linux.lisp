@@ -2,9 +2,9 @@
 
 (in-package #:clgfw)
 
-(defparameter *linux-init-window-functions* '(init-window/x11 init-window/wayland))
+(defparameter *linux-init-window-functions* '(init-window/wayland init-window/x11))
 
-(defun init-window (width height title)
+(defun init-window/linux (width height title)
   "Attempts to initialize a window on linux using both wayland and x11"
   (handler-case (funcall (first *linux-init-window-functions*) width height title)
     (error (e)

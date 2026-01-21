@@ -36,6 +36,10 @@
   (assert (typep key 'key) (key) "~a is not a valid clgfw key" key)
   (find key (pressed-keys ctx)))
 
+(defmethod is-key-released ((ctx ctx/x11) key)
+  (assert (typep key 'key) (key) "~a is not a valid clgfw key" key)
+  (find key (released-keys ctx)))
+
 (defun init-window/x11 (width height title &aux ctx)
   "Initialize the x11 window and return the created ctx"
   (declare (ignorable width height title))
