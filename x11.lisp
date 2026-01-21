@@ -19,32 +19,19 @@
    (window :accessor window)
    (gcontext :accessor gcontext)
    (colormap :accessor colormap)
-   visual
-   glx-context
    (keyboard-state :accessor keyboard-state :initform (make-hash-table :test 'eq :size 256))))
 
 (defmethod is-key-down ((ctx ctx/x11) key)
   (assert (typep key 'key) (key) "~a is not a valid clgfw key" key)
   (gethash key (keyboard-state ctx) nil))
 
-(defun init-window/x11 (width height title &aux ctx root)
+(defun init-window/x11 (width height title &aux ctx)
   "Initialize the x11 window and return the created ctx"
   (declare (ignorable width height title))
   (setf ctx (make-instance 'ctx/x11))
-  (with-slots (black white font display screen window gcontext colormap visual glx-context) ctx
-    
+  (with-slots (black white font display screen window gcontext colormap) ctx
     (setf display (xlib:open-default-display))
     (setf screen (first (xlib:display-roots display)))
-    (setf root (xlib:screen-root screen))
-    
-    ;;  (xlib/glx::client-info display) ;;tell server about us
-    (setf visual (xlib/glx:choose-visual screen '(:glx-rgba
-                                                       (:glx-red-size 1)
-                                                       (:glx-green-size 1)
-                                                       (:glx-blue-size 1)
-                                                       :glx-double-buffer)))
-    (print visual)
-    (setf colormap (xlib:create-colormap 847 (xlib:screen-root screen)))
     (setf black (xlib:screen-black-pixel screen))
     (setf white (xlib:screen-white-pixel screen))
     (setf window (xlib:create-window
@@ -53,12 +40,7 @@
                   :width width
                   :height height
                   :background black
-                  :parent root
-                  :colormap colormap
-;;                  :visual (xlib/glx:visual-id visual)
-;;                  :visual #x27
-                  :visual 847
-                  :depth 24
+                  :parent (xlib:screen-root screen)
                   :event-mask (xlib:make-event-mask
                                :leave-window
                                :exposure
@@ -67,27 +49,24 @@
                                :button-press
                                :button-release
                                :key-press
-                               :key-release
                                )))
-    (setf glx-context (xlib/glx:create-context screen #x27))
-    (xlib:set-wm-properties window
-                            :name title
-                            :width width
-                            :height height
-                            :initial-state :normal
-                            )
+    (xlib::set-wm-protocols
+     window
+     '("WM_DELETE_WINDOW"))
+    (xlib:set-wm-properties
+     window
+     :name title
+     :width width
+     :height height
+     )
     (setf gcontext (xlib:create-gcontext
                     :drawable window
                     :background black
                     :foreground white))
-
-
-    (xlib:map-window window)
-    (xlib/glx:make-current window glx-context)
-    (xlib:map-window window)
-
-    (xlib::set-wm-protocols window '("WM_DELETE_WINDOW"))
     (setf (wm-delete-atom ctx) (xlib:intern-atom display "WM_DELETE_WINDOW"))
+    (xlib:map-window window)
+    (setf colormap (xlib:screen-default-colormap screen))
+    
     (xlib:display-finish-output display)
     (xlib:display-force-output display)
     ctx)
@@ -95,24 +74,20 @@
 
 (defmethod draw-rectangle ((ctx ctx/x11) (x number) (y number)
                            (width number) (height number) (color color))
-
-  (xlib/gl:color-3s (color-r color) (color-g color) (color-b color))
-  (xlib/gl:rect-i x y (+ x width) (+ y width))
-  (xlib/gl:end)
-  ;; (let* ((r (color-r color))
-  ;;        (g (color-g color))
-  ;;        (b (color-b color))
-  ;;        (hash (format nil "~a-~a-~a" r g b))
-  ;;        (colormap (colormap ctx))
-  ;;        (pixel (ignore-errors (xlib:lookup-color colormap hash))))
-  ;;   (unless pixel
-  ;;     (setf pixel (xlib:alloc-color colormap
-  ;;                                   (xlib:make-color 
-  ;;                                    :red (/ r 256)  
-  ;;                                    :green (/ g 256)
-  ;;                                    :blue (/ b 256)))))
-  ;;   (setf (xlib:gcontext-foreground (gcontext ctx)) pixel)
-  ;;   (xlib:draw-rectangle (window ctx) (gcontext ctx) x y width height t))
+  (let* ((r (color-r color))
+         (g (color-g color))
+         (b (color-b color))
+         (hash (format nil "~a-~a-~a" r g b))
+         (colormap (colormap ctx))
+         (pixel (ignore-errors (xlib:lookup-color colormap hash))))
+    (unless pixel
+      (setf pixel (xlib:alloc-color colormap
+                                    (xlib:make-color 
+                                     :red (/ r 256)  
+                                     :green (/ g 256)
+                                     :blue (/ b 256)))))
+    (setf (xlib:gcontext-foreground (gcontext ctx)) pixel)
+    (xlib:draw-rectangle (window ctx) (gcontext ctx) x y width height t))
   )
 
 (defmethod get-mouse-x ((ctx ctx/x11))
@@ -152,12 +127,6 @@
 (defmethod end-drawing ((ctx ctx/x11) &aux display)
   (setf display (display ctx))
   (xlib:display-force-output display)
-  (xlib/glx:render)
-  (xlib/glx:swap-buffers)
-  
-  ;; (loop :for key :being :each hash-key :of (keyboard-state ctx)
-  ;;       :do (setf (gethash key (keyboard-state ctx)) nil))
-  
   (when (xlib:event-listen display)
     (xlib:event-case (display)
       ;; (:resize-request (width height)
@@ -165,12 +134,13 @@
       ;;                  (setf (xlib:drawable-height (window ctx)) height)
       ;;                  (setf (xlib:drawable-width (window ctx)) width))
       (:key-press (code)
-                  (format t "~a pressed~%" (convert-keycode ctx code))
-                  (setf (gethash (convert-keycode ctx code) (keyboard-state ctx)) t)
+                  (assert (keyboard-state ctx))
+                  (setf (gethash (print (convert-keycode ctx code)) (keyboard-state ctx)) t)
                   t)
+      (:key-down )
       (:key-release (code)
-                    (format t "~a released~%" (convert-keycode ctx code))
-                    (setf (gethash (convert-keycode ctx code) (keyboard-state ctx)) nil)
+                    (assert (keyboard-state ctx))
+                    (setf (gethash (print (convert-keycode ctx code)) (keyboard-state ctx)) nil)
                     t)
       (:button-press (code)
                      (ecase code
@@ -201,6 +171,4 @@
   )
 
 (defmethod close-window ((ctx ctx/x11))
-  (with-slots (glx-context) ctx
-    (xlib/glx:destroy-context glx-context))
   (xlib:close-display (display ctx) :abort nil))
