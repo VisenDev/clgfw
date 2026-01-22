@@ -177,22 +177,42 @@
 ;; (defun alloc (class-name)
 ;;   (msg-send ID (get-class class-name) "alloc"))
 
+(defcfun ("objc_msgSend" objc-msg-send-[id-sel-cgrect-nsint-nsint-bool]->id) ID
+  (id ID) (sel SEL) (rect (:struct CGRect)) (style-mask NSInteger) (backing-store-type NSInteger) (defer :boolean)
+  )
+
 ;;;; TEST CODE
 (defun main ()
   
   (let* ((app (msg-send NSApplication (@selector "sharedApplication")))
-        (window (msg-send NSWindow (@selector "alloc")))
-        (rect '(origin (x 0d0 y 0d0)
-                size (width 400d0 height 200d0))))
+         (window (msg-send NSWindow (@selector "alloc")))
+         (init-selector      (@selector "initWithContentRect:styleMask:backing:defer:"))
+         (style-mask (logior +nswindowstylemasktitled+ +nswindowstylemaskresizable+ +nswindowstylemaskclosable+))
+         (backing-store 2)
+         (rect '(origin (x 1d0 y 2d0)
+                 size (width 400d0 height 200d0))))
+    (print app)
     (print window)
+    (print init-selector)
+    (print style-mask)
+    (print rect)
+    (objc-msg-send-[id-sel-cgrect-nsint-nsint-bool]->id
+     window
+     init-selector
+     rect
+     style-mask
+     backing-store
+     nil
+     )
     
-    (foreign-funcall "objc_msgSend" ID ID window
-                     SEL (@selector "initWithContentRect:styleMask:backing:defer:")
-                     (:struct CGRect) rect
-                     NSInteger (logior +nswindowstylemasktitled+ +nswindowstylemaskresizable+ +nswindowstylemaskclosable+)
-                     NSInteger 2
-                     :boolean nil
-                     )
+    ;; (foreign-funcall "objc_msgSend" ID window
+    ;;                  SEL (@selector "initWithContentRect:styleMask:backing:defer:")
+    ;;                  (:struct CGRect) rect
+    ;;                  NSInteger (logior +nswindowstylemasktitled+ +nswindowstylemaskresizable+ +nswindowstylemaskclosable+)
+    ;;                  NSInteger 2
+    ;;                  :boolean nil
+    ;;                  :long
+    ;;                  )
     ;; (msg-send window (@selector "setTitle:") :string "Hello World")
     ;; (msg-send window (@selector "makeKeyAndOrderFront:") :boolean nil)
     ;; (msg-send app (@selector "run"))
