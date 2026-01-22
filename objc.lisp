@@ -1,3 +1,8 @@
+;;;; THIS FILE CONTAINS EXPERIMENTS IN BUILDING A PORTABLE OBJC
+;;;; INTERFACE FOR SBCL USING CFFI
+
+
+
 (require "cffi")
 (require "cffi-libffi")
 (defpackage #:clgfw/objc
@@ -16,7 +21,7 @@
   ;;  #:sel-register-name)
   )
 (in-package #:clgfw/objc)
-
+nn
 ;;; The definitions for the data structures and typse can be found here (on my system at least)
 ;;; /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/objc/
 
@@ -174,7 +179,7 @@
 (defconstant +NSWindowStyleMaskNonactivatingPanel+     (ash 1 7))
 (defconstant +NSWindowStyleMaskHUDWindow+              (ash 1 13))
 
-;; (defun alloc (class-name)
+p;; (defun alloc (class-name)
 ;;   (msg-send ID (get-class class-name) "alloc"))
 
 (defcfun ("objc_msgSend" objc-msg-send-[id-sel-cgrect-nsint-nsint-bool]->id) ID
