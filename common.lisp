@@ -11,7 +11,10 @@
 
 (deftype mouse-button () '(member :left :right :middle))
 
-;; Perhaps add init-window as a generic function?
+(defun init-window (width height title)
+  #+linux (funcall 'init-window/linux width height title)
+  #-linux (error "Only linux is supported right now"))
+
 (defgeneric close-window (ctx))
 (defgeneric window-should-keep-running (ctx))
 (defgeneric begin-drawing (ctx))
@@ -21,8 +24,18 @@
 (defgeneric get-mouse-y (ctx))
 (defgeneric is-mouse-button-down (ctx button))
 (defgeneric is-key-down (ctx key))
+(defgeneric is-key-pressed (ctx key)
+  (:documentation
+   "Like is-key-down, but only return true on the frame that the key is first pressed"))
+(defgeneric is-key-released (ctx key)
+  (:documentation
+   "Like is-key-pressed, but only returns true when the key is released"))
 (defgeneric get-window-width (ctx))
 (defgeneric get-window-height (ctx))
+
+(defun is-key-up (ctx key)
+  "Inverse is-key-down"
+  (not (is-key-down ctx key)))
 
 (defmacro with-window (name (width height title) &body body)
   `(let ((,name (init-window ,width ,height ,title)))
@@ -65,32 +78,32 @@
     :nine                               ; key: 9
     :semicolon                          ; key: ;
     :equal                              ; key: =
-    :a                                  ; key: a | a
-    :b                                  ; key: b | b
-    :c                                  ; key: c | c
-    :d                                  ; key: d | d
-    :e                                  ; key: e | e
-    :f                                  ; key: f | f
-    :g                                  ; key: g | g
-    :h                                  ; key: h | h
-    :i                                  ; key: i | i
-    :j                                  ; key: j | j
-    :k                                  ; key: k | k
-    :l                                  ; key: l | l
-    :m                                  ; key: m | m
-    :n                                  ; key: n | n
-    :o                                  ; key: o | o
-    :p                                  ; key: p | p
-    :q                                  ; key: q | q
-    :r                                  ; key: r | r
-    :s                                  ; key: s | s
-    :t                                  ; key: t | t
-    :u                                  ; key: u | u
-    :v                                  ; key: v | v
-    :w                                  ; key: w | w
-    :x                                  ; key: x | x
-    :y                                  ; key: y | y
-    :z                                  ; key: z | z
+    :a                                  ; key: a | A
+    :b                                  ; key: b | B
+    :c                                  ; key: c | C
+    :d                                  ; key: d | D
+    :e                                  ; key: e | E
+    :f                                  ; key: f | F
+    :g                                  ; key: g | G
+    :h                                  ; key: h | H
+    :i                                  ; key: i | I
+    :j                                  ; key: j | J
+    :k                                  ; key: k | K
+    :l                                  ; key: l | L
+    :m                                  ; key: m | M
+    :n                                  ; key: n | N
+    :o                                  ; key: o | O
+    :p                                  ; key: p | P
+    :q                                  ; key: q | Q
+    :r                                  ; key: r | R
+    :s                                  ; key: s | S
+    :t                                  ; key: t | T
+    :u                                  ; key: u | U
+    :v                                  ; key: v | V
+    :w                                  ; key: w | W
+    :x                                  ; key: x | X
+    :y                                  ; key: y | Y
+    :z                                  ; key: z | Z
     :left-bracket                       ; key: [
     :backslash                          ; key: \
     :right-bracket                      ; key: ]
@@ -169,3 +182,116 @@
     :keypad-enter                       ; key: keypad enter
     :keypad-equal                       ; key: keypad =
     ))
+
+
+(defun key->char (key)
+  "Returns the corresponding character if possible or nil otherwise"
+  (case key
+    (:a #\a)
+    (:b #\b)
+    (:c #\c)
+    (:d #\d)
+    (:e #\e)
+    (:f #\f)
+    (:g #\g)
+    (:h #\h)
+    (:i #\i)
+    (:j #\j)
+    (:k #\k)
+    (:l #\l)
+    (:m #\m)
+    (:n #\n)
+    (:o #\o)
+    (:p #\p)
+    (:q #\q)
+    (:r #\r)
+    (:s #\s)
+    (:t #\t)
+    (:u #\u)
+    (:v #\v)
+    (:w #\w)
+    (:x #\x)
+    (:y #\y)
+    (:z #\z)
+
+    (:zero  #\0)
+    (:one   #\1)
+    (:two   #\2)
+    (:three #\3)
+    (:four  #\4)
+    (:five  #\5)
+    (:six   #\6)
+    (:seven #\7)
+    (:eight #\8)
+    (:nine  #\9)
+
+    (:quote        #\')
+    (:comma        #\,)
+    (:minus        #\-)
+    (:period       #\.)
+    (:slash        #\/)
+    (:semicolon    #\;)
+    (:equal        #\=)
+    (:left-bracket #\[)
+    (:right-bracket #\])
+    (:backslash    #\Backslash)
+    (:backtick     #\`)
+    (:space        #\Space))
+)
+
+
+(defun char->key (char)
+  "Converts a character to a key, or returns nil"
+  (case char
+    ((#\a #\A) :a)
+    ((#\b #\B) :b)
+    ((#\c #\C) :c)
+    ((#\d #\D) :d)
+    ((#\e #\E) :e)
+    ((#\f #\F) :f)
+    ((#\g #\G) :g)
+    ((#\h #\H) :h)
+    ((#\i #\I) :i)
+    ((#\j #\J) :j)
+    ((#\k #\K) :k)
+    ((#\l #\L) :l)
+    ((#\m #\M) :m)
+    ((#\n #\N) :n)
+    ((#\o #\O) :o)
+    ((#\p #\P) :p)
+    ((#\q #\Q) :q)
+    ((#\r #\R) :r)
+    ((#\s #\S) :s)
+    ((#\t #\T) :t)
+    ((#\u #\U) :u)
+    ((#\v #\V) :v)
+    ((#\w #\W) :w)
+    ((#\x #\X) :x)
+    ((#\y #\Y) :y)
+    ((#\z #\Z) :z)
+
+    ((#\0 #\)) :zero)
+    ((#\1 #\!) :one)
+    ((#\2 #\@) :two)
+    ((#\3 #\#) :three)
+    ((#\4 #\$) :four)
+    ((#\5 #\%) :five)
+    ((#\6 #\^) :six)
+    ((#\7 #\&) :seven)
+    ((#\8 #\*) :eight)
+    ((#\9 #\() :nine)
+
+    (#\' :quote)
+    (#\, :comma)
+    (#\- :minus)
+    (#\. :period)
+    (#\/ :slash)
+    (#\; :semicolon)
+    (#\= :equal)
+    (#\[ :left-bracket)
+    (#\] :right-bracket)
+    (#\Backslash :backslash)
+    (#\` :backtick)
+    (#\Space :space)
+    (#\Return :enter))
+  )

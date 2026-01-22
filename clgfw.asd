@@ -17,16 +17,14 @@
                (:feature (:or :darwin :macos) "cffi-libffi")
                (:feature (:or :darwin :macos) "cffi-object")
 
-
-
                )
   :serial t
   :components ((:file "package")
                (:file "common")
-               #-abcl(:file "x11" :if-feature :linux)
-               #-abcl(:file "wayland" :if-feature :linux)
-               #-abcl(:file "linux" :if-feature :linux)
-               #+abcl(:file "jvm")
+               (:file "x11" :if-feature (:and :linux (:not :abcl)))
+               (:file "wayland" :if-feature (:and :linux (:not :abcl)))
+               (:file "linux" :if-feature (:and :linux (:not :abcl)))
+               (:file "jvm" :if-feature :abcl)
                ))
 
 (defsystem "clgfw/example/hello"

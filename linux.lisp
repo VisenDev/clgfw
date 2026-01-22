@@ -2,14 +2,14 @@
 
 (in-package #:clgfw)
 
-;; (defparameter *linux-backend* :wayland)
+(defparameter *linux-init-window-functions* '(init-window/wayland init-window/x11))
 
-(defun init-window (width height title)
-  "Attempts to initialize a wayland window, then tries x11 if that doesn't work"
-  (handler-case (init-window/wayland width height title)
-    (error ()
-      (init-window/x11 width height title)))
-  ;; (ecase *linux-backend*
-  ;;   (:x11 (init-window/x11 width height title))
-  ;;   (:wayland (init-window/wayland width height title)))
-  )
+(defun init-window/linux (width height title)
+  "Attempts to initialize a window on linux using both wayland and x11"
+  (handler-case (funcall (first *linux-init-window-functions*) width height title)
+    (error (e)
+      (format t "~a~%" e)
+      (format t "Failed to launch window using ~a, falling back to ~a~%"
+              (first *linux-init-window-functions*)
+              (second *linux-init-window-functions*))
+      (funcall (second *linux-init-window-functions*) width height title))))

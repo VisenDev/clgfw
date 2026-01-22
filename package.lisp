@@ -1,5 +1,8 @@
 (defpackage #:clgfw
-  (:use #:cl)
+  (:use #:cl
+        #+linux #:wayflan
+        #+linux #:wayflan-client
+        #+linux #:wayflan-client.xdg-shell)
   (:export #:init-window
            #:close-window
            #:window-should-keeping-running
@@ -9,6 +12,10 @@
            #:get-mouse-x
            #:get-mouse-y
            #:is-mouse-button-down
+           #:is-key-down
+           #:is-key-up
+           #:is-key-pressed
+           #:is-key-released
            #:get-window-width
            #:get-window-height
 
