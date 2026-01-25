@@ -42,8 +42,6 @@
 ;;TODO add implementations for the following functions
 (defgeneric set-target-fps (ctx &optional (fps 60))
   (:documentation "Adds a limit to how fast new frames should be drawn"))
-(defgeneric get-fps (ctx)
-  (:documentation "Returns the current frames per second"))
 (defgeneric get-delta-time (ctx)
   (:documentation "How many milliseconds of time have passed since the last frame"))
 (defgeneric draw-text (ctx x y text-height color text)
