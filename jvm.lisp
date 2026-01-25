@@ -11,12 +11,12 @@
    canvas
    buffer-strategy
    graphics
-   (window-should-close :initform nil)))
+   (window-should-keep-running :initform t :accessor window-should-keep-running)))
 
 (defun init-window/jvm (width height title)
   (declare (ignorable width height title))
   (let ((result (make-instance 'ctx/jvm)))
-    (with-slots (frame canvas buffer-strategy graphics window-should-close) result
+    (with-slots (frame canvas buffer-strategy graphics window-should-keep-running) result
       (setf frame (java:jnew (java:jclass '|java.awt.Frame|)))
       (setf canvas (java:jnew (java:jclass '|java.awt.Canvas|)))
       (java:jcall
@@ -28,15 +28,25 @@
       (java:jcall
        (java:jmethod '|java.awt.Frame| '|setVisible| '|boolean|)
        frame t)
+      (java:jcall
+       (java:jmethod '|java.awt.Frame| '|setTitle| '|java.lang.String|)
+       frame title)
 
       ;; the tricky bit
-      (java:jnew-runtime-class "ClgfwWindowAdapter"
-                               :superclass "java.awt.event.WindowAdapter"
-                               :methods '(("windowClosing" "void" ("java.awt.event.WindowEvent")
-                                                           (lambda (event)
-                                                             (declare (ignore event))
-                                                             (setf window-should-close t)
-                                                             (format t "Window should close~%")))))
+      (let ((clgfw-window-adapter
+              (java:jnew-runtime-class "ClgfwWindowAdapter"
+                                       :superclass "java.awt.event.WindowAdapter"
+                                       :access-flags '(:public)
+                                       :methods `(("windowClosing" :void ("java.awt.event.WindowEvent")
+                                                                   ,(lambda (this event)
+                                                                      (declare (ignore this event))
+                                                                      (setf window-should-keep-running nil)
+                                                                      )
+                                                                   ))
+                                       )))
+        (java:jcall
+         (java:jmethod '|java.awt.Frame| '|addWindowListener| '|java.awt.event.WindowListener|)
+         frame (java:jnew clgfw-window-adapter)))
 
       (java:jcall
        (java:jmethod '|java.awt.Canvas| '|createBufferStrategy| '|int|)
@@ -48,6 +58,16 @@
     (return-from init-window/jvm result)
     )
   )
+
+(defmethod get-window-width ((ctx ctx/jvm))
+  (java:jcall
+   (java:jmethod '|java.awt.Frame| '|getWidth|)
+   (frame ctx)))
+
+(defmethod get-window-height ((ctx ctx/jvm))
+  (java:jcall
+   (java:jmethod '|java.awt.Frame| '|getHeight|)
+   (frame ctx)))
 
 (defmethod begin-drawing ((ctx ctx/jvm))
   (with-slots (graphics buffer-strategy canvas) ctx
@@ -66,6 +86,10 @@
     (java:jcall
      (java:jmethod '|java.awt.image.BufferStrategy| '|show|)
      buffer-strategy)
+
+    ;;Sub-second sleep seems inconsistent, so just loop for now to slow down frames
+    ;;TODO find a better solution here
+    (loop repeat 10000)
     )
   )
 
@@ -75,10 +99,12 @@
     (java:jcall
      (java:jmethod '|java.awt.Graphics| '|setColor| '|java.awt.Color|)
      graphics
-     (java:jfield '|java.awt.Color| "RED" ))
+     (java:jnew (java:jclass '|java.awt.Color|) (color-r color) (color-b color) (color-g color)))
     (java:jcall
-     (java:jmethod '|java.awt.Graphics| '|drawRect| '|int| '|int| '|int| '|int|)
-     graphics x y width height)
+     (java:jmethod '|java.awt.Graphics| '|fillRect| '|int| '|int| '|int| '|int|)
+     graphics
+     (round x) (round y)
+     (round width) (round height))
     )
   )
 
@@ -91,10 +117,12 @@
   )
 
 (defun test-main/jvm ()
-  (let ((ctx (init-window/jvm 600 400 "hello")))
-    (loop :while (not (slot-value ctx 'window-should-close))
+  (let ((ctx (init-window/jvm 600 400 "hello"))
+        (i 0))
+    (loop :while (window-should-keep-running ctx)
           :do (begin-drawing ctx)
-              (draw-rectangle ctx 10 10 100 100 t)
+              (draw-rectangle ctx i i 100 100 t)
+              (incf i)
               (end-drawing ctx)
           )
     (close-window ctx)

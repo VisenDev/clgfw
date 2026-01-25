@@ -12,8 +12,12 @@
 (deftype mouse-button () '(member :left :right :middle))
 
 (defun init-window (width height title)
-  #+linux (funcall 'init-window/linux width height title)
-  #-linux (error "Only linux is supported right now"))
+
+  #+abcl (funcall 'init-window/jvm width height title)
+  #-abcl (progn
+           #+linux(funcall 'init-window/linux width height title)
+           #-linux (error "Only linux or abcl is supported right now"))
+)
 
 (defgeneric close-window (ctx))
 (defgeneric window-should-keep-running (ctx))

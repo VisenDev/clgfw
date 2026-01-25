@@ -124,11 +124,11 @@ allocates the color"
         (setf (xlib-color color) (ensure-color-is-in-colormap ctx color))))
   )
 
-(defmethod draw-rectangle ((ctx ctx/x11) (x number) (y number)
-                           (width number) (height number) (color color))
+(defmethod draw-rectangle ((ctx ctx/x11) x y
+                           width height(color color))
   
   (setf (xlib:gcontext-foreground (gcontext ctx)) (get-xlib-color ctx color))
-  (xlib:draw-rectangle (window ctx) (gcontext ctx) x y width height t)
+  (xlib:draw-rectangle (window ctx) (gcontext ctx) (round x) (round y) (round width) (round height) t)
   )
 
 (defmethod get-mouse-x ((ctx ctx/x11))
