@@ -1,6 +1,6 @@
 (in-package #:clgfw)
 
-(defclass color ()
+(defclass color () ;;TODO, change this into a struct
   ((r :initarg :r :accessor color-r :initform 0 :type (integer 0 255))
    (g :initarg :g :accessor color-g :initform 0 :type (integer 0 255))
    (b :initarg :b :accessor color-b :initform 0 :type (integer 0 255))))
@@ -12,31 +12,59 @@
 (deftype mouse-button () '(member :left :right :middle))
 
 (defun init-window (width height title)
-
+  "This is the entry point, it returns an appropriate ctx object 
+   which can be used with the other generic functions to manipulate
+   the window."
   #+abcl (funcall 'init-window/jvm width height title)
   #-abcl (progn
            #+linux(funcall 'init-window/linux width height title)
            #-linux (error "Only linux or abcl is supported right now"))
 )
 
+
+
 (defgeneric close-window (ctx))
-(defgeneric window-should-keep-running (ctx))
+(defgeneric window-should-keep-running (ctx)) ;; TODO maybe rename this to window-should-keep-running-p
 (defgeneric begin-drawing (ctx))
-(defgeneric end-drawing (ctx))
+(defgeneric end-drawing (ctx)) ;; TODO maybe schedule a gc to happen here so as to ensure a consistent framerate?
 (defgeneric draw-rectangle (ctx x y width height color))
 (defgeneric get-mouse-x (ctx))
 (defgeneric get-mouse-y (ctx))
 (defgeneric is-mouse-button-down (ctx button))
 (defgeneric is-key-down (ctx key))
 (defgeneric is-key-pressed (ctx key)
-  (:documentation
-   "Like is-key-down, but only return true on the frame that the key is first pressed"))
+  (:documentation "Like is-key-down, but only return true on the frame that the key is first pressed"))
 (defgeneric is-key-released (ctx key)
-  (:documentation
-   "Like is-key-pressed, but only returns true when the key is released"))
+  (:documentation "Like is-key-pressed, but only returns true when the key is released"))
 (defgeneric get-window-width (ctx))
 (defgeneric get-window-height (ctx))
 
+;;TODO add implementations for the following functions
+(defgeneric set-target-fps (ctx &optional (fps 60))
+  (:documentation "Adds a limit to how fast new frames should be drawn"))
+(defgeneric get-fps (ctx)
+  (:documentation "Returns the current frames per second"))
+(defgeneric get-delta-time (ctx)
+  (:documentation "How many milliseconds of time have passed since the last frame"))
+(defgeneric draw-text (ctx x y text-height color text)
+  (:documentation "Draws some text on screen using the default font for the chosen backend"))
+(defgeneric measure-text-width (ctx text-height text)
+  (:documentation "Returns the width needed if the input text were drawn on the screen"))
+(defgeneric get-input-characters (ctx)
+  (:documentation "Returns a vector containing character representations of every key that has 
+                   been pressed this frame. This is intended for use in things like text input
+                   widgets."))
+(defgeneric create-image (ctx width height)
+  (:documentation "An image can be used as the ctx for various draw functions, allowing
+                   certain graphics to be saved and then drawn to the screen later"))
+(defgeneric draw-image (ctx image x y width height)
+  (:documentation "Draws the image at x y, warps the image if necessary"))
+(defgeneric destroy-image (image) ;; TODO investigate using trivial-garbage to call this fn
+  (:documentation "Destroys the image, may be important if the image
+                   is represented as a gpu texture in a given backend"))
+
+
+;; Utilities defined using the above apis
 (defun is-key-up (ctx key)
   "Inverse is-key-down"
   (not (is-key-down ctx key)))
