@@ -1,8 +1,8 @@
 (defpackage #:clgfw
   (:use #:cl
-        #+linux #:wayflan
-        #+linux #:wayflan-client
-        #+linux #:wayflan-client.xdg-shell)
+        #+(and linux (not abcl)) #:wayflan
+        #+(and linux (not abcl)) #:wayflan-client
+        #+(and linux (not abcl)) #:wayflan-client.xdg-shell)
   (:export #:init-window
            #:close-window
            #:window-should-keeping-running
