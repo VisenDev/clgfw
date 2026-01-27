@@ -41,7 +41,7 @@
 (defgeneric get-window-height (ctx))
 
 ;;TODO add implementations for the following functions
-(defgeneric set-target-fps (ctx &optional (fps 60))
+(defgeneric set-target-fps (ctx)
   (:documentation "Adds a limit to how fast new frames should be drawn"))
 (defgeneric get-delta-time (ctx)
   (:documentation "How many milliseconds of time have passed since the last frame"))
