@@ -4,18 +4,21 @@
 
 (in-package #:clgfw)
 
-(declaim (ftype (function () number) ms-timestamp))
+(defconstant +ns-per-ms+ 1000000)
+(defconstant +ms-per-s+ 1000)
+
+(defun timestamp-total-ms (timestamp)
+    (+
+     (/ (local-time:nsec-of timestamp) +ns-per-ms+)
+     (* (local-time:sec-of timestamp) +ms-per-s+)))
+
 (defun ms-timestamp ()
-  (local-time:timestamp-millisecond (local-time:now)))
+  (timestamp-total-ms (local-time:now)))
 
 (defclass fps-manager ()
-  ((prior-frame :accessor current-frame :initform nil)
+  ((prior-frame :accessor prior-frame :initform nil)
    (current-frame :accessor current-frame :initform nil)
-   (target-fps :initform 60 :accessor target-fps))
-  )
-
-(defun target-ms-per-frame (ctx)
-  (fps-to-ms (target-fps ctx)))
+   (target-fps :initform 170 :accessor target-fps)))
 
 (defmethod begin-drawing :after ((ctx fps-manager))
   (with-slots (prior-frame current-frame) ctx
@@ -28,16 +31,26 @@
   (with-slots (prior-frame current-frame) ctx
     (unless (and prior-frame current-frame)
       (format t "missing prior frame~%")
-      (return-from get-delta-time 1))
-    (-
-     (local-time:timestamp-millisecond current-frame)
-     (local-time:timestamp-millisecond prior-frame))))
+      (return-from get-delta-time 0))
+    (- (timestamp-total-ms current-frame)
+       (timestamp-total-ms prior-frame))
+     ;; (/ 
+     ;; (-
+     ;;  (local-time:nsec-of current-frame)
+     ;;  (local-time:nsec-of prior-frame))
+     ;; +ns-per-ms+)
+    ))
 
 (defun ms-to-fps (milliseconds)
-  (/ 1000f0 (max milliseconds 1)))
+  (if (plusp milliseconds)
+      (/ 1000.0 milliseconds)
+      0.0))
 
 (defun fps-to-ms (fps)
-  (/ 1000f0 fps))
+  (/ 1000.0 fps))
+
+(defun target-ms-per-frame (ctx)
+  (fps-to-ms (target-fps ctx)))
 
 (defmethod get-fps ((ctx fps-manager))
   (ms-to-fps (get-delta-time ctx)))
@@ -47,7 +60,7 @@
   "Returns how many ms have passed since the frame began"
   (-
    (ms-timestamp)
-   (local-time:timestamp-millisecond (current-frame ctx))))
+   (timestamp-total-ms (current-frame ctx))))
 
 (defun current-frame-remaining-ms-budget (ctx)
   (-
@@ -56,8 +69,21 @@
 
 (defmethod end-drawing :after ((ctx fps-manager))
   "Sleep until target fps is reached"
-  (loop :while (> (current-frame-remaining-ms-budget ctx) 0)
-        :for i :from 0
-        :finally (format t "Looped ~a times~%" i))
-  ;; (sleep (max 0 (/ (current-frame-remaining-ms-budget ctx) 1000)))
+
+  ;; (loop
+  ;;   for remaining = (current-frame-remaining-ms-budget ctx)
+  ;;   while (> remaining 1)
+  ;;   do (sleep (/ (- remaining 1) 1000.0)))
+
+
+  ;; (format t "current-frame-remaining-ms-budget ~a~%" (current-frame-remaining-ms-budget ctx))
+  ;; (let ((budget (* 0.001 (current-frame-remaining-ms-budget ctx))))
+  ;;   (when (plusp budget)
+  ;;     (sleep budget)))
+  ;; (format t "frame-elapsed-ms: ~a~%" (frame-elapsed-ms ctx))
+  ;; (loop :while (> (current-frame-remaining-ms-budget ctx) 0)
+  ;;       ;; :for i :from 0
+  ;;       ;; :finally (format t "Looped ~a times~%" i)
+  ;;       )
+  (sleep (max 0 (/ (1- (current-frame-remaining-ms-budget ctx)) 1000)))
   )

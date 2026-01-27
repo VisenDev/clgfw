@@ -72,6 +72,15 @@
       (setf buffer-strategy (java:jcall
                              #.(java:jmethod '|java.awt.Canvas| '|getBufferStrategy|)
                              canvas))
+
+      (java:jcall
+       #.(java:jmethod '|java.awt.Canvas| '|setIgnoreRepaint| '|boolean|)
+       canvas t)
+
+      (java:jcall
+       #.(java:jmethod '|java.awt.Frame| '|setIgnoreRepaint| '|boolean|)
+       frame t)
+
       )
     (return-from init-window/jvm result)
     )
@@ -98,11 +107,28 @@
     (java:jcall
      #.(java:jmethod '|java.awt.Graphics| '|dispose|)
      graphics)
+    
     (java:jcall
      #.(java:jmethod '|java.awt.image.BufferStrategy| '|show|)
      buffer-strategy)
-    )
-  )
+    
+    (java:jcall
+     #.(java:jmethod '|java.awt.Toolkit| '|sync|)
+     (java:jcall
+      #.(java:jmethod '|java.awt.Toolkit| '|getDefaultToolkit|)
+      (java:jclass '|java.awt.Toolkit|)))))
+
+(defun get-cached-color (color)
+  (if (cached color)
+      (cached color)
+      (progn
+        (setf (cached color)
+              (java:jnew
+               (java:jclass '|java.awt.Color|)
+               (color-r color)
+               (color-g color)
+               (color-b color)))
+        (cached color))))
 
 (defmethod draw-rectangle ((ctx ctx/jvm) x y width height color)
   (declare (ignorable color))
@@ -110,7 +136,8 @@
     (java:jcall
      #.(java:jmethod '|java.awt.Graphics| '|setColor| '|java.awt.Color|)
      graphics
-     (java:jnew (java:jclass '|java.awt.Color|) (color-r color) (color-b color) (color-g color)))
+     (get-cached-color color))
+    
     (java:jcall
      #.(java:jmethod '|java.awt.Graphics| '|fillRect| '|int| '|int| '|int| '|int|)
      graphics
@@ -118,6 +145,32 @@
      (round width) (round height))
     )
   )
+
+(defmethod draw-text ((ctx ctx/jvm) x y text-height color text)
+  (with-slots (graphics) ctx
+    (java:jcall
+     #.(java:jmethod '|java.awt.Graphics| '|setColor| '|java.awt.Color|)
+     graphics
+     (get-cached-color color)
+     )
+
+    ;;TODO cache this font
+    (java:jcall
+     #.(java:jmethod '|java.awt.Graphics| '|setFont| '|java.awt.Font|)
+     graphics
+     (java:jcall
+      #.(java:jmethod '|java.awt.Font| '|deriveFont| '|float|)
+      (java:jcall
+       #.(java:jmethod '|java.awt.Graphics| '|getFont|)
+       graphics)
+      text-height))
+    
+    (java:jcall
+     #.(java:jmethod '|java.awt.Graphics| '|drawString| '|java.lang.String| '|int| '|int|)
+     graphics
+     text
+     (round x) (round (+ y text-height)))    
+    ))
 
 (defmethod close-window ((ctx ctx/jvm))
   (with-slots (frame) ctx
