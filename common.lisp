@@ -45,6 +45,7 @@
   (:documentation "Adds a limit to how fast new frames should be drawn"))
 (defgeneric get-delta-time (ctx)
   (:documentation "How many milliseconds of time have passed since the last frame"))
+(defgeneric get-fps (ctx))
 (defgeneric draw-text (ctx x y text-height color text)
   (:documentation "Draws some text on screen using the default font for the chosen backend"))
 (defgeneric measure-text-width (ctx text-height text)
