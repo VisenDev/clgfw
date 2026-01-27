@@ -12,6 +12,25 @@
    graphics
    (window-should-keep-running :initform t :accessor window-should-keep-running)))
 
+;; MouseInfo.getPointerInfo().getLocation()
+(defmethod get-mouse-x ((ctx ctx/jvm))
+  (java:jfield '|x| 
+               (java:jcall
+                (java:jmethod '|java.awt.PointerInfo| '|getLocation|)
+                (java:jcall
+                 #.(java:jmethod '|java.awt.MouseInfo| '|getPointerInfo|)
+                 '|java.awt.MouseInfo|
+                 ))))
+
+(defmethod get-mouse-y ((ctx ctx/jvm))
+  (java:jfield '|y| 
+               (java:jcall
+                (java:jmethod '|java.awt.PointerInfo| '|getLocation|)
+                (java:jcall
+                 #.(java:jmethod '|java.awt.MouseInfo| '|getPointerInfo|)
+                 '|java.awt.MouseInfo|
+                 ))))
+
 (defun init-window/jvm (width height title)
   (declare (ignorable width height title))
   (let ((result (make-instance 'ctx/jvm)))
