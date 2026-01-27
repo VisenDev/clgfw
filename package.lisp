@@ -18,6 +18,7 @@
            #:is-key-released
            #:get-window-width
            #:get-window-height
+           #:get-fps
 
            ;; Common functions between implementations
            #:make-color

@@ -1,23 +1,14 @@
 (in-package #:clgfw)
 
-(defstruct color
-  (r 0 :type unsigned-byte)
-  (g 0 :type unsigned-byte)
-  (b 0 :type unsigned-byte)
-  (a 0 :type unsigned-byte)
+(defclass color () ;;TODO, change this into a struct
+  ((r :initarg :r :accessor color-r :initform 0 :type (integer 0 255))
+   (g :initarg :g :accessor color-g :initform 0 :type (integer 0 255))
+   (b :initarg :b :accessor color-b :initform 0 :type (integer 0 255))
+   (cached :accessor cached :initform nil :documentation "Cached representation of the color (backend specific)")))
 
-  ;; optional field
-  (extra nil :documentation "")
+(defun make-color (&key (r 0) (b 0) (g 0))
+  (make-instance 'color :r r :g g :b b)
   )
-
-;; (defclass color () ;;TODO, change this into a struct
-;;   ((r :initarg :r :accessor color-r :initform 0 :type (integer 0 255))
-;;    (g :initarg :g :accessor color-g :initform 0 :type (integer 0 255))
-;;    (b :initarg :b :accessor color-b :initform 0 :type (integer 0 255))))
-
-;; (defun make-color (&key (r 0) (b 0) (g 0))
-;;   (make-instance 'color :r r :g g :b b)
-;;   )
 
 (deftype mouse-button () '(member :left :right :middle))
 

@@ -27,6 +27,8 @@
 	#define SI_NO_RELEASE - do not define release (just use NSRelease)
 */
 
+#define SILICON_IMPLEMENTATION
+
 #ifndef SILICON_H
 #define SILICON_H
 

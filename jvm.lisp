@@ -4,9 +4,8 @@
 (error "The JVM windowing backend requires abcl")
 
 (require 'java)
-;;(require 'jss)
 
-(defclass ctx/jvm ()
+(defclass ctx/jvm (fps-manager)
   ((frame :accessor frame)
    canvas
    buffer-strategy
@@ -20,16 +19,16 @@
       (setf frame (java:jnew (java:jclass '|java.awt.Frame|)))
       (setf canvas (java:jnew (java:jclass '|java.awt.Canvas|)))
       (java:jcall
-       (java:jmethod '|java.awt.Frame| '|setSize| '|int| '|int|)
+       #.(java:jmethod '|java.awt.Frame| '|setSize| '|int| '|int|)
        frame width height)
       (java:jcall
-       (java:jmethod '|java.awt.Frame| '|add| '|java.awt.Component|)
+       #.(java:jmethod '|java.awt.Frame| '|add| '|java.awt.Component|)
        frame canvas)
       (java:jcall
-       (java:jmethod '|java.awt.Frame| '|setVisible| '|boolean|)
+       #.(java:jmethod '|java.awt.Frame| '|setVisible| '|boolean|)
        frame t)
       (java:jcall
-       (java:jmethod '|java.awt.Frame| '|setTitle| '|java.lang.String|)
+       #.(java:jmethod '|java.awt.Frame| '|setTitle| '|java.lang.String|)
        frame title)
 
       ;; the tricky bit
@@ -45,14 +44,14 @@
                                                                    ))
                                        )))
         (java:jcall
-         (java:jmethod '|java.awt.Frame| '|addWindowListener| '|java.awt.event.WindowListener|)
+         #.(java:jmethod '|java.awt.Frame| '|addWindowListener| '|java.awt.event.WindowListener|)
          frame (java:jnew clgfw-window-adapter)))
 
       (java:jcall
-       (java:jmethod '|java.awt.Canvas| '|createBufferStrategy| '|int|)
+       #.(java:jmethod '|java.awt.Canvas| '|createBufferStrategy| '|int|)
        canvas 2)
       (setf buffer-strategy (java:jcall
-                             (java:jmethod '|java.awt.Canvas| '|getBufferStrategy|)
+                             #.(java:jmethod '|java.awt.Canvas| '|getBufferStrategy|)
                              canvas))
       )
     (return-from init-window/jvm result)
@@ -61,35 +60,28 @@
 
 (defmethod get-window-width ((ctx ctx/jvm))
   (java:jcall
-   (java:jmethod '|java.awt.Frame| '|getWidth|)
+   #.(java:jmethod '|java.awt.Frame| '|getWidth|)
    (frame ctx)))
 
 (defmethod get-window-height ((ctx ctx/jvm))
   (java:jcall
-   (java:jmethod '|java.awt.Frame| '|getHeight|)
+   #.(java:jmethod '|java.awt.Frame| '|getHeight|)
    (frame ctx)))
 
 (defmethod begin-drawing ((ctx ctx/jvm))
   (with-slots (graphics buffer-strategy canvas) ctx
     (setf graphics (java:jcall
-                    (java:jmethod '|java.awt.image.BufferStrategy| '|getDrawGraphics|)
-                    buffer-strategy))
-    
-    )
-  )
+                    #.(java:jmethod '|java.awt.image.BufferStrategy| '|getDrawGraphics|)
+                    buffer-strategy))))
 
 (defmethod end-drawing ((ctx ctx/jvm))
   (with-slots (graphics buffer-strategy) ctx
     (java:jcall
-     (java:jmethod '|java.awt.Graphics| '|dispose|)
+     #.(java:jmethod '|java.awt.Graphics| '|dispose|)
      graphics)
     (java:jcall
-     (java:jmethod '|java.awt.image.BufferStrategy| '|show|)
+     #.(java:jmethod '|java.awt.image.BufferStrategy| '|show|)
      buffer-strategy)
-
-    ;;Sub-second sleep seems inconsistent, so just loop for now to slow down frames
-    ;;TODO find a better solution here
-    (loop repeat 10000)
     )
   )
 
@@ -97,11 +89,11 @@
   (declare (ignorable color))
   (with-slots (graphics) ctx
     (java:jcall
-     (java:jmethod '|java.awt.Graphics| '|setColor| '|java.awt.Color|)
+     #.(java:jmethod '|java.awt.Graphics| '|setColor| '|java.awt.Color|)
      graphics
      (java:jnew (java:jclass '|java.awt.Color|) (color-r color) (color-b color) (color-g color)))
     (java:jcall
-     (java:jmethod '|java.awt.Graphics| '|fillRect| '|int| '|int| '|int| '|int|)
+     #.(java:jmethod '|java.awt.Graphics| '|fillRect| '|int| '|int| '|int| '|int|)
      graphics
      (round x) (round y)
      (round width) (round height))
@@ -111,7 +103,7 @@
 (defmethod close-window ((ctx ctx/jvm))
   (with-slots (frame) ctx
     (java:jcall
-     (java:jmethod '|java.awt.Frame| '|dispose|)
+     #.(java:jmethod '|java.awt.Frame| '|dispose|)
      frame)
     )
   )

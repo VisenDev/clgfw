@@ -3,7 +3,9 @@
   :author "Robert Wess Burnett"
   :license "Apache-2"
   :description "Common Lisp General Framework for Windowing"
-  :depends-on (;; X11
+  :depends-on ("local-time"
+
+               ;; X11
                (:feature (:and :linux (:not :abcl)) "clx")
 
                ;; WAYLAND
@@ -13,14 +15,15 @@
                (:feature (:and :linux (:not :abcl)) "cl-xkb")
 
                ;; COCOA
-               (:feature (:or :darwin :macos) "cffi")
-               (:feature (:or :darwin :macos) "cffi-libffi")
-               (:feature (:or :darwin :macos) "cffi-object")
+               (:feature (:and (:or :darwin :macos) (:not :abcl)) "cffi")
+               (:feature (:and (:or :darwin :macos) (:not :abcl)) "cffi-libffi")
+               (:feature (:and (:or :darwin :macos) (:not :abcl)) "cffi-object")
 
                )
   :serial t
   :components ((:file "package")
                (:file "common")
+               (:file "fps")
                (:file "x11" :if-feature (:and :linux (:not :abcl)))
                (:file "wayland" :if-feature (:and :linux (:not :abcl)))
                (:file "linux" :if-feature (:and :linux (:not :abcl)))

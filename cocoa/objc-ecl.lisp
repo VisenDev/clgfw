@@ -18,5 +18,4 @@
   )
 
 (defun main ()
-
   (print "hello"))
