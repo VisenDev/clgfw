@@ -15,9 +15,9 @@
                (:feature (:and :linux (:not :abcl)) "cl-xkb")
 
                ;; COCOA
-               (:feature (:and (:or :darwin :macos) (:not :abcl)) "cffi")
-               (:feature (:and (:or :darwin :macos) (:not :abcl)) "cffi-libffi")
-               (:feature (:and (:or :darwin :macos) (:not :abcl)) "cffi-object")
+               ;; (:feature (:and (:or :darwin :macos) (:not :abcl)) "cffi")
+               ;; (:feature (:and (:or :darwin :macos) (:not :abcl)) "cffi-libffi")
+               ;; (:feature (:and (:or :darwin :macos) (:not :abcl)) "cffi-object")
 
                )
   :serial t
