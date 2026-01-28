@@ -30,12 +30,22 @@
                (:file "jvm" :if-feature :abcl)
                ))
 
+(defsystem "clgfw/bdf"
+  :author "Robert Wess Burnett"
+  :license "Apache-2"
+  :description "Bitmap font parser"
+  :depends-on ("alexandria" "bit-smasher")
+  :components ((:module "bdf"
+                :components
+                ((:file "bdf.lisp")))))
+
 (defsystem "clgfw/example/hello"
   :depends-on ("clgfw")
+  :description "Basic example"
   :serial t
   :components ((:module "example" 
                 :components ((:file "hello"))))
   :build-operation program-op
-  :build-pathname "hello" ;; shell name
+  :build-pathname "hello"                 ;; shell name
   :entry-point "clgfw/example/hello:main" ;; thunk
   )
