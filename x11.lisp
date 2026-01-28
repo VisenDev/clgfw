@@ -13,7 +13,7 @@
    (mouse-right-button-down :accessor mouse-right-button-down :initform nil)
    (black :accessor black)
    (white :accessor white)
-   (font :accessor font)
+   (font :accessor font :initform nil)
    (display :accessor display)
    (screen :accessor screen)
    (window :accessor window)
@@ -131,13 +131,28 @@ allocates the color"
   (xlib:draw-rectangle (window ctx) (gcontext ctx) (round x) (round y) (round width) (round height) t)
   )
 
+(defun find-closest-xserver-font (display text-height)
+  (declare (type integer text-height))
+  (labels ((make-pattern (height)
+             (format nil "*~a0*" height))
+           (find-font (height)
+             (first (xlib:list-fonts display (make-pattern height)))))
+    (loop :for i :from 0 :below 100
+          :for up :from text-height
+          :for down :downfrom text-height
+          :for up-font = (find-font up)
+          :for down-font = (find-font (max 5 down))
+          :do (when up-font (return (print up-font)))
+              (when (and down-font (> down 5)) (return down-font)))))
+
 (defmethod draw-text ((ctx ctx/x11) x y text-height color text)
-  ;;Warning, this function currently ignores text-height because there is not
-  ;;an easy way to change text size in clx
-  (declare (ignore text-height))
-  (with-slots (gcontext) ctx
+  (declare (ignorable text-height))
+  (with-slots (gcontext display) ctx
     (setf (xlib:gcontext-foreground gcontext) (get-xlib-color ctx color))
-    ;; (setf (xlib:gcontext-font (gcontext ctx)) (get-xlib-font ctx text-height))
+
+    ;; I'm having trouble figuring out how to get the right sized xlib font
+    
+    ;; (setf (xlib:gcontext-font (gcontext ctx)) (find-closest-xserver-font display 100))
     (xlib:draw-glyphs (window ctx) gcontext(round x) (- (round y) 15) text)))
 
 (defmethod get-mouse-x ((ctx ctx/x11))

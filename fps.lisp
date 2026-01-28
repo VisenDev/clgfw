@@ -85,5 +85,5 @@
   ;;       ;; :for i :from 0
   ;;       ;; :finally (format t "Looped ~a times~%" i)
   ;;       )
-  (sleep (max 0 (/ (1- (current-frame-remaining-ms-budget ctx)) 1000)))
+  (sleep (max 0 (/ (current-frame-remaining-ms-budget ctx) 1000)))
   )

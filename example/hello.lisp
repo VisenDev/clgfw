@@ -18,8 +18,7 @@
 
           (clgfw:draw-rectangle ctx (clgfw:get-mouse-x ctx) (clgfw:get-mouse-y ctx) 10 10 fg)
           
-          #+abcl ;;only abcl has text rendering right now
-          (clgfw::draw-text ctx 10 10 20
+          (clgfw::draw-text ctx 100 100 20
                             (clgfw:make-color :r 200)
                             (format nil "FPS ~a" (clgfw:get-fps ctx)))
           
