@@ -5,7 +5,7 @@
 
 (in-package #:clgfw)
 
-(defclass ctx/x11 ()
+(defclass ctx/x11 (fps-manager)
   ((window-should-keep-running  :accessor window-should-keep-running :initform t)
    (wm-delete-atom :accessor wm-delete-atom)
    (mouse-left-button-down :accessor mouse-left-button-down :initform nil)
@@ -130,6 +130,15 @@ allocates the color"
   (setf (xlib:gcontext-foreground (gcontext ctx)) (get-xlib-color ctx color))
   (xlib:draw-rectangle (window ctx) (gcontext ctx) (round x) (round y) (round width) (round height) t)
   )
+
+(defmethod draw-text ((ctx ctx/x11) x y text-height color text)
+  ;;Warning, this function currently ignores text-height because there is not
+  ;;an easy way to change text size in clx
+  (declare (ignore text-height))
+  (with-slots (gcontext) ctx
+    (setf (xlib:gcontext-foreground gcontext) (get-xlib-color ctx color))
+    ;; (setf (xlib:gcontext-font (gcontext ctx)) (get-xlib-font ctx text-height))
+    (xlib:draw-glyphs (window ctx) gcontext(round x) (- (round y) 15) text)))
 
 (defmethod get-mouse-x ((ctx ctx/x11))
   (multiple-value-bind (x) (xlib:query-pointer (window ctx)) x))

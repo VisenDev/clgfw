@@ -16,7 +16,7 @@
           (clgfw:draw-rectangle ctx 0 0 w h bg)
           (clgfw:draw-rectangle ctx x y sz sz fg)
 
-          (clgfw:draw-rectangle ctx (clgfw:get-mouse-x ctx) (clgfw:get-mouse-y ctx) 25 10 10 fg)
+          (clgfw:draw-rectangle ctx (clgfw:get-mouse-x ctx) (clgfw:get-mouse-y ctx) 10 10 fg)
           
           #+abcl ;;only abcl has text rendering right now
           (clgfw::draw-text ctx 10 10 20

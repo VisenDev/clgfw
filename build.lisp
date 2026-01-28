@@ -14,5 +14,3 @@
 (asdf:load-system "clgfw")
 (asdf:make "clgfw/example/hello")
 (uiop:quit)
-
-
