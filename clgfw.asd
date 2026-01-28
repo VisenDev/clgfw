@@ -34,7 +34,7 @@
   :author "Robert Wess Burnett"
   :license "Apache-2"
   :description "Bitmap font parser"
-  :depends-on ("alexandria" "bit-smasher")
+  :depends-on ("alexandria")
   :components ((:module "bdf"
                 :components
                 ((:file "bdf.lisp")))))

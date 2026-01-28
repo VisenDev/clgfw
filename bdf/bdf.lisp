@@ -1,7 +1,7 @@
 #.(asdf:load-system "alexandria")
 
 (defpackage #:clgfw/bdf
-  (:use #:cl #:alexandria #:bit-smasher)
+  (:use #:cl #:alexandria)
   (:export #:load-bdf))
 (in-package #:clgfw/bdf)
 
@@ -50,6 +50,12 @@
    (bbx :accessor bbx :initarg :bbx)
    (bitmap :accessor bitmap :initarg :bitmap)))
 
+(declaim (ftype (function (integer &optional integer) simple-bit-vector) int-to-bitvec))
+(defun int-to-bitvec (int &optional (min-width 0))
+  (declare (type integer int))
+  (read-from-string
+   (format nil (format nil "#*~~~d,'0b" min-width) int)))
+
 (defun parse-chars (bdf fp count)
   
   (loop :with bitmap-rows = (point-size bdf)
@@ -79,7 +85,9 @@
                                       :element-type 'simple-array
                                       :fill-pointer 0)))
               (loop :repeat bitmap-rows
-                    :do (vector-push (bits<- (read fp)) bitmap))
+                    :do (vector-push
+                         (int-to-bitvec (read fp) (point-size bdf))
+                         bitmap))
               (expect fp "ENDCHAR")
               (make-instance 'bdf-char
                              :startchar char
@@ -87,8 +95,7 @@
                              :swidth swidth
                              :dwidth dwidth
                              :bbx bbx
-                             :bitmap bitmap))
-            ))))
+                             :bitmap bitmap))))))
 
 (defun parse (bdf fp)
   (expect fp "STARTFONT")
@@ -127,6 +134,3 @@
         (parse bdf fp))
       )
     (return-from load-bdf bdf)))
-  
-  
-  
