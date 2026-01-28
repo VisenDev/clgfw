@@ -24,7 +24,7 @@
            :documentation "The wayland buffer made from the pool data")
    ))
 
-(defclass ctx/wayland ()
+(defclass ctx/wayland (fps-manager)
   (;; Globals
    (wl-display :accessor wl-display)
    wl-registry
