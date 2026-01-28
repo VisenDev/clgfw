@@ -34,13 +34,16 @@
   :author "Robert Wess Burnett"
   :license "Apache-2.0"
   :description "Bitmap font parser"
-  :depends-on ()
+  :depends-on ("clgfw")
+  :serial t
   :components ((:module "bdf"
                 :components
-                ((:file "bdf.lisp")))))
+                ((:file "bdf")
+                 (:file "font-loader")
+                 (:file "renderer")))))
 
 (defsystem "clgfw/example/hello"
-  :depends-on ("clgfw")
+  :depends-on ("clgfw" "clgfw/bdf")
   :license "Apache-2.0"
   :description "Basic example"
   :serial t

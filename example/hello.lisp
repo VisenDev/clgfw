@@ -13,15 +13,16 @@
 
         (let ((w (clgfw:get-window-width ctx))
               (h (clgfw:get-window-height ctx)))
+
+          (when (clgfw:is-key-pressed ctx :q)
+            (return-from main))
+          
           (clgfw:draw-rectangle ctx 0 0 w h bg)
           (clgfw:draw-rectangle ctx x y sz sz fg)
-
           (clgfw:draw-rectangle ctx (clgfw:get-mouse-x ctx) (clgfw:get-mouse-y ctx) 10 10 fg)
-
-          #+abcl
-          (clgfw::draw-text ctx 100 100 20
-                            (clgfw:make-color :r 200)
+          (clgfw:draw-text ctx 10 10 20 fg
                             (format nil "FPS ~a" (clgfw:get-fps ctx)))
+          (clgfw:draw-text ctx 10 100 20 fg "Press 'q' to quit!")
           
           (incf x delta-x)
           (incf y delta-y)

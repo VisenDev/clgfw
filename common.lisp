@@ -7,6 +7,7 @@
    (cached :accessor cached :initform nil :documentation "Cached representation of the color (backend specific)")))
 
 (defun make-color (&key (r 0) (b 0) (g 0))
+  "Warning, making a new color every frame is expensive on x11"
   (make-instance 'color :r r :g g :b b)
   )
 

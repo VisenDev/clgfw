@@ -145,6 +145,7 @@ allocates the color"
           :do (when up-font (return (print up-font)))
               (when (and down-font (> down 5)) (return down-font)))))
 
+#|
 (defmethod draw-text ((ctx ctx/x11) x y text-height color text)
   (declare (ignorable text-height))
   (with-slots (gcontext display) ctx
@@ -154,6 +155,7 @@ allocates the color"
     
     ;; (setf (xlib:gcontext-font (gcontext ctx)) (find-closest-xserver-font display 100))
     (xlib:draw-glyphs (window ctx) gcontext(round x) (- (round y) 15) text)))
+|#
 
 (defmethod get-mouse-x ((ctx ctx/x11))
   (multiple-value-bind (x) (xlib:query-pointer (window ctx)) x))
@@ -199,7 +201,7 @@ allocates the color"
   (setf (fill-pointer (released-keys ctx)) 0) ;;reset released keys
 
   (xlib:display-force-output display)
-  (sleep 0.001)
+  ;; (sleep 0.001)
   (when (xlib:event-listen display)
     (xlib:event-case (display)
       ;; (:resize-request (width height)

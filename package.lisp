@@ -9,6 +9,7 @@
            #:begin-drawing
            #:end-drawing
            #:draw-rectangle
+           #:draw-text
            #:get-mouse-x
            #:get-mouse-y
            #:is-mouse-button-down

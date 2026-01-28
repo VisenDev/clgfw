@@ -53,7 +53,8 @@
   (fps-to-ms (target-fps ctx)))
 
 (defmethod get-fps ((ctx fps-manager))
-  (ms-to-fps (get-delta-time ctx)))
+  (floor
+   (ms-to-fps (get-delta-time ctx))))
 
 (defgeneric frame-elapsed-ms (ctx))
 (defmethod frame-elapsed-ms ((ctx fps-manager))
