@@ -32,15 +32,16 @@
 
 (defsystem "clgfw/bdf"
   :author "Robert Wess Burnett"
-  :license "Apache-2"
+  :license "Apache-2.0"
   :description "Bitmap font parser"
-  :depends-on ("alexandria")
+  :depends-on ()
   :components ((:module "bdf"
                 :components
                 ((:file "bdf.lisp")))))
 
 (defsystem "clgfw/example/hello"
   :depends-on ("clgfw")
+  :license "Apache-2.0"
   :description "Basic example"
   :serial t
   :components ((:module "example" 

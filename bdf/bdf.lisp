@@ -1,7 +1,12 @@
-#.(asdf:load-system "alexandria")
+;;;; BDF.LISP
+;;;; This file implements a simple bitmap font parser
+;;;; for use with clgfw
+;;;;
+;;;; This file is licensed under the Apache-2.0 License
+
 
 (defpackage #:clgfw/bdf
-  (:use #:cl #:alexandria)
+  (:use #:cl)
   (:export #:load-bdf))
 (in-package #:clgfw/bdf)
 
@@ -22,7 +27,7 @@
    (y-ofset :accessor y-offset)
    (font-bounding-box :accessor font-bounding-box)
    (properties :accessor properties)
-   (chars :accessor chars)))
+   (chars :accessor chars :initform (make-hash-table :size 256))))
 
 (defun expect (fp token)
   (let ((input (read fp)))
@@ -77,54 +82,54 @@
                                                          :height h
                                                          :offset-x x
                                                          :offset-y y)))
-        :collect
-        (progn
-          (expect fp "BITMAP")
-          (let ((*read-base* 16))
-            (let ((bitmap (make-array (point-size bdf)
-                                      :element-type 'simple-array
-                                      :fill-pointer 0)))
-              (loop :repeat bitmap-rows
-                    :do (vector-push
-                         (int-to-bitvec (read fp) (point-size bdf))
-                         bitmap))
-              (expect fp "ENDCHAR")
-              (make-instance 'bdf-char
-                             :startchar char
-                             :encoding encoding
-                             :swidth swidth
-                             :dwidth dwidth
-                             :bbx bbx
-                             :bitmap bitmap))))))
+        :do
+        (expect fp "BITMAP")
+        (let ((*read-base* 16)
+              (bitmap (make-array (point-size bdf)
+                                    :element-type 'simple-array
+                                    :fill-pointer 0)))
+          (loop :repeat bitmap-rows
+                :do (vector-push
+                     (int-to-bitvec (read fp) (point-size bdf))
+                     bitmap))
+          (expect fp "ENDCHAR")
+          (setf (gethash (code-char encoding) (chars bdf))
+                (make-instance 'bdf-char
+                               :startchar (symbol-name char)
+                               :encoding encoding
+                               :swidth swidth
+                               :dwidth dwidth
+                               :bbx bbx
+                               :bitmap bitmap)))))
 
 (defun parse (bdf fp)
   (expect fp "STARTFONT")
   (skip-token fp)
 
   (loop
-    :for token = (read fp) 
+    :for token = (let ((*package* (find-package '#:clgfw/bdf)))
+                     (read fp)) 
     :do
-       (switch (token :test #'string-equal)
-         ("FONT"
+       (ecase token
+         (font
           (setf (font bdf) (preserving-read fp)))
-         ("STARTPROPERTIES"
+         (startproperties
           (parse-properties bdf fp (read fp))
           (expect fp "ENDPROPERTIES"))
-         ("SIZE"
+         (size
           (setf (point-size bdf) (read fp))
           (setf (x-resolution bdf) (read fp))
           (setf (y-resulution bdf) (read fp)))
-         ("FONTBOUNDINGBOX"
+         (fontboundingbox
           (setf (width bdf) (read fp))
           (setf (height bdf) (read fp))
           (setf (x-offset bdf) (read fp))
           (setf (y-offset bdf) (read fp)))
-         ("COMMENT"
+         (comment
           (skip-token fp))
-         ("CHARS"
-          (setf (chars bdf)
-                (parse-chars bdf fp (read fp))))
-         ("ENDFONT"
+         (chars
+          (parse-chars bdf fp (read fp)))
+         (endfont
           (return-from parse)))))
 
 (defun load-bdf (path)
