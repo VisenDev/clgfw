@@ -24,23 +24,15 @@
   :components ((:file "package")
                (:file "common")
                (:file "fps")
+               (:module "bdf" :components
+                        ((:file "bdf")
+                         (:file "font-loader")
+                         (:file "renderer")))
                (:file "x11" :if-feature (:and :linux (:not :abcl)))
                (:file "wayland" :if-feature (:and :linux (:not :abcl)))
                (:file "linux" :if-feature (:and :linux (:not :abcl)))
                (:file "jvm" :if-feature :abcl)
                ))
-
-(defsystem "clgfw/bdf"
-  :author "Robert Wess Burnett"
-  :license "Apache-2.0"
-  :description "Bitmap font parser"
-  :depends-on ("clgfw")
-  :serial t
-  :components ((:module "bdf"
-                :components
-                ((:file "bdf")
-                 (:file "font-loader")
-                 (:file "renderer")))))
 
 (defsystem "clgfw/example/hello"
   :depends-on ("clgfw" "clgfw/bdf")

@@ -183,7 +183,7 @@
              (destroy-proxy wl-keyboard)
              (setf wl-keyboard nil)))))))
 
-(defun ensure-buffer-memory-allocated (ctx)
+ (defun ensure-buffer-memory-allocated (ctx)
   (unless (window-resized-p ctx) (return-from ensure-buffer-memory-allocated))
 
   (format t "Reallocating memory due to window resize~%")
@@ -543,10 +543,10 @@
                         (wl-proxy-hooks xdg-wm-base))))))))
 
 (defmethod close-window ((ctx ctx/wayland))
-  (with-slots (shm pool) ctx
-    (posix-shm:close-shm shm)
-    (wl-shm-pool.destroy pool)
-    (posix-shm:munmap (backing-pool-data ctx) (backing-pool-data-size ctx)))
+  ;; (with-slots (shm pool) ctx
+  ;;   (posix-shm:close-shm shm)
+  ;;   (wl-shm-pool.destroy pool)
+  ;;   (posix-shm:munmap (backing-pool-data ctx) (backing-pool-data-size ctx)))
 
   (wl-display-disconnect (wl-display ctx)))
 

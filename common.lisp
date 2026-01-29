@@ -40,8 +40,6 @@
   (:documentation "Like is-key-pressed, but only returns true when the key is released"))
 (defgeneric get-window-width (ctx))
 (defgeneric get-window-height (ctx))
-
-;;TODO add implementations for the following functions
 (defgeneric set-target-fps (ctx)
   (:documentation "Adds a limit to how fast new frames should be drawn"))
 (defgeneric get-delta-time (ctx)
@@ -49,17 +47,20 @@
 (defgeneric get-fps (ctx))
 (defgeneric draw-text (ctx x y text-height color text)
   (:documentation "Draws some text on screen using the default font for the chosen backend"))
+
+;;TODO add implementations for the following functions
 (defgeneric measure-text-width (ctx text-height text)
   (:documentation "Returns the width needed if the input text were drawn on the screen"))
 (defgeneric get-input-characters (ctx)
   (:documentation "Returns a vector containing character representations of every key that has 
                    been pressed this frame. This is intended for use in things like text input
                    widgets."))
+
 (defgeneric create-image (ctx width height)
   (:documentation "An image can be used as the ctx for various draw functions, allowing
                    certain graphics to be saved and then drawn to the screen later"))
-(defgeneric draw-image (ctx image x y width height)
-  (:documentation "Draws the image at x y, warps the image if necessary"))
+(defgeneric draw-image (ctx image x y)
+  (:documentation "Draws the image at x y"))
 (defgeneric destroy-image (image) ;; TODO investigate using trivial-garbage to call this fn
   (:documentation "Destroys the image, may be important if the image
                    is represented as a gpu texture in a given backend"))

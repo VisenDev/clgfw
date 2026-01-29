@@ -53,7 +53,7 @@
   (fps-to-ms (target-fps ctx)))
 
 (defmethod get-fps ((ctx fps-manager))
-  (floor
+  (ceiling
    (ms-to-fps (get-delta-time ctx))))
 
 (defgeneric frame-elapsed-ms (ctx))
@@ -86,5 +86,7 @@
   ;;       ;; :for i :from 0
   ;;       ;; :finally (format t "Looped ~a times~%" i)
   ;;       )
-  (sleep (max 0 (/ (current-frame-remaining-ms-budget ctx) 1000)))
+
+  
+  (sleep (max 0 (- (/ (current-frame-remaining-ms-budget ctx) 1000) 0)))
   )

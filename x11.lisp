@@ -194,10 +194,51 @@ allocates the color"
     key
     ))
 
+(defclass image/x11 ()
+  ((pixmap :accessor pixmap :initarg :pixmap)
+   (ctx :accessor ctx :initarg :ctx)))
+
+(defmethod create-image ((ctx ctx/x11) width height)
+  (make-instance
+   'image/x11
+   :ctx ctx
+   :pixmap
+   (xlib:create-pixmap :width width
+                       :height height
+                       :depth (xlib:drawable-depth (window ctx))
+                       :drawable (window ctx))))
+
+(defmethod destroy-image ((image image/x11))
+  (xlib:free-pixmap (pixmap image))
+  (slot-makunbound image 'pixmap))
+
+(defmethod draw-image ((ctx ctx/x11) (image image/x11) x y)
+  (with-accessors ((pixmap pixmap)) image
+    (xlib:copy-area pixmap (gcontext ctx) 0 0
+                    (xlib:drawable-width pixmap) (xlib:drawable-height pixmap)
+                    (window ctx) x y)))
+
+(defmethod get-window-width ((image image/x11))
+  (xlib:drawable-width (pixmap image)))
+
+(defmethod get-window-height ((image image/x11))
+  (xlib:drawable-height (pixmap image)))
+
+(defmethod draw-rectangle ((image image/x11) x y width height color)
+  (setf (xlib:gcontext-foreground (gcontext (ctx image)))
+        (get-xlib-color (ctx image) color))
+  (xlib:draw-rectangle (pixmap image)
+                       (gcontext (ctx image))
+                       (round x)
+                       (round y)
+                       (round width)
+                       (round height)
+                       t))
+
 (defmethod end-drawing ((ctx ctx/x11) &aux display)
   (setf display (display ctx))
   
-  (setf (fill-pointer (pressed-keys ctx)) 0) ;;reset pressed keys
+  (setf (fill-pointer (pressed-keys ctx)) 0)  ;;reset pressed keys
   (setf (fill-pointer (released-keys ctx)) 0) ;;reset released keys
 
   (xlib:display-force-output display)
@@ -250,3 +291,14 @@ allocates the color"
 
 (defmethod close-window ((ctx ctx/x11))
   (xlib:close-display (display ctx) :abort nil))
+
+
+
+(defun image-text ()
+
+  (with-window ctx (800 600 "image")
+    (let ((image (create-image ctx 100 100)))
+      (draw-rectangle image 10 10 20 20 (make-color :r 0 :b 200))
+      (while-running/with-drawing ctx
+        (draw-image ctx image 100 100)        
+        ))))
