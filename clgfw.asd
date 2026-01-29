@@ -24,10 +24,12 @@
   :components ((:file "package")
                (:file "common")
                (:file "fps")
-               (:module "bdf" :components
-                        ((:file "bdf")
-                         (:file "font-loader")
-                         (:file "renderer")))
+               (:module "bdf"
+                :serial t
+                :components
+                ((:file "bdf")
+                 (:file "font-loader")
+                 (:file "renderer")))
                (:file "x11" :if-feature (:and :linux (:not :abcl)))
                (:file "wayland" :if-feature (:and :linux (:not :abcl)))
                (:file "linux" :if-feature (:and :linux (:not :abcl)))
@@ -35,7 +37,7 @@
                ))
 
 (defsystem "clgfw/example/hello"
-  :depends-on ("clgfw" "clgfw/bdf")
+  :depends-on ("clgfw")
   :license "Apache-2.0"
   :description "Basic example"
   :serial t

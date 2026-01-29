@@ -543,12 +543,13 @@
                         (wl-proxy-hooks xdg-wm-base))))))))
 
 (defmethod close-window ((ctx ctx/wayland))
-  ;; (with-slots (shm pool) ctx
-  ;;   (posix-shm:close-shm shm)
-  ;;   (wl-shm-pool.destroy pool)
-  ;;   (posix-shm:munmap (backing-pool-data ctx) (backing-pool-data-size ctx)))
-
-  (wl-display-disconnect (wl-display ctx)))
+  (ignore-errors
+   (progn
+     (with-slots (shm pool) ctx
+       (posix-shm:close-shm shm)
+       (wl-shm-pool.destroy pool)
+       (posix-shm:munmap (backing-pool-data ctx) (backing-pool-data-size ctx)))
+     (wl-display-disconnect (wl-display ctx)))))
 
 
 ;;; TODO: I need to configure what the initial cursor looks like

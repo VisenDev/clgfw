@@ -6,7 +6,7 @@
 (eval-when (:compile-toplevel :load-toplevel)
   (defparameter *fonts*
     (loop
-      :with dirs = (uiop:subdirectories (asdf:system-relative-pathname "clgfw/bdf" "bdf/fonts/"))
+      :with dirs = (uiop:subdirectories (asdf:system-relative-pathname "clgfw" "bdf/fonts/"))
       :for dir :in dirs
       :appending
       (loop
