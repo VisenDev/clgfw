@@ -134,7 +134,7 @@
          (endfont
           (return-from parse)))))
 
-(defun load-bdf (path &optional (allow-non-ascii-characters t))
+(defun load-bdf (path &optional (allow-non-ascii-characters nil))
   (let ((bdf (make-instance 'bdf)))
     (with-open-file (fp path)
       (let ((*read-eval* nil))
