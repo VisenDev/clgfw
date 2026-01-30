@@ -51,6 +51,18 @@
          (result (the fixnum (logior result a))))
     result))
 
+;;; RECTS
+(defstruct rect
+  (x 0 :type fixnum)
+  (y 0 :type fixnum)
+  (w 0 :type fixnum)
+  (h 0 :type fixnum))
+
+(defstruct (color-rect (:include rect))
+  (color (make-color) :type color))
+
+;;; PUBLIC INTERFACE
+
 (deftype mouse-button () '(member :left :right :middle))
 
 (defun init-window (width height title)

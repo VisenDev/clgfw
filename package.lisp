@@ -28,9 +28,19 @@
 
            ;; Common functions between implementations
            #:make-color
+           #:color
            #:color-r
            #:color-g
            #:color-b
+           #:color-a
+           
+           #:color-rect-x
+           #:color-rect-y
+           #:color-rect-w
+           #:color-rect-h
+           #:color-rect-color
+           #:make-color-rect
+           #:color-rect
 
            ;; Utility wrappers
            #:with-window
