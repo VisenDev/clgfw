@@ -9,6 +9,7 @@
            #:begin-drawing
            #:end-drawing
            #:draw-rectangle
+           #:%get-draw-rectangle-function
            #:draw-text
            #:draw-image
            #:create-image
@@ -33,6 +34,7 @@
            #:color-g
            #:color-b
            #:color-a
+           #:color-invisible-p
            
            #:color-rect-x
            #:color-rect-y

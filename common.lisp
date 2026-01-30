@@ -51,6 +51,12 @@
          (result (the fixnum (logior result a))))
     result))
 
+;; TODO no functions currently care about color-a, that should be changed
+;; so that alpha values actually work
+(defun color-invisible-p (color)
+  (declare (type color color))
+  (= 0 (color-a color)))
+
 ;;; RECTS
 (defstruct rect
   (x 0 :type fixnum)

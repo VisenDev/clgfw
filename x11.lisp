@@ -188,6 +188,8 @@ allocates the color"
   ((pixmap :accessor pixmap :initarg :pixmap)
    (ctx :accessor ctx :initarg :ctx)))
 
+;; TODO uncomment this
+#|
 (defmethod create-image ((ctx ctx/x11) width height)
   (make-instance
    'image/x11
@@ -197,6 +199,7 @@ allocates the color"
                        :height height
                        :depth (xlib:drawable-depth (window ctx))
                        :drawable (window ctx))))
+|#
 
 (defmethod destroy-image ((image image/x11))
   (xlib:free-pixmap (pixmap image))
@@ -216,6 +219,7 @@ allocates the color"
 
 (defmethod draw-rectangle ((image image/x11) x y width height color)
   (setf (xlib:gcontext-foreground (gcontext (ctx image)))
+        ;;TODO replace this call to get-xlib-color
         (get-xlib-color (ctx image) color))
   (xlib:draw-rectangle (pixmap image)
                        (gcontext (ctx image))
