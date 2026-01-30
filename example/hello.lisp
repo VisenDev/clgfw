@@ -21,10 +21,10 @@
           (clgfw:draw-rectangle ctx x y sz sz fg)
           (clgfw:draw-rectangle ctx (clgfw:get-mouse-x ctx) (clgfw:get-mouse-y ctx) 10 10 fg)
           
-          (clgfw:draw-text ctx 10 10 30 fg
+          (clgfw:draw-text ctx 10 10 50 fg
                            (format nil "FPS ~a" (clgfw:get-fps ctx)))
           
-          (clgfw:draw-text ctx 10 100 30 fg "Press 'q' to quit!")
+          (clgfw:draw-text ctx 10 100 50 fg "Press 'q' to quit!")
           
           (incf x delta-x)
           (incf y delta-y)

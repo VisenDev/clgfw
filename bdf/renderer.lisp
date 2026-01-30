@@ -67,4 +67,4 @@
 
 (defmethod clgfw:draw-text (ctx x y text-height color str)
   ;;TODO find which font is closest to text-height
-  (draw-string ctx (first (last *fonts*)) x y text-height color str))
+  (draw-string ctx (last (first *fonts*)) x y text-height color str))

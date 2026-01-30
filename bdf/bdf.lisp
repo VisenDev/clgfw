@@ -61,7 +61,7 @@
   (read-from-string
    (format nil (format nil "#*~~~d,'0b" min-width) int)))
 
-(defun parse-chars (bdf fp count)
+(defun parse-chars (bdf fp count allow-non-ascii-characters)
   
   (loop :with bitmap-rows = (point-size bdf)
         :repeat count
@@ -93,16 +93,18 @@
                      (int-to-bitvec (read fp) (point-size bdf))
                      bitmap))
           (expect fp "ENDCHAR")
-          (setf (gethash (code-char encoding) (chars bdf))
-                (make-instance 'bdf-char
-                               :startchar (symbol-name char)
-                               :encoding encoding
-                               :swidth swidth
-                               :dwidth dwidth
-                               :bbx bbx
-                               :bitmap bitmap)))))
+          (when (or allow-non-ascii-characters
+                  (< encoding 127))
+            (setf (gethash (code-char encoding) (chars bdf))
+                  (make-instance 'bdf-char
+                                 :startchar (symbol-name char)
+                                 :encoding encoding
+                                 :swidth swidth
+                                 :dwidth dwidth
+                                 :bbx bbx
+                                 :bitmap bitmap))))))
 
-(defun parse (bdf fp)
+(defun parse (bdf fp allow-non-ascii-characters)
   (expect fp "STARTFONT")
   (skip-token fp)
 
@@ -128,14 +130,14 @@
          (comment
           (skip-token fp))
          (chars
-          (parse-chars bdf fp (read fp)))
+          (parse-chars bdf fp (read fp) allow-non-ascii-characters))
          (endfont
           (return-from parse)))))
 
-(defun load-bdf (path)
+(defun load-bdf (path &optional (allow-non-ascii-characters t))
   (let ((bdf (make-instance 'bdf)))
     (with-open-file (fp path)
       (let ((*read-eval* nil))
-        (parse bdf fp))
+        (parse bdf fp allow-non-ascii-characters))
       )
     (return-from load-bdf bdf)))
