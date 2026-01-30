@@ -53,8 +53,8 @@
    (xkb-keymap :initform (cffi:null-pointer))
    (xkb-state :initform (cffi:null-pointer))
 
-   (mouse-x :initform 0 :accessor mouse-x :type number)
-   (mouse-y :initform 0 :accessor mouse-y :type number)
+   (mouse-x :initform 0 :accessor mouse-x :type fixnum)
+   (mouse-y :initform 0 :accessor mouse-y :type fixnum)
    (mouse-left-button-down :accessor mouse-left-button-down :initform nil)
    (mouse-middle-button-down :accessor mouse-middle-button-down :initform nil)
    (mouse-right-button-down :accessor mouse-right-button-down :initform nil)
@@ -62,8 +62,8 @@
 
    (need-next-frame-p :accessor need-next-frame :initform t)
    (window-resized-p :accessor window-resized-p :initform t)
-   (width :initform 640 :accessor width)
-   (height :initform 480 :accessor height)
+   (width :initform 640 :accessor width :type fixnum)
+   (height :initform 480 :accessor height :type fixnum)
    (configured :accessor configured :initform nil)
    (window-should-close-p :initform nil :accessor window-should-close-p)
    (pressed-keys :accessor pressed-keys
@@ -80,6 +80,9 @@
    )
   
   (:documentation "An example Wayland application"))
+
+(declaim (ftype (function (t) fixnum) width))
+(declaim (ftype (function (t) fixnum) height))
 
 (defmethod is-mouse-button-down ((ctx ctx/wayland) (button symbol))
   (ecase button
@@ -99,9 +102,11 @@
   (assert (typep key 'key) (key) "~a is not a valid clgfw key" key)
   (find key (pressed-keys ctx)))
 
+(declaim (ftype (function (t) fixnum) get-window-width))
 (defmethod get-window-width ((ctx ctx/wayland))
   (width ctx))
 
+(declaim (ftype (function (t) fixnum) get-window-height))
 (defmethod get-window-height ((ctx ctx/wayland))
   (height ctx))
 
@@ -121,13 +126,14 @@
       ;; Update pointer position
       (:enter (serial surface x y)
               (declare (ignore serial surface))
-              (setf mouse-x x mouse-y y))
+              (setf mouse-x (floor x) mouse-y (floor y)))
       (:leave (serial surface)
               (declare (ignore serial surface))
-              (setf mouse-x 0 mouse-y 0))
+              ;; (setf mouse-x 0 mouse-y 0)
+              )
       (:motion (time-ms x y)
                (declare (ignore time-ms))
-               (setf mouse-x x mouse-y y))
+               (setf mouse-x (floor x) mouse-y (floor y)))
       ;; Update active cell state based on mousedown location
       (:button (serial time-ms button state)
                (declare (ignore serial time-ms))
@@ -183,13 +189,24 @@
              (destroy-proxy wl-keyboard)
              (setf wl-keyboard nil)))))))
 
- (defun ensure-buffer-memory-allocated (ctx)
-  (unless (window-resized-p ctx) (return-from ensure-buffer-memory-allocated))
+(defun calculate-buffer-memory-needed (ctx)
+  (let* ((stride (* (width ctx) 4))
+         (buffer-size (* (height ctx) stride))
+         (total-size (* buffer-size 2)))
+    total-size))
 
-  (format t "Reallocating memory due to window resize~%")
+(defun ensure-buffer-memory-allocated (ctx)
+  (unless (window-resized-p ctx) (return-from ensure-buffer-memory-allocated))
 
   ;; Reset window resized flag
   (setf (window-resized-p ctx) nil)
+  
+  ;; (unless (>
+  ;;          (calculate-buffer-memory-needed ctx)
+  ;;          (or (backing-pool-data-size ctx) 0))
+  ;;   (return-from ensure-buffer-memory-allocated))
+  
+  (format t "Reallocating memory due to window resize~%")
   
   (with-slots (shm wl-shm pool backing-pool-data
                backing-pool-data-size width height
@@ -205,9 +222,10 @@
     ;; Allocate new memory  
     (let* ((stride (* width 4))
            (buffer-size (* height stride))
-           (total-size (* buffer-size 2))
+           (total-size (calculate-buffer-memory-needed ctx))
            )
-      (posix-shm:truncate-shm shm total-size)
+      (unless (> (or (backing-pool-data-size ctx) 0) total-size)
+        (posix-shm:truncate-shm shm total-size))
       (setf pool (wl-shm.create-pool wl-shm (posix-shm:shm-fd shm) total-size))
       (setf (backing-pool-data ctx) (posix-shm:mmap-shm shm total-size))
       (setf (backing-pool-data-size ctx) total-size)
@@ -274,16 +292,18 @@
          )
     result))
 
-(defmethod draw-rectangle ((ctx ctx/wayland) x y w h color)
+
+(declaim (ftype (function (ctx/wayland fixnum fixnum fixnum fixnum color) t) %draw-rectangle/wayland))
+(defun %draw-rectangle/wayland (ctx x y w h color)
+  (declare (optimize (speed 3) (safety 0) (debug 0) (space 0)))
   (when (or (zerop (width ctx))
             (zerop (height ctx)))
-    (format t "NOTE: skipping rendering...~%")
-    (return-from draw-rectangle))
+    (return-from %draw-rectangle/wayland))
 
   (ensure-buffer-memory-allocated ctx)
   (let* ((pool-data (pool-data (back-buffer ctx)))
-         (stride (* (width ctx) 4))     ; bytes per row
-         (row-pixels (/ stride 4))
+         (stride (the fixnum (* (width ctx) 4)))     ; bytes per row
+         (row-pixels (the fixnum (/ stride 4)))
          (x-end (the fixnum (floor (min (+ x w) (width ctx)))))
          (y-end (the fixnum (floor (min (+ y h) (height ctx)))))
          (xrgb (color-to-xrbg color)))
@@ -291,11 +311,15 @@
       
     (loop :for dy :from (the fixnum (floor y)) :below y-end :do
       (loop
-        :with dy-offset = (* (max 0 dy) row-pixels)
+        :with dy-offset = (the fixnum (* (max 0 dy) row-pixels)) 
         :for dx :from (the fixnum (max 0 (floor x))) :below x-end :do
-        (setf (cffi:mem-aref pool-data :uint32
-                             (+ dx dy-offset))
-              xrgb)))))
+          (setf (cffi:mem-aref pool-data :uint32
+                               (+ dx dy-offset))
+                xrgb)))))
+
+(defmethod draw-rectangle ((ctx ctx/wayland) x y w h color)
+  (%draw-rectangle/wayland ctx x y w h color)
+  )
 
 
 (defun handle-frame-callback (ctx callback &rest event)

@@ -29,17 +29,22 @@
 (defgeneric window-should-keep-running (ctx)) ;; TODO maybe rename this to window-should-keep-running-p
 (defgeneric begin-drawing (ctx))
 (defgeneric end-drawing (ctx)) ;; TODO maybe schedule a gc to happen here so as to ensure a consistent framerate?
+
+(declaim (ftype (function (t fixnum fixnum fixnum fixnum color) t) draw-rectangle))
 (defgeneric draw-rectangle (ctx x y width height color))
+
+(declaim (ftype (function (t) fixnum) get-mouse-x get-mouse-y get-window-width get-window-height))
 (defgeneric get-mouse-x (ctx))
 (defgeneric get-mouse-y (ctx))
+(defgeneric get-window-width (ctx))
+(defgeneric get-window-height (ctx))
+
 (defgeneric is-mouse-button-down (ctx button))
 (defgeneric is-key-down (ctx key))
 (defgeneric is-key-pressed (ctx key)
   (:documentation "Like is-key-down, but only return true on the frame that the key is first pressed"))
 (defgeneric is-key-released (ctx key)
   (:documentation "Like is-key-pressed, but only returns true when the key is released"))
-(defgeneric get-window-width (ctx))
-(defgeneric get-window-height (ctx))
 (defgeneric set-target-fps (ctx)
   (:documentation "Adds a limit to how fast new frames should be drawn"))
 (defgeneric get-delta-time (ctx)

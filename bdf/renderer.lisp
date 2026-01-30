@@ -43,7 +43,7 @@
   "Draws a character and returns how much many pixels were used"
   (declare (optimize (speed 3) (safety 0)))
   (let* ((ch (gethash character (chars bdf)))
-         (scale (/  text-height (point-size bdf)))
+         (scale (/ text-height (point-size bdf)))
          (bitmap (warp-nearest-neighbor (bitmap ch)
                                         (floor (* scale (length (aref (bitmap ch) 0))))
                                         text-height)))
@@ -67,4 +67,4 @@
 
 (defmethod clgfw:draw-text (ctx x y text-height color str)
   ;;TODO find which font is closest to text-height
-  (draw-string ctx (last (first *fonts*)) x y text-height color str))
+  (draw-string ctx (first *fonts*) x y text-height color str))

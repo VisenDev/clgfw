@@ -17,9 +17,10 @@
    (height :accessor height)
    (draw-fn :accessor draw-fn :initform nil)))
 
-(defun generate-draw-fn ()
-  
-  )
+;; (defun generate-draw-fn ()
+;;   (loop :for row :across pixels
+;;         :)
+;;   )
 
 (defun render-pixel-buffer
 

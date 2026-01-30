@@ -18,7 +18,7 @@
             (return-from main))
           
           (clgfw:draw-rectangle ctx 0 0 w h bg)
-          (clgfw:draw-rectangle ctx x y sz sz fg)
+          (clgfw:draw-rectangle ctx (floor x) (floor y) sz sz fg)
           (clgfw:draw-rectangle ctx (clgfw:get-mouse-x ctx) (clgfw:get-mouse-y ctx) 10 10 fg)
           
           (clgfw:draw-text ctx 10 10 50 fg
