@@ -317,10 +317,8 @@
                                (+ dx dy-offset))
                 xrgb)))))
 
-(defmethod draw-rectangle ((ctx ctx/wayland) x y w h color)
-  (%draw-rectangle/wayland ctx x y w h color)
-  )
-
+(defmethod %get-draw-rectangle-function ((ctx ctx/wayland))
+  #'%draw-rectangle/wayland)
 
 (defun handle-frame-callback (ctx callback &rest event)
   ;; (format t "Handing frame callback ~a~%" callback)
@@ -648,14 +646,14 @@
         (y 35)
         (dx 1)
         (dy 1)
-        (bg1 (make-color :r 130 :g 200 :b 220))
-        (bg2 (make-color :r 200 :g 120 :b 230)))
+        (bg1 (make-color 130 200 220))
+        (bg2 (make-color 200 120 230)))
     (loop :until (window-should-close-p app)
           :for bg = (if (is-key-down app :left-shift) bg1 bg2)
           :do
              (begin-drawing app)
              (draw-rectangle app 0 0 (width app) (height app) bg)
-             (draw-rectangle app x y 30 30 (make-color :r 10 :g 200 :b 20))
+             (draw-rectangle app x y 30 30 (make-color 10 200 20))
              (when (> x 270)
                (setf dx -1))
              (when (<= x 0)

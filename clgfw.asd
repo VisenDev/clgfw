@@ -23,9 +23,9 @@
   :serial t
   :components ((:file "package")
                (:file "common")
+               (:file "colors")
                (:file "fps")
-               (:module "bdf"
-                :serial t
+               (:module "bdf" :serial t
                 :components
                 ((:file "bdf")
                  (:file "font-loader")

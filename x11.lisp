@@ -26,6 +26,8 @@
    (released-keys :accessor released-keys
                  :initform (make-array 256 :element-type 'symbol :fill-pointer 0 :initial-element nil)
                  :documentation "A vector of all the keys which have been released this frame")
+   (color-cache :accessor color-cache
+                :initform (make-hash-table :size 128))
    ))
 
 (defmethod is-key-down ((ctx ctx/x11) key)
@@ -88,48 +90,36 @@
     ctx)
   )
 
-(defclass color/x11 (color)
-  ((xlib-color :accessor xlib-color)))
-
-(defun hash-color (color)
-  "computes a hash from a color"
-  (let* ((hash (color-r color))
-         (hash (ash hash 8))
-         (hash (logior hash (color-b color)))
-         (hash (ash hash 8))
-         (hash (logior hash (color-g color))))
-    hash))
-
-(defun ensure-color-is-in-colormap (ctx color)
+(declaim (ftype (function (ctx/x11 color) xlib:color) convert-to-x11-color))
+(defun convert-to-x11-color (ctx color)
   "Computes a hash for the color to see if it is in the colormap already, otherwise, 
 allocates the color"
-  (let* ((r (color-r color))
-         (g (color-g color))
-         (b (color-b color))
-         (colormap (colormap ctx))
-         (color (ignore-errors (xlib:lookup-color colormap (hash-color color)))))
-    (if color color
-        (xlib:alloc-color colormap
+  (declare (optimize (speed 3) (safety 0)))
+  (when-it (gethash color (color-cache ctx))
+    (return-from convert-to-x11-color it))
+  (setf (gethash color (color-cache ctx))
+        (xlib:alloc-color (colormap ctx)
                           (xlib:make-color 
-                           :red (/ r 256)  
-                           :green (/ g 256)
-                           :blue (/ b 256))))))
+                           :red (the float (/ (color-r color) 256f0))  
+                           :green (the float (/ (color-g color) 256f0))
+                           :blue (the float (/ (color-b color) 256f0))))))
 
-(defun get-xlib-color (ctx color)
-  (if (slot-exists-p color 'xlib-color)
-      (slot-value color 'xlib-color)
-      ;else
-      (progn
-        (change-class color 'color/x11)
-        (setf (xlib-color color) (ensure-color-is-in-colormap ctx color))))
-  )
+;; (defun get-xlib-color (ctx color)
+;;   (if (slot-exists-p color 'xlib-color)
+;;       (slot-value color 'xlib-color)
+;;       ;else
+;;       (progn
+;;         (change-class color 'color/x11)
+;;         (setf (xlib-color color) (ensure-color-is-in-colormap ctx color))))
+;;   )
 
-(defmethod draw-rectangle ((ctx ctx/x11) x y
-                           width height(color color))
-  
-  (setf (xlib:gcontext-foreground (gcontext ctx)) (get-xlib-color ctx color))
-  (xlib:draw-rectangle (window ctx) (gcontext ctx) (round x) (round y) (round width) (round height) t)
-  )
+(declaim (ftype (function (ctx/x11 fixnum fixnum fixnum fixnum color) t)
+                %draw-rectangle/x11))
+(defun %draw-rectangle/x11 (ctx x y width height color)
+  (setf (xlib:gcontext-foreground (gcontext ctx)) (convert-to-x11-color ctx color))
+  (xlib:draw-rectangle (window ctx) (gcontext ctx) x y width height t))
+(defmethod %get-draw-rectangle-function ((ctx ctx/x11))
+  #'%draw-rectangle/x11)
 
 (defun find-closest-xserver-font (display text-height)
   (declare (type integer text-height))
@@ -242,7 +232,7 @@ allocates the color"
   (setf (fill-pointer (released-keys ctx)) 0) ;;reset released keys
 
   (xlib:display-force-output display)
-  ;; (sleep 0.001)
+  (sleep 0.001)
   (when (xlib:event-listen display)
     (xlib:event-case (display)
       ;; (:resize-request (width height)
@@ -252,13 +242,13 @@ allocates the color"
       (:key-press (code)
                   (let ((key (convert-keycode ctx code)))
                     (when key
-                      (vector-push key (pressed-keys ctx))
+                      (vector-push (the symbol key) (pressed-keys ctx))
                       (setf (gethash key (keyboard-state ctx)) t)))
                   t)
       (:key-release (code)
                     (let ((key (convert-keycode ctx code)))
                       (when key
-                        (vector-push key (released-keys ctx))
+                        (vector-push (the symbol key) (released-keys ctx))
                         (setf (gethash key (keyboard-state ctx)) nil)))
                     t)
       (:button-press (code)
@@ -279,7 +269,7 @@ allocates the color"
                        ;; TYPE is an atom
                        ;; DATA is a vector of 32-bit values
                        (when (and (eq type :wm_protocols)
-                                  (eq (aref data 0) (wm-delete-atom ctx)))
+                                  (eq (aref (the (vector (unsigned-byte 4)) data) 0) (wm-delete-atom ctx)))
                          (setf (window-should-keep-running ctx) nil)
                          (return-from end-drawing))
                        t)
@@ -294,11 +284,11 @@ allocates the color"
 
 
 
-(defun image-text ()
+;; (defun image-text ()
 
-  (with-window ctx (800 600 "image")
-    (let ((image (create-image ctx 100 100)))
-      (draw-rectangle image 10 10 20 20 (make-color :r 0 :b 200))
-      (while-running/with-drawing ctx
-        (draw-image ctx image 100 100)        
-        ))))
+;;   (with-window ctx (800 600 "image")
+;;     (let ((image (create-image ctx 100 100)))
+;;       (draw-rectangle image 10 10 20 20 (make-color 0 :b 200))
+;;       (while-running/with-drawing ctx
+;;         (draw-image ctx image 100 100)        
+;;         ))))

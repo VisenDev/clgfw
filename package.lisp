@@ -36,6 +36,12 @@
            #:with-window
            #:with-drawing
            #:while-running
-           #:while-running/with-drawing))
+           #:while-running/with-drawing
+
+           ;; Anaphoric Macros
+           #:when-it
+           #:unless-it
+           #:if-it
+           ))
 (in-package #:clgfw)
 

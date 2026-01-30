@@ -16,6 +16,18 @@
    (offset-x :accessor offset-x :initarg :offset-x)
    (offset-y :accessor offset-y :initarg :offset-y)))
 
+(defstruct bdf-char-lookup-key
+  (character #\a :type character)
+  (point-size 0 :type fixnum))
+
+(defclass bdf-char ()
+  ((startchar :accessor startchar :initarg :startchar)
+   (encoding :accessor encoding :initarg :encoding)
+   (swidth :accessor swidth :initarg :swidth)
+   (dwidth :accessor dwidth :initarg :dwidth)
+   (bbx :accessor bbx :initarg :bbx)
+   (bitmap :accessor bitmap :initarg :bitmap)))
+
 (defclass bdf ()
   ((font :accessor font)
    (point-size :accessor point-size)
@@ -27,7 +39,8 @@
    (y-ofset :accessor y-offset)
    (font-bounding-box :accessor font-bounding-box)
    (properties :accessor properties)
-   (chars :accessor chars :initform (make-hash-table :size 256))))
+   (chars :accessor chars :initform (make-hash-table :size 256
+                                                     :test 'equalp))))
 
 (defun expect (fp token)
   (let ((input (read fp)))
@@ -46,14 +59,6 @@
         :appending (list property value) :into props
         :finally (setf (properties bdf) props)
         ))
-
-(defclass bdf-char ()
-  ((startchar :accessor startchar :initarg :startchar)
-   (encoding :accessor encoding :initarg :encoding)
-   (swidth :accessor swidth :initarg :swidth)
-   (dwidth :accessor dwidth :initarg :dwidth)
-   (bbx :accessor bbx :initarg :bbx)
-   (bitmap :accessor bitmap :initarg :bitmap)))
 
 (declaim (ftype (function (integer &optional integer) simple-bit-vector) int-to-bitvec))
 (defun int-to-bitvec (int &optional (min-width 0))
@@ -95,7 +100,9 @@
           (expect fp "ENDCHAR")
           (when (or allow-non-ascii-characters
                   (< encoding 127))
-            (setf (gethash (code-char encoding) (chars bdf))
+            (setf (gethash (make-bdf-char-lookup-key :character (code-char encoding)
+                                                     :point-size (point-size bdf))
+                           (chars bdf))
                   (make-instance 'bdf-char
                                  :startchar (symbol-name char)
                                  :encoding encoding
@@ -137,7 +144,7 @@
 (defun load-bdf (path &optional (allow-non-ascii-characters nil))
   (let ((bdf (make-instance 'bdf)))
     (with-open-file (fp path)
-      (let ((*read-eval* nil))
+      (let ((cl:*read-eval* nil))
         (parse bdf fp allow-non-ascii-characters))
       )
     (return-from load-bdf bdf)))

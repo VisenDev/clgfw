@@ -1,15 +1,55 @@
 (in-package #:clgfw)
 
-(defclass color () ;;TODO, change this into a struct
-  ((r :initarg :r :accessor color-r :initform 0 :type (integer 0 255))
-   (g :initarg :g :accessor color-g :initform 0 :type (integer 0 255))
-   (b :initarg :b :accessor color-b :initform 0 :type (integer 0 255))
-   (cached :accessor cached :initform nil :documentation "Cached representation of the color (backend specific)")))
+;;; ==== MACROS ====
+(defmacro when-it (test &body body)
+  "Anaphoric when, stores test result in `it`"
+  `(let ((,(intern "IT") ,test))
+     (when ,(intern "IT")
+       ,@body)))
 
-(defun make-color (&key (r 0) (b 0) (g 0))
-  "Warning, making a new color every frame is expensive on x11"
-  (make-instance 'color :r r :g g :b b)
-  )
+(defmacro unless-it (test &body body)
+  "Anaphoric unless, stores test result in `it`"
+  `(let ((it ,test))
+     (unless it
+       ,@body)))
+
+(defmacro if-it (test then else)
+  "Anaphoric if, stores test result in `it`"
+  `(let ((it ,test))
+     (if it
+         ,then
+         ,else)))
+
+
+;;; ==== COLORS ====
+(deftype color () '(integer 0 #xffffffff))
+
+(defmacro define-color-byte-accessor (name offset)
+  `(progn
+     (defun ,name (color)
+       (declare (type color color)
+                (optimize (speed 3) (safety 0)))
+       (ldb (byte 8 ,offset) color))
+     (define-setf-expander ,name (color &environment env)
+       (get-setf-expansion `(ldb (byte 8 ,,offset) ,color) env))))
+
+(define-color-byte-accessor color-r 24)
+(define-color-byte-accessor color-g 16)
+(define-color-byte-accessor color-b 8)
+(define-color-byte-accessor color-a 0)
+
+(declaim (ftype (function (&optional fixnum fixnum fixnum fixnum) color) make-color))
+(defun make-color (&optional (r 0) (g 0) (b 0) (a #xff))
+  (declare (optimize (speed 3) (safety 0))
+           (type fixnum r g b a))
+  (let* ((result (the fixnum r))
+         (result (the fixnum (ash result 8)))
+         (result (the fixnum (logior result g)))
+         (result (the fixnum (ash result 8)))
+         (result (the fixnum (logior result b)))
+         (result (the fixnum (ash result 8)))
+         (result (the fixnum (logior result a))))
+    result))
 
 (deftype mouse-button () '(member :left :right :middle))
 
@@ -30,10 +70,24 @@
 (defgeneric begin-drawing (ctx))
 (defgeneric end-drawing (ctx)) ;; TODO maybe schedule a gc to happen here so as to ensure a consistent framerate?
 
-(declaim (ftype (function (t fixnum fixnum fixnum fixnum color) t) draw-rectangle))
-(defgeneric draw-rectangle (ctx x y width height color))
+;;; Drawing
+(defgeneric %get-draw-rectangle-function (ctx)
+  (:documentation "Returns the actual function for the given backend that draws a 
+                   rectangle. This is useful when optimizing a draw routine that
+                   needs to draw many rectangles.
+                   (You can avoid the generic function overhead)"))
+(defgeneric draw-rectangle (ctx x y width height color)
+  (:method (ctx (x fixnum) (y fixnum) (width fixnum) (height fixnum) color)
+    (funcall (%get-draw-rectangle-function ctx) ctx x y width height color))
+  (:method (ctx (x number) (y number) (width number) (height number) color)
+    "Converts any non-fixnums to fixnums before calling the fixnum specific version"
+    (funcall (%get-draw-rectangle-function ctx) ctx
+                      (the fixnum (round x))
+                      (the fixnum (round y))
+                      (the fixnum (round width))
+                      (the fixnum (round height))
+                      color)))
 
-(declaim (ftype (function (t) fixnum) get-mouse-x get-mouse-y get-window-width get-window-height))
 (defgeneric get-mouse-x (ctx))
 (defgeneric get-mouse-y (ctx))
 (defgeneric get-window-width (ctx))
