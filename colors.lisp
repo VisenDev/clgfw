@@ -1,146 +1,147 @@
-;;;; TODO finish these color values
+(in-package #:clgfw)
 
+;;;; ALL HTML5 COLOR NAMES
 
-(defparameter  *IndianRed*	205, 92, 92)
-(defparameter  *LightCoral*	240, 128, 128)
-(defparameter  *Salmon*  	250, 128, 114)
-DarkSalmon	233, 150, 122
-LightSalmon	255, 160, 122
-Crimson	220, 20, 60
-Red	255, 0, 0
-FireBrick	178, 34, 34
-DarkRed	139, 0, 0
-Pink	255, 192, 203
-LightPink	255, 182, 193
-HotPink	255, 105, 180
-DeepPink	255, 20, 147
-MediumVioletRed	199, 21, 133
-PaleVioletRed	219, 112, 147
-LightSalmon	255, 160, 122
-Coral	255, 127, 80
-Tomato	255, 99, 71
-OrangeRed	255, 69, 0
-DarkOrange	255, 140, 0
-Orange	255, 165, 0
-Gold	255, 215, 0
-Yellow	255, 255, 0
-LightYellow	255, 255, 224
-LemonChiffon	255, 250, 205
-LightGoldenrodYellow	250, 250, 210
-PapayaWhip	255, 239, 213
-Moccasin	255, 228, 181
-PeachPuff	255, 218, 185
-PaleGoldenrod	238, 232, 170
-Khaki	240, 230, 140
-DarkKhaki	189, 183, 107
-Lavender	230, 230, 250
-Thistle	216, 191, 216
-Plum	221, 160, 221
-Violet	238, 130, 238
-Orchid	218, 112, 214
-Fuchsia	255, 0, 255
-Magenta	255, 0, 255
-MediumOrchid	186, 85, 211
-MediumPurple	147, 112, 219
-RebeccaPurple	102, 51, 153
-BlueViolet	138, 43, 226
-DarkViolet	148, 0, 211
-DarkOrchid	153, 50, 204
-DarkMagenta	139, 0, 139
-Purple	128, 0, 128
-Indigo	75, 0, 130
-SlateBlue	106, 90, 205
-DarkSlateBlue	72, 61, 139
-MediumSlateBlue	123, 104, 238
-GreenYellow	173, 255, 47
-Chartreuse	127, 255, 0
-LawnGreen	124, 252, 0
-Lime	0, 255, 0
-LimeGreen	50, 205, 50
-PaleGreen	152, 251, 152
-LightGreen	144, 238, 144
-MediumSpringGreen	0, 250, 154
-SpringGreen	0, 255, 127
-MediumSeaGreen	60, 179, 113
-SeaGreen	46, 139, 87
-ForestGreen	34, 139, 34
-Green	0, 128, 0
-DarkGreen	0, 100, 0
-YellowGreen	154, 205, 50
-OliveDrab	107, 142, 35
-Olive	128, 128, 0
-DarkOliveGreen	85, 107, 47
-MediumAquamarine	102, 205, 170
-DarkSeaGreen	143, 188, 139
-LightSeaGreen	32, 178, 170
-DarkCyan	0, 139, 139
-Teal	0, 128, 128
-Aqua	0, 255, 255
-Cyan	0, 255, 255
-LightCyan	224, 255, 255
-PaleTurquoise	175, 238, 238
-Aquamarine	127, 255, 212
-Turquoise	64, 224, 208
-MediumTurquoise	72, 209, 204
-DarkTurquoise	0, 206, 209
-CadetBlue	95, 158, 160
-SteelBlue	70, 130, 180
-LightSteelBlue	176, 196, 222
-PowderBlue	176, 224, 230
-LightBlue	173, 216, 230
-SkyBlue	135, 206, 235
-LightSkyBlue	135, 206, 250
-DeepSkyBlue	0, 191, 255
-DodgerBlue	30, 144, 255
-CornflowerBlue	100, 149, 237
-MediumSlateBlue	123, 104, 238
-RoyalBlue	65, 105, 225
-Blue	0, 0, 255
-MediumBlue	0, 0, 205
-DarkBlue	0, 0, 139
-Navy	0, 0, 128
-MidnightBlue	25, 25, 112
-Cornsilk	255, 248, 220
-BlanchedAlmond	255, 235, 205
-Bisque	255, 228, 196
-NavajoWhite	255, 222, 173
-Wheat	245, 222, 179
-BurlyWood	222, 184, 135
-Tan	210, 180, 140
-RosyBrown	188, 143, 143
-SandyBrown	244, 164, 96
-Goldenrod	218, 165, 32
-DarkGoldenrod	184, 134, 11
-Peru	205, 133, 63
-Chocolate	210, 105, 30
-SaddleBrown	139, 69, 19
-Sienna	160, 82, 45
-Brown	165, 42, 42
-Maroon	128, 0, 0
-White	255, 255, 255
-Snow	255, 250, 250
-HoneyDew	240, 255, 240
-MintCream	245, 255, 250
-Azure	240, 255, 255
-AliceBlue	240, 248, 255
-GhostWhite	248, 248, 255
-WhiteSmoke	245, 245, 245
-SeaShell	255, 245, 238
-Beige	245, 245, 220
-OldLace	253, 245, 230
-FloralWhite	255, 250, 240
-Ivory	255, 255, 240
-AntiqueWhite	250, 235, 215
-Linen	250, 240, 230
-LavenderBlush	255, 240, 245
-MistyRose	255, 228, 225
-Gainsboro	220, 220, 220
-LightGray	211, 211, 211
-Silver	192, 192, 192
-DarkGray	169, 169, 169
-Gray	128, 128, 128
-DimGray	105, 105, 105
-LightSlateGray	119, 136, 153
-SlateGray	112, 128, 144
-DarkSlateGray	47, 79, 79
-Black	0, 0, 0
+(alexandria:define-constant +IndianRed+            (make-color :r 205 :g 92  :b 92)  :test (constantly t))
+(alexandria:define-constant +LightCoral+           (make-color :r 240 :g 128 :b 128) :test (constantly t))
+(alexandria:define-constant +Salmon+               (make-color :r 250 :g 128 :b 114) :test (constantly t))
+(alexandria:define-constant +DarkSalmon+           (make-color :r 233 :g 150 :b 122) :test (constantly t))
+(alexandria:define-constant +LightSalmon+          (make-color :r 255 :g 160 :b 122) :test (constantly t))
+(alexandria:define-constant +Crimson+              (make-color :r 220 :g 20  :b 60)  :test (constantly t))
+(alexandria:define-constant +Red+                  (make-color :r 255 :g 0   :b 0)   :test (constantly t))
+(alexandria:define-constant +FireBrick+            (make-color :r 178 :g 34  :b 34)  :test (constantly t))
+(alexandria:define-constant +DarkRed+              (make-color :r 139 :g 0   :b 0)   :test (constantly t))
+(alexandria:define-constant +Pink+                 (make-color :r 255 :g 192 :b 203) :test (constantly t))
+(alexandria:define-constant +LightPink+            (make-color :r 255 :g 182 :b 193) :test (constantly t))
+(alexandria:define-constant +HotPink+              (make-color :r 255 :g 105 :b 180) :test (constantly t))
+(alexandria:define-constant +DeepPink+             (make-color :r 255 :g 20  :b 147) :test (constantly t))
+(alexandria:define-constant +MediumVioletRed+      (make-color :r 199 :g 21  :b 133) :test (constantly t))
+(alexandria:define-constant +PaleVioletRed+        (make-color :r 219 :g 112 :b 147) :test (constantly t))
+(alexandria:define-constant +LightSalmon+          (make-color :r 255 :g 160 :b 122) :test (constantly t))
+(alexandria:define-constant +Coral+                (make-color :r 255 :g 127 :b 80)  :test (constantly t))
+(alexandria:define-constant +Tomato+               (make-color :r 255 :g 99  :b 71)  :test (constantly t))
+(alexandria:define-constant +OrangeRed+            (make-color :r 255 :g 69  :b 0)   :test (constantly t))
+(alexandria:define-constant +DarkOrange+           (make-color :r 255 :g 140 :b 0)   :test (constantly t))
+(alexandria:define-constant +Orange+               (make-color :r 255 :g 165 :b 0)   :test (constantly t))
+(alexandria:define-constant +Gold+                 (make-color :r 255 :g 215 :b 0)   :test (constantly t))
+(alexandria:define-constant +Yellow+               (make-color :r 255 :g 255 :b 0)   :test (constantly t))
+(alexandria:define-constant +LightYellow+          (make-color :r 255 :g 255 :b 224) :test (constantly t))
+(alexandria:define-constant +LemonChiffon+         (make-color :r 255 :g 250 :b 205) :test (constantly t))
+(alexandria:define-constant +LightGoldenrodYellow+ (make-color :r 250 :g 250 :b 210) :test (constantly t))
+(alexandria:define-constant +PapayaWhip+           (make-color :r 255 :g 239 :b 213) :test (constantly t))
+(alexandria:define-constant +Moccasin+             (make-color :r 255 :g 228 :b 181) :test (constantly t))
+(alexandria:define-constant +PeachPuff+            (make-color :r 255 :g 218 :b 185) :test (constantly t))
+(alexandria:define-constant +PaleGoldenrod+        (make-color :r 238 :g 232 :b 170) :test (constantly t))
+(alexandria:define-constant +Khaki+                (make-color :r 240 :g 230 :b 140) :test (constantly t))
+(alexandria:define-constant +DarkKhaki+            (make-color :r 189 :g 183 :b 107) :test (constantly t))
+(alexandria:define-constant +Lavender+             (make-color :r 230 :g 230 :b 250) :test (constantly t))
+(alexandria:define-constant +Thistle+              (make-color :r 216 :g 191 :b 216) :test (constantly t))
+(alexandria:define-constant +Plum+                 (make-color :r 221 :g 160 :b 221) :test (constantly t))
+(alexandria:define-constant +Violet+               (make-color :r 238 :g 130 :b 238) :test (constantly t))
+(alexandria:define-constant +Orchid+               (make-color :r 218 :g 112 :b 214) :test (constantly t))
+(alexandria:define-constant +Fuchsia+              (make-color :r 255 :g 0   :b 255) :test (constantly t))
+(alexandria:define-constant +Magenta+              (make-color :r 255 :g 0   :b 255) :test (constantly t))
+(alexandria:define-constant +MediumOrchid+         (make-color :r 186 :g 85  :b 211) :test (constantly t))
+(alexandria:define-constant +MediumPurple+         (make-color :r 147 :g 112 :b 219) :test (constantly t))
+(alexandria:define-constant +RebeccaPurple+        (make-color :r 102 :g 51  :b 153) :test (constantly t))
+(alexandria:define-constant +BlueViolet+           (make-color :r 138 :g 43  :b 226) :test (constantly t))
+(alexandria:define-constant +DarkViolet+           (make-color :r 148 :g 0   :b 211) :test (constantly t))
+(alexandria:define-constant +DarkOrchid+           (make-color :r 153 :g 50  :b 204) :test (constantly t))
+(alexandria:define-constant +DarkMagenta+          (make-color :r 139 :g 0   :b 139) :test (constantly t))
+(alexandria:define-constant +Purple+               (make-color :r 128 :g 0   :b 128) :test (constantly t))
+(alexandria:define-constant +Indigo+               (make-color :r 75  :g 0   :b 130) :test (constantly t))
+(alexandria:define-constant +SlateBlue+            (make-color :r 106 :g 90  :b 205) :test (constantly t))
+(alexandria:define-constant +DarkSlateBlue+        (make-color :r 72  :g 61  :b 139) :test (constantly t))
+(alexandria:define-constant +MediumSlateBlue+      (make-color :r 123 :g 104 :b 238) :test (constantly t))
+(alexandria:define-constant +GreenYellow+          (make-color :r 173 :g 255 :b 47)  :test (constantly t))
+(alexandria:define-constant +Chartreuse+           (make-color :r 127 :g 255 :b 0)   :test (constantly t))
+(alexandria:define-constant +LawnGreen+            (make-color :r 124 :g 252 :b 0)   :test (constantly t))
+(alexandria:define-constant +Lime+                 (make-color :r 0   :g 255 :b 0)   :test (constantly t))
+(alexandria:define-constant +LimeGreen+            (make-color :r 50  :g 205 :b 50)  :test (constantly t))
+(alexandria:define-constant +PaleGreen+            (make-color :r 152 :g 251 :b 152) :test (constantly t))
+(alexandria:define-constant +LightGreen+           (make-color :r 144 :g 238 :b 144) :test (constantly t))
+(alexandria:define-constant +MediumSpringGreen+    (make-color :r 0   :g 250 :b 154) :test (constantly t))
+(alexandria:define-constant +SpringGreen+          (make-color :r 0   :g 255 :b 127) :test (constantly t))
+(alexandria:define-constant +MediumSeaGreen+       (make-color :r 60  :g 179 :b 113) :test (constantly t))
+(alexandria:define-constant +SeaGreen+             (make-color :r 46  :g 139 :b 87)  :test (constantly t))
+(alexandria:define-constant +ForestGreen+          (make-color :r 34  :g 139 :b 34)  :test (constantly t))
+(alexandria:define-constant +Green+                (make-color :r 0   :g 128 :b 0)   :test (constantly t))
+(alexandria:define-constant +DarkGreen+            (make-color :r 0   :g 100 :b 0)   :test (constantly t))
+(alexandria:define-constant +YellowGreen+          (make-color :r 154 :g 205 :b 50)  :test (constantly t))
+(alexandria:define-constant +OliveDrab+            (make-color :r 107 :g 142 :b 35)  :test (constantly t))
+(alexandria:define-constant +Olive+                (make-color :r 128 :g 128 :b 0)   :test (constantly t))
+(alexandria:define-constant +DarkOliveGreen+       (make-color :r 85  :g 107 :b 47)  :test (constantly t))
+(alexandria:define-constant +MediumAquamarine+     (make-color :r 102 :g 205 :b 170) :test (constantly t))
+(alexandria:define-constant +DarkSeaGreen+         (make-color :r 143 :g 188 :b 139) :test (constantly t))
+(alexandria:define-constant +LightSeaGreen+        (make-color :r 32  :g 178 :b 170) :test (constantly t))
+(alexandria:define-constant +DarkCyan+             (make-color :r 0   :g 139 :b 139) :test (constantly t))
+(alexandria:define-constant +Teal+                 (make-color :r 0   :g 128 :b 128) :test (constantly t))
+(alexandria:define-constant +Aqua+                 (make-color :r 0   :g 255 :b 255) :test (constantly t))
+(alexandria:define-constant +Cyan+                 (make-color :r 0   :g 255 :b 255) :test (constantly t))
+(alexandria:define-constant +LightCyan+            (make-color :r 224 :g 255 :b 255) :test (constantly t))
+(alexandria:define-constant +PaleTurquoise+        (make-color :r 175 :g 238 :b 238) :test (constantly t))
+(alexandria:define-constant +Aquamarine+           (make-color :r 127 :g 255 :b 212) :test (constantly t))
+(alexandria:define-constant +Turquoise+            (make-color :r 64  :g 224 :b 208) :test (constantly t))
+(alexandria:define-constant +MediumTurquoise+      (make-color :r 72  :g 209 :b 204) :test (constantly t))
+(alexandria:define-constant +DarkTurquoise+        (make-color :r 0   :g 206 :b 209) :test (constantly t))
+(alexandria:define-constant +CadetBlue+            (make-color :r 95  :g 158 :b 160) :test (constantly t))
+(alexandria:define-constant +SteelBlue+            (make-color :r 70  :g 130 :b 180) :test (constantly t))
+(alexandria:define-constant +LightSteelBlue+       (make-color :r 176 :g 196 :b 222) :test (constantly t))
+(alexandria:define-constant +PowderBlue+           (make-color :r 176 :g 224 :b 230) :test (constantly t))
+(alexandria:define-constant +LightBlue+            (make-color :r 173 :g 216 :b 230) :test (constantly t))
+(alexandria:define-constant +SkyBlue+              (make-color :r 135 :g 206 :b 235) :test (constantly t))
+(alexandria:define-constant +LightSkyBlue+         (make-color :r 135 :g 206 :b 250) :test (constantly t))
+(alexandria:define-constant +DeepSkyBlue+          (make-color :r 0   :g 191 :b 255) :test (constantly t))
+(alexandria:define-constant +DodgerBlue+           (make-color :r 30  :g 144 :b 255) :test (constantly t))
+(alexandria:define-constant +CornflowerBlue+       (make-color :r 100 :g 149 :b 237) :test (constantly t))
+(alexandria:define-constant +MediumSlateBlue+      (make-color :r 123 :g 104 :b 238) :test (constantly t))
+(alexandria:define-constant +RoyalBlue+            (make-color :r 65  :g 105 :b 225) :test (constantly t))
+(alexandria:define-constant +Blue+                 (make-color :r 0   :g 0   :b 255) :test (constantly t))
+(alexandria:define-constant +MediumBlue+           (make-color :r 0   :g 0   :b 205) :test (constantly t))
+(alexandria:define-constant +DarkBlue+             (make-color :r 0   :g 0   :b 139) :test (constantly t))
+(alexandria:define-constant +Navy+                 (make-color :r 0   :g 0   :b 128) :test (constantly t))
+(alexandria:define-constant +MidnightBlue+         (make-color :r 25  :g 25  :b 112) :test (constantly t))
+(alexandria:define-constant +Cornsilk+             (make-color :r 255 :g 248 :b 220) :test (constantly t))
+(alexandria:define-constant +BlanchedAlmond+       (make-color :r 255 :g 235 :b 205) :test (constantly t))
+(alexandria:define-constant +Bisque+               (make-color :r 255 :g 228 :b 196) :test (constantly t))
+(alexandria:define-constant +NavajoWhite+          (make-color :r 255 :g 222 :b 173) :test (constantly t))
+(alexandria:define-constant +Wheat+                (make-color :r 245 :g 222 :b 179) :test (constantly t))
+(alexandria:define-constant +BurlyWood+            (make-color :r 222 :g 184 :b 135) :test (constantly t))
+(alexandria:define-constant +Tan+                  (make-color :r 210 :g 180 :b 140) :test (constantly t))
+(alexandria:define-constant +RosyBrown+            (make-color :r 188 :g 143 :b 143) :test (constantly t))
+(alexandria:define-constant +SandyBrown+           (make-color :r 244 :g 164 :b 96)  :test (constantly t))
+(alexandria:define-constant +Goldenrod+            (make-color :r 218 :g 165 :b 32)  :test (constantly t))
+(alexandria:define-constant +DarkGoldenrod+        (make-color :r 184 :g 134 :b 11)  :test (constantly t))
+(alexandria:define-constant +Peru+                 (make-color :r 205 :g 133 :b 63)  :test (constantly t))
+(alexandria:define-constant +Chocolate+            (make-color :r 210 :g 105 :b 30)  :test (constantly t))
+(alexandria:define-constant +SaddleBrown+          (make-color :r 139 :g 69  :b 19)  :test (constantly t))
+(alexandria:define-constant +Sienna+               (make-color :r 160 :g 82  :b 45)  :test (constantly t))
+(alexandria:define-constant +Brown+                (make-color :r 165 :g 42  :b 42)  :test (constantly t))
+(alexandria:define-constant +Maroon+               (make-color :r 128 :g 0   :b 0)   :test (constantly t))
+(alexandria:define-constant +White+                (make-color :r 255 :g 255 :b 255) :test (constantly t))
+(alexandria:define-constant +Snow+                 (make-color :r 255 :g 250 :b 250) :test (constantly t))
+(alexandria:define-constant +HoneyDew+             (make-color :r 240 :g 255 :b 240) :test (constantly t))
+(alexandria:define-constant +MintCream+            (make-color :r 245 :g 255 :b 250) :test (constantly t))
+(alexandria:define-constant +Azure+                (make-color :r 240 :g 255 :b 255) :test (constantly t))
+(alexandria:define-constant +AliceBlue+            (make-color :r 240 :g 248 :b 255) :test (constantly t))
+(alexandria:define-constant +GhostWhite+           (make-color :r 248 :g 248 :b 255) :test (constantly t))
+(alexandria:define-constant +WhiteSmoke+           (make-color :r 245 :g 245 :b 245) :test (constantly t))
+(alexandria:define-constant +SeaShell+             (make-color :r 255 :g 245 :b 238) :test (constantly t))
+(alexandria:define-constant +Beige+                (make-color :r 245 :g 245 :b 220) :test (constantly t))
+(alexandria:define-constant +OldLace+              (make-color :r 253 :g 245 :b 230) :test (constantly t))
+(alexandria:define-constant +FloralWhite+          (make-color :r 255 :g 250 :b 240) :test (constantly t))
+(alexandria:define-constant +Ivory+                (make-color :r 255 :g 255 :b 240) :test (constantly t))
+(alexandria:define-constant +AntiqueWhite+         (make-color :r 250 :g 235 :b 215) :test (constantly t))
+(alexandria:define-constant +Linen+                (make-color :r 250 :g 240 :b 230) :test (constantly t))
+(alexandria:define-constant +LavenderBlush+        (make-color :r 255 :g 240 :b 245) :test (constantly t))
+(alexandria:define-constant +MistyRose+            (make-color :r 255 :g 228 :b 225) :test (constantly t))
+(alexandria:define-constant +Gainsboro+            (make-color :r 220 :g 220 :b 220) :test (constantly t))
+(alexandria:define-constant +LightGray+            (make-color :r 211 :g 211 :b 211) :test (constantly t))
+(alexandria:define-constant +Silver+               (make-color :r 192 :g 192 :b 192) :test (constantly t))
+(alexandria:define-constant +DarkGray+             (make-color :r 169 :g 169 :b 169) :test (constantly t))
+(alexandria:define-constant +Gray+                 (make-color :r 128 :g 128 :b 128) :test (constantly t))
+(alexandria:define-constant +DimGray+              (make-color :r 105 :g 105 :b 105) :test (constantly t))
+(alexandria:define-constant +LightSlateGray+       (make-color :r 119 :g 136 :b 153) :test (constantly t))
+(alexandria:define-constant +SlateGray+            (make-color :r 112 :g 128 :b 144) :test (constantly t))
+(alexandria:define-constant +DarkSlateGray+        (make-color :r 47  :g 79  :b 79)  :test (constantly t))
+(alexandria:define-constant +Black+                (make-color :r 0   :g 0   :b 0)   :test (constantly t))
