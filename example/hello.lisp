@@ -23,13 +23,15 @@
             
             (clgfw:draw-rectangle ctx 0 0 w h bg)
             (clgfw:draw-rectangle ctx (floor x) (floor y) sz sz fg)
-            (clgfw:draw-rectangle ctx (clgfw:get-mouse-x ctx) (clgfw:get-mouse-y ctx) 10 10 fg)
+
             
             (clgfw:draw-text ctx 300 10 text-size fg
                              (format nil "FPS ~a" (clgfw:get-fps ctx)))
             
             ;; (clgfw:draw-text ctx 10 100 text-size fg "Press 'q' to quit!")
             (clgfw:draw-image ctx img 10 100)
+
+            (clgfw:draw-rectangle ctx (clgfw:get-mouse-x ctx) (clgfw:get-mouse-y ctx) 10 10 clgfw/color:+bisque+)
             
             (incf x delta-x)
             (incf y delta-y)

@@ -300,6 +300,8 @@
             (zerop (height ctx)))
     (return-from %draw-rectangle/wayland))
 
+  ;;TODO implement alpha blending for wayland
+
   (ensure-buffer-memory-allocated ctx)
   (let* ((pool-data (pool-data (back-buffer ctx)))
          (stride (the fixnum (* (width ctx) 4)))     ; bytes per row

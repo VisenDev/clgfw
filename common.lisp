@@ -29,10 +29,11 @@
 
 (defmacro define-color-byte-accessor (name offset)
   `(progn
+     (declaim (ftype (function (color) fixnum) ,name))
      (defun ,name (color)
        (declare (type color color)
-                (optimize (speed 3) (safety 0)))
-       (ldb (byte 8 ,offset) color))
+                (optimize (speed 3) (safety 1)))
+       (the fixnum (ldb (byte 8 ,offset) color)))
      (define-setf-expander ,name (color &environment env)
        (get-setf-expansion `(ldb (byte 8 ,,offset) ,color) env))))
 
@@ -53,6 +54,54 @@
          (result (the fixnum (ash result 8)))
          (result (the fixnum (logior result a))))
     result))
+
+;; (defun clamp-byte (number)
+;;   "Clamps a number into the range 0..255"
+;;   (when (< number 0)
+;;     (return-from clamp-byte 0))
+;;   (when (> number 255)
+;;     (return-from clamp-byte 255))
+;;   (coerce number 'unsigned-byte))
+
+(defun clamp-u8 (number)
+  (declare (optimize (speed 3) (safety 0))
+           (type fixnum number))
+  (the fixnum
+       (cond
+         ((< number 0) 0)
+         ((> number 255) 255)
+         (t number))))
+
+;; (declaim (ftype (function (color color) color) color-alpha-composite))
+
+(defun color-blend (base applied-color)
+  (declare (optimize (speed 3))
+           (type color base applied-color))
+  (let* ((applied-color-a (the fixnum (color-a applied-color)))
+         (base-a (the fixnum (color-a base)))
+         (inverse-applied-a (the fixnum (- 255 applied-color-a)))
+         (out-a (the fixnum (+ applied-color-a (truncate (+ (the fixnum (* base-a inverse-applied-a)) 127) 255)))))
+    (when (zerop out-a)
+      (return-from color-blend
+        (make-color 0 0 0 0)))
+
+    (let* ((r (the fixnum (truncate
+                           (+ (the fixnum (* (color-r applied-color) applied-color-a))
+                              (truncate (the fixnum (* (color-r base) base-a inverse-applied-a)) 255))
+                           out-a)))
+           (g (the fixnum (truncate
+                           (+ (the fixnum (* (color-g applied-color) applied-color-a))
+                              (truncate (the fixnum (* (color-g base) base-a inverse-applied-a)) 255))
+                           out-a)))
+           (b (the fixnum (truncate
+                           (+ (the fixnum (* (color-b applied-color) applied-color-a))
+                              (truncate (the fixnum (* (color-b base) base-a inverse-applied-a)) 255))
+                           out-a))))
+      (make-color
+       (clamp-u8 r)
+       (clamp-u8 g)
+       (clamp-u8 b)
+       (clamp-u8 out-a)))))
 
 ;; TODO no functions currently care about color-a, that should be changed
 ;; so that alpha values actually work

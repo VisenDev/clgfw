@@ -198,11 +198,11 @@
 
 
 (defun %draw-rectangle/sprite (image x y width height color)
-  ;; TODO handle color-a
   (loop :for dx :from x :below (min (+ x width) (get-window-width image))
         :do
            (loop :for dy :from y :below (min (+ y height) (get-window-height image))
-                 :do (setf (aref (pixels image) dy dx) color))))
+                 :for base-color = (aref (pixels image) dy dx)
+                 :do (setf (aref (pixels image) dy dx) (color-blend base-color color)))))
 
 (defmethod clgfw:%get-draw-rectangle-function (ctx)
   #'%draw-rectangle/sprite)
