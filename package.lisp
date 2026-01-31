@@ -35,6 +35,7 @@
            #:color-b
            #:color-a
            #:color-invisible-p
+           #:color-opaque-p
            #:color-blend
            
            #:color-rect-x

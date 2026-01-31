@@ -103,11 +103,14 @@
        (clamp-u8 b)
        (clamp-u8 out-a)))))
 
-;; TODO no functions currently care about color-a, that should be changed
-;; so that alpha values actually work
 (defun color-invisible-p (color)
   (declare (type color color))
   (= 0 (color-a color)))
+
+(defun color-opaque-p (color)
+  (declare (type color color)
+           (optimize (speed 3)))
+  (= 255 (color-a color)))
 
 ;;; RECTS
 (defstruct rect

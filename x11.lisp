@@ -1,8 +1,3 @@
-;; (eval-when (:load-toplevel :compile-toplevel :execute)
-;;   ;;; automatically load clx for convenience when testing in repl
-;;   (unless (find-package 'xlib)
-;;     (asdf:load-system "clx")))
-
 (in-package #:clgfw)
 
 (defclass ctx/x11 (fps-manager)

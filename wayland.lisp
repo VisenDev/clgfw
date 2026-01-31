@@ -1,9 +1,6 @@
 (in-package #:clgfw)
 
-;;;; TODO
-;;;; implement is-key-pressed and is-key-released for wayland
-
-#.(use-package '(#:wayflan #:wayflan-client #:wayflan-client.xdg-shell))
+;; #.(use-package '(#:wayflan #:wayflan-client #:wayflan-client.xdg-shell))
 
 ;;; This program is based on several examples from the wayflan repo
 ;;;
@@ -292,38 +289,52 @@
          )
     result))
 
+(defun xrgb-to-color (xrgb)
+  (declare (type (unsigned-byte 32) xrgb))
+  (let ((r (ldb (byte 8 16) xrgb))
+        (g (ldb (byte 8 8) xrgb))
+        (b (ldb (byte 8 0) xrgb)))
+    (make-color r g b)))
 
 (declaim (ftype (function (ctx/wayland fixnum fixnum fixnum fixnum color) t) %draw-rectangle/wayland))
 (defun %draw-rectangle/wayland (ctx x y w h color)
-  (declare (optimize (speed 3) (safety 0) (debug 0) (space 0)))
+  (declare (optimize (speed 3) (safety 1) (debug 0) (space 0)))
   (when (or (zerop (width ctx))
             (zerop (height ctx)))
     (return-from %draw-rectangle/wayland))
-
-  ;;TODO implement alpha blending for wayland
 
   (ensure-buffer-memory-allocated ctx)
   (let* ((pool-data (pool-data (back-buffer ctx)))
          (stride (the fixnum (* (width ctx) 4)))     ; bytes per row
          (row-pixels (the fixnum (/ stride 4)))
          (x-end (the fixnum (floor (min (+ x w) (width ctx)))))
-         (y-end (the fixnum (floor (min (+ y h) (height ctx)))))
-         (xrgb (color-to-xrbg color)))
-    ;; (declare (type fixnum x-end y-end x y w h))
-      
-    (loop :for dy :from (the fixnum (floor y)) :below y-end :do
-      (loop
-        :with dy-offset = (the fixnum (* (max 0 dy) row-pixels)) 
-        :for dx :from (the fixnum (max 0 (floor x))) :below x-end :do
-          (setf (cffi:mem-aref pool-data :uint32
-                               (+ dx dy-offset))
-                xrgb)))))
+         (y-end (the fixnum (floor (min (+ y h) (height ctx))))))
+
+    (if (color-opaque-p color)
+        (loop :with xrgb = (color-to-xrbg color)
+              :for dy :from (the fixnum (floor y)) :below y-end
+              :do (loop :with dy-offset = (the fixnum (* (max 0 dy) row-pixels)) 
+                        :for dx :from (the fixnum (max 0 (floor x))) :below x-end
+                        :do
+                           (setf (cffi:mem-aref pool-data :uint32
+                                                (+ dx dy-offset))
+                                 xrgb)))
+        (loop :for dy :from (the fixnum (floor y)) :below y-end
+              :do (loop :with dy-offset = (the fixnum (* (max 0 dy) row-pixels)) 
+                        :for dx :from (the fixnum (max 0 (floor x))) :below x-end
+                        :for base-color = (cffi:mem-aref pool-data :uint32
+                                                         (+ dx dy-offset))
+                        :for output-color = (clgfw:color-blend base-color color)
+                        :for xrgb = (color-to-xrbg output-color)
+                        :do
+                           (setf (cffi:mem-aref pool-data :uint32
+                                                (+ dx dy-offset))
+                                 xrgb))))))
 
 (defmethod %get-draw-rectangle-function ((ctx ctx/wayland))
   #'%draw-rectangle/wayland)
 
 (defun handle-frame-callback (ctx callback &rest event)
-  ;; (format t "Handing frame callback ~a~%" callback)
   (event-ecase event
     (:done (time)
            (declare (ignore time))

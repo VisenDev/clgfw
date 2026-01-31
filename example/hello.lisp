@@ -31,7 +31,9 @@
             ;; (clgfw:draw-text ctx 10 100 text-size fg "Press 'q' to quit!")
             (clgfw:draw-image ctx img 10 100)
 
-            (clgfw:draw-rectangle ctx (clgfw:get-mouse-x ctx) (clgfw:get-mouse-y ctx) 10 10 clgfw/color:+bisque+)
+            (clgfw:draw-rectangle ctx (- (clgfw:get-mouse-x ctx) 10) (- (clgfw:get-mouse-y ctx) 10)
+                                  20 20
+                                  (clgfw:make-color 200 100 100 100))
             
             (incf x delta-x)
             (incf y delta-y)
