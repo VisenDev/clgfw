@@ -7,7 +7,7 @@
   "Example main function"
   (let ((bg clgfw/color:+space+)
         (fg clgfw/color:+moon+)
-        (text-size 50)
+        (text-size 40)
         (x 0) (y 0) (sz 60) (delta-x 0.5) (delta-y 0.5))
     (clgfw:with-window ctx (800 600 "Hello")
       (let ((img (clgfw:create-image ctx 800 800)))

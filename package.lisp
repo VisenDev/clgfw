@@ -54,6 +54,9 @@
            #:when-it
            #:unless-it
            #:if-it
+
+           ;; Useful macros
+           #:appendf
            ))
 (in-package #:clgfw)
 

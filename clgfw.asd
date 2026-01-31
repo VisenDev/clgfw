@@ -25,11 +25,13 @@
                (:file "common")
                (:file "colors")
                (:file "fps")
-               (:module "bdf" :serial t
-                :components
-                ((:file "bdf")
-                 (:file "font-loader")
-                 (:file "renderer")))
+               (:module "bdf"
+                        :components
+                        ((:file "bdf")
+                         (:file "font-loader")
+                         (:file "renderer")))
+               (:module "sprite"
+                        :components ((:file "sprite")))
                (:file "x11" :if-feature (:and :linux (:not :abcl)))
                (:file "wayland" :if-feature (:and :linux (:not :abcl)))
                (:file "linux" :if-feature (:and :linux (:not :abcl)))

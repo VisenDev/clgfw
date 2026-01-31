@@ -20,6 +20,9 @@
          ,then
          ,else)))
 
+(defmacro appendf (target-list &rest other-lists)
+  "Appends lists to the end of target-list"
+  `(setf ,target-list (append ,target-list ,@other-lists)))
 
 ;;; ==== COLORS ====
 (deftype color () '(integer 0 #xffffffff))
