@@ -129,6 +129,8 @@
 
 
 (defun factor-pixels-into-list-of-colored-rectangles (pixels &optional (offset-x 0) (offset-y 0))
+  (when (empty-array-p pixels)
+    (return-from factor-pixels-into-list-of-colored-rectangles nil))
   (when (all-the-same-color-p pixels)
     (return-from factor-pixels-into-list-of-colored-rectangles
       (list (clgfw::make-color-rect :x offset-x :y offset-y
@@ -138,38 +140,129 @@
 
   (let (result)
     (quad-destructure (split-2d-array-into-quads pixels)
-      (unless (empty-array-p top-left)
-        (appendf result (factor-pixels-into-list-of-colored-rectangles
-                         top-left
-                         offset-x
-                         offset-y)))
-      (unless (empty-array-p top-right)
-        (appendf result (factor-pixels-into-list-of-colored-rectangles
-                         top-right
-                         (+ offset-x (2d-array-width top-left))
-                         offset-y)))
-      (unless (empty-array-p bottom-left)
-        (appendf result (factor-pixels-into-list-of-colored-rectangles
-                         bottom-left
-                         offset-x
-                         (+ offset-y (2d-array-height top-left)))))
-      (unless (empty-array-p bottom-right)
-        (appendf result (factor-pixels-into-list-of-colored-rectangles
-                         bottom-right
-                         (+ offset-x (2d-array-width bottom-left))
-                         (+ offset-y (2d-array-height top-right))))))
-    result))
+      (let ((top-left-rects (factor-pixels-into-list-of-colored-rectangles
+                             top-left
+                             offset-x
+                             offset-y))
+            (top-right-rects (factor-pixels-into-list-of-colored-rectangles
+                              top-right
+                              (+ offset-x (2d-array-width top-left))
+                              offset-y))
+            (bottom-left-rects (factor-pixels-into-list-of-colored-rectangles
+                                bottom-left
+                                offset-x
+                                (+ offset-y (2d-array-height top-left))))
+            (bottom-right-rects (factor-pixels-into-list-of-colored-rectangles
+                                 bottom-right
+                                 (+ offset-x (2d-array-width bottom-left))
+                                 (+ offset-y (2d-array-height top-right)))))
+
+        ;; Combine neighboring rects of the same colors
+        (when (and (= 1 (length top-left-rects))
+                   (= 1 (length top-right-rects))
+                   (= (color-rect-y (first bottom-left-rects))
+                      (color-rect-y (first bottom-right-rects)))
+                   (and (= (color-rect-color (first top-left-rects))
+                           (color-rect-color (first top-right-rects))))
+                   (and (= (color-rect-h (first top-left-rects))
+                           (color-rect-h (first top-right-rects)))))
+          (incf (color-rect-w (first top-left-rects)) (color-rect-w (first top-right-rects)))
+          (setf top-right-rects nil))
+        (when (and (= 1 (length bottom-left-rects))
+                   (= 1 (length bottom-right-rects))
+                   (= (color-rect-y (first bottom-left-rects))
+                      (color-rect-y (first bottom-right-rects)))
+                   (= (color-rect-h (first bottom-left-rects))
+                      (color-rect-h (first bottom-right-rects)))
+                   (= (color-rect-color (first bottom-left-rects))
+                            (color-rect-color (first bottom-right-rects))))
+          (incf (color-rect-w (first bottom-left-rects)) (color-rect-w (first bottom-right-rects)))
+          (setf bottom-right-rects nil))
+
+        ;; ;; FOR SOME REASON THIS PART OF THE MERGE CODE IS BROKEN SO I COMMENTED IT OUT
+        ;; (when (and (= 1 (length top-left-rects))
+        ;;            (= 1 (length bottom-left-rects))
+        ;;            (and (= (color-rect-x (first top-left-rects))
+        ;;                    (color-rect-x (first bottom-left-rects))))
+        ;;            (and (= (color-rect-w (first top-left-rects))
+        ;;                    (color-rect-w (first bottom-left-rects))))
+        ;;            (and (= (color-rect-color (first top-left-rects))
+        ;;                    (color-rect-color (first bottom-left-rects)))))
+        ;;   (incf (color-rect-h (first top-left-rects)) (color-rect-h (first bottom-left-rects)))
+        ;;   (setf bottom-left-rects nil))
+        ;; (when (and (= 1 (length top-right-rects))
+        ;;            (= 1 (length bottom-right-rects))
+        ;;            (and (= (color-rect-x (first top-right-rects))
+        ;;                    (color-rect-x (first bottom-right-rects))))
+        ;;            (and (= (color-rect-w (first top-right-rects))
+        ;;                    (color-rect-w (first bottom-right-rects))))
+        ;;            (and (= (color-rect-color (first top-right-rects))
+        ;;                    (color-rect-color (first bottom-right-rects)))))
+        ;;   (incf (color-rect-h (first top-right-rects)) (color-rect-h (first bottom-right-rects)))
+        ;;   (setf bottom-right-rects nil))
+
+        ;; Record results
+        (unless (empty-array-p top-left)
+          (appendf result top-left-rects))
+        (unless (empty-array-p top-right)
+          (appendf result top-right-rects))
+        (unless (empty-array-p bottom-left)
+          (appendf result bottom-left-rects))
+        (unless (empty-array-p bottom-right)
+          (appendf result bottom-right-rects))
+        )
+      ;; (unless (empty-array-p top-left)
+      ;;   (appendf result (factor-pixels-into-list-of-colored-rectangles
+      ;;                    top-left
+      ;;                    offset-x
+      ;;                    offset-y)))
+      ;; (unless (empty-array-p top-right)
+      ;;   (appendf result (factor-pixels-into-list-of-colored-rectangles
+      ;;                    top-right
+      ;;                    (+ offset-x (2d-array-width top-left))
+      ;;                    offset-y)))
+      ;; (unless (empty-array-p bottom-left)
+      ;;   (appendf result (factor-pixels-into-list-of-colored-rectangles
+      ;;                    bottom-left
+      ;;                    offset-x
+      ;;                    (+ offset-y (2d-array-height top-left)))))
+      ;; (unless (empty-array-p bottom-right)
+      ;;   (appendf result (factor-pixels-into-list-of-colored-rectangles
+      ;;                    bottom-right
+      ;;                    (+ offset-x (2d-array-width bottom-left))
+      ;;                    (+ offset-y (2d-array-height top-right)))))
+      )
+
+    ;; Clean up output data
+    (remove-duplicates
+     (remove-if (lambda (r) (or (zerop (color-rect-w r))
+                                (zerop (color-rect-h r))))
+                (remove-if (lambda (r) (color-invisible-p (color-rect-color r)))
+                           result)))))
+
+(defun report-compression-efficiency (pixels rects)
+  (loop :for y :from 0 :below (2d-array-height pixels)
+        :sum (loop :for x :from 0 :below (2d-array-width pixels)
+                  :sum (if (color-invisible-p (aref pixels y x)) 0 1))
+        :into total-pixels-to-draw
+        :finally (format
+                  t
+                  ";; If pixels were rendered indiviually, it would require ~a draw calls~%"
+                  total-pixels-to-draw))
+
+  (format t ";; Drawing the compressed version only requires ~a draw calls~%" (length rects)))
 
 (defun generate-draw-fn (ctx pixels)
   (let* ((rects (factor-pixels-into-list-of-colored-rectangles pixels))
-         (filtered-rects (remove-if (lambda (r) (color-invisible-p (color-rect-color r)))
-                                    rects))
          (draw-fn (the function (clgfw::%get-draw-rectangle-function ctx))))
+    (report-compression-efficiency pixels rects)
     (lambda (ctx x y &optional tint)
-      (declare (optimize (speed 3)))
+      (declare (optimize (speed 3)
+                         (debug 3)
+                         (safety 3)))
       (let ((my-x (the fixnum (coerce x 'fixnum)))
             (my-y (the fixnum (coerce y 'fixnum))))
-        (dolist (r filtered-rects)
+        (dolist (r rects)
           (funcall draw-fn ctx
                    (the fixnum (+ my-x (the fixnum (color-rect-x r))))
                    (the fixnum (+ my-y (the fixnum (color-rect-y r))))

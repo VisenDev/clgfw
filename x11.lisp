@@ -44,9 +44,12 @@
 (defun init-window/x11 (width height title &aux ctx)
   "Initialize the x11 window and return the created ctx"
   (declare (ignorable width height title))
-  (error "The x11 backend is broken right now, the screen flickers for unknown reasons")
-  
+   
   (setf ctx (make-instance 'ctx/x11))
+
+  (setf (target-fps ctx) 30) ;; TODO remove this call
+                             ;; The X server won't be able to keep up with higher fps
+  
   (with-slots (black white font display screen window gcontext colormap) ctx
     (setf display (xlib:open-default-display))
     (setf screen (first (xlib:display-roots display)))
@@ -88,7 +91,7 @@
     ;; (setf (front-buffer ctx) (xlib:create-back-buffer ))
     
     
-    (xlib:display-finish-output display)
+    ;; (xlib:display-finish-output display)
     (xlib:display-force-output display)
     ctx)
   )
@@ -245,7 +248,6 @@ allocates the color"
   ;; (xlib:display-finish-output display)
 
   (xlib:display-force-output display)
-  ;; (sleep 0.01)
   (when (xlib:event-listen display)
     (xlib:event-case (display)
       ;; (:resize-request (width height)
@@ -282,7 +284,7 @@ allocates the color"
                        ;; TYPE is an atom
                        ;; DATA is a vector of 32-bit values
                        (when (and (eq type :wm_protocols)
-                                  (eq (aref (the (vector (unsigned-byte 4)) data) 0) (wm-delete-atom ctx)))
+                                  (eq (aref data 0) (wm-delete-atom ctx)))
                          (setf (window-should-keep-running ctx) nil)
                          (return-from end-drawing))
                        t)
