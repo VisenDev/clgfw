@@ -1,15 +1,15 @@
 (in-package #:clgfw/bdf)
 
-(defclass character-cache ()
-  ((sizes :accessor sizes
-          :initform (make-hash-table :test #'=)
-          :documentation "a hashmap indexed by text-height containing an image of the
-                          character drawn at the specified text-height")))
+;; (defclass character-cache ()
+;;   ((sizes :accessor sizes
+;;           :initform (make-hash-table :test #'=)
+;;           :documentation "a hashmap indexed by text-height containing an image of the
+;;                           character drawn at the specified text-height")))
 
-(defclass font-cache-mixin ()
-  ((cached-characters :accessor cached-characters
-                      :initform (make-hash-table :test #'char-equal :size 256)))
-  )
+;; (defclass font-cache-mixin ()
+;;   ((cached-characters :accessor cached-characters
+;;                       :initform (make-hash-table :test #'char-equal :size 256)))
+;;   )
 
 
 ;;TODO change bitmaps so they are stored in 2 dimensional bitvectors, rather than nested vectors

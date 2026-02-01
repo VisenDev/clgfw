@@ -11,9 +11,9 @@
            #:draw-rectangle
            #:%get-draw-rectangle-function
            #:draw-text
-           #:draw-image
-           #:create-image
-           #:destroy-image
+           #:draw-sprite
+           #:create-sprite
+           #:destroy-sprite
            #:get-mouse-x
            #:get-mouse-y
            #:is-mouse-button-down

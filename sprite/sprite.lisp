@@ -1,6 +1,6 @@
 ;;;; SPRITE.LISP
 ;;;; This file implements a basic pixel buffer to
-;;;; be used as a backend for image rendering
+;;;; be used as a backend for sprite rendering
 ;;;;
 ;;;; By Robert Burnett
 ;;;; Copyright 2026
@@ -13,17 +13,17 @@
 
 (deftype pixels () '(simple-array color (* *)))
 
-(defclass image/sprite ()
+(defclass sprite/software-render ()
   ((%pixels :accessor pixels :type pixels :initarg :pixels)
    (%draw-fn :accessor draw-fn :initform nil)
    (%modifiedp :accessor modifiedp :initform nil)))
 
-(defmethod (setf pixels) :before (pixels (sprite image/sprite))
+(defmethod (setf pixels) :before (pixels (sprite sprite/software-render))
   (setf (modifiedp sprite) t))
 
-(defmethod width ((sprite image/sprite))
+(defmethod width ((sprite sprite/software-render))
   (array-dimension (pixels sprite) 1))
-(defmethod height ((sprite image/sprite))
+(defmethod height ((sprite sprite/software-render))
   (array-dimension (pixels sprite) 0))
 
 (defun empty-array-p (array)
@@ -165,7 +165,7 @@
          (filtered-rects (remove-if (lambda (r) (color-invisible-p (color-rect-color r)))
                                     rects))
          (draw-fn (the function (clgfw::%get-draw-rectangle-function ctx))))
-    (lambda (ctx x y)
+    (lambda (ctx x y &optional tint)
       (declare (optimize (speed 3)))
       (let ((my-x (the fixnum (coerce x 'fixnum)))
             (my-y (the fixnum (coerce y 'fixnum))))
@@ -175,39 +175,42 @@
                    (the fixnum (+ my-y (the fixnum (color-rect-y r))))
                    (color-rect-w r)
                    (color-rect-h r)
-                   (color-rect-color r)))))))
+                   (if tint
+                       (color-blend (color-rect-color r) tint)
+                       (color-rect-color r))))))))
 
-(defmethod clgfw:create-image (ctx width height)
-  (make-instance 'image/sprite
+(defmethod clgfw:create-sprite (ctx width height)
+  (make-instance 'sprite/software-render
                  :pixels (make-array (list height width) :element-type 'color
                                      :initial-element (clgfw:make-color 0 0 0 0))))
 
-(defmethod clgfw:draw-image (ctx (image image/sprite) x y)
-  (if (and (not (modifiedp image))
-           (draw-fn image))
-    (funcall (draw-fn image) ctx x y)
-    (progn
-      (setf (draw-fn image) (generate-draw-fn ctx (pixels image)))
-      (setf (modifiedp image) nil)
-      (draw-image ctx image x y))))
+(defmethod clgfw:draw-sprite (ctx (sprite sprite/software-render) x y &optional tint)
+  (if (and (not (modifiedp sprite))
+           (draw-fn sprite))
+      (funcall (draw-fn sprite) ctx x y tint)
+      (progn
+        (format t "Regenerating sprite!~%")
+        (setf (draw-fn sprite) (generate-draw-fn ctx (pixels sprite)))
+        (setf (modifiedp sprite) nil)
+        (draw-sprite ctx sprite x y tint))))
 
-(defmethod get-window-width ((image image/sprite))
-  (array-dimension (pixels image) 1))
-(defmethod get-window-height ((image image/sprite))
-  (array-dimension (pixels image) 0))
+(defmethod get-window-width ((sprite sprite/software-render))
+  (array-dimension (pixels sprite) 1))
+(defmethod get-window-height ((sprite sprite/software-render))
+  (array-dimension (pixels sprite) 0))
 
 
-(defun %draw-rectangle/sprite (image x y width height color)
-  (loop :for dx :from x :below (min (+ x width) (get-window-width image))
+(defun %draw-rectangle/sprite (sprite x y width height color)
+  (loop :for dx :from x :below (min (+ x width) (get-window-width sprite))
         :do
-           (loop :for dy :from y :below (min (+ y height) (get-window-height image))
-                 :for base-color = (aref (pixels image) dy dx)
-                 :do (setf (aref (pixels image) dy dx) (color-blend base-color color)))))
+           (loop :for dy :from y :below (min (+ y height) (get-window-height sprite))
+                 :for base-color = (aref (pixels sprite) dy dx)
+                 :do (setf (aref (pixels sprite) dy dx) (color-blend base-color color)))))
 
 (defmethod clgfw:%get-draw-rectangle-function (ctx)
   #'%draw-rectangle/sprite)
 
-(defmethod clgfw:destroy-image ((image image/sprite))
-  (declare (ignore image)))
+(defmethod clgfw:destroy-sprite ((sprite sprite/software-render))
+  (declare (ignore sprite)))
 
 

@@ -188,13 +188,13 @@
                    been pressed this frame. This is intended for use in things like text input
                    widgets."))
 
-(defgeneric create-image (ctx width height)
-  (:documentation "An image can be used as the ctx for various draw functions, allowing
+(defgeneric create-sprite (ctx width height)
+  (:documentation "An sprite can be used as the ctx for various draw functions, allowing
                    certain graphics to be saved and then drawn to the screen later"))
-(defgeneric draw-image (ctx image x y)
-  (:documentation "Draws the image at x y"))
-(defgeneric destroy-image (image) ;; TODO investigate using trivial-garbage to call this fn
-  (:documentation "Destroys the image, may be important if the image
+(defgeneric draw-sprite (ctx sprite x y &optional tint)
+  (:documentation "Draws the sprite at x y"))
+(defgeneric destroy-sprite (sprite) ;; TODO investigate using trivial-garbage to call this fn
+  (:documentation "Destroys the sprite, may be important if the sprite
                    is represented as a gpu texture in a given backend"))
 
 

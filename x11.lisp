@@ -14,6 +14,8 @@
    (window :accessor window)
    (gcontext :accessor gcontext)
    (colormap :accessor colormap)
+   (front-buffer :accessor front-buffer)
+   (back-buffer :accessor back-buffer)
    (keyboard-state :accessor keyboard-state :initform (make-hash-table :test 'eq :size 256))
    (pressed-keys :accessor pressed-keys
                  :initform (make-array 256 :element-type 'symbol :fill-pointer 0 :initial-element nil)
@@ -79,6 +81,8 @@
     (setf (wm-delete-atom ctx) (xlib:intern-atom display "WM_DELETE_WINDOW"))
     (xlib:map-window window)
     (setf colormap (xlib:screen-default-colormap screen))
+    ;; (setf (front-buffer ctx) (xlib:create-back-buffer ))
+    
     
     (xlib:display-finish-output display)
     (xlib:display-force-output display)
@@ -92,27 +96,23 @@ allocates the color"
   (declare (optimize (speed 3) (safety 0)))
   (when-it (gethash color (color-cache ctx))
     (return-from convert-to-x11-color it))
+  ;; (format t "Allocating missing xlib color ~x :(~%" color)
   (setf (gethash color (color-cache ctx))
         (xlib:alloc-color (colormap ctx)
                           (xlib:make-color 
                            :red (the float (/ (color-r color) 256f0))  
                            :green (the float (/ (color-g color) 256f0))
-                           :blue (the float (/ (color-b color) 256f0))))))
+                           :blue (the float (/ (color-b color) 256f0)))))
+  (convert-to-x11-color ctx color))
 
-;; (defun get-xlib-color (ctx color)
-;;   (if (slot-exists-p color 'xlib-color)
-;;       (slot-value color 'xlib-color)
-;;       ;else
-;;       (progn
-;;         (change-class color 'color/x11)
-;;         (setf (xlib-color color) (ensure-color-is-in-colormap ctx color))))
-;;   )
-
-(declaim (ftype (function (ctx/x11 fixnum fixnum fixnum fixnum color) t)
-                %draw-rectangle/x11))
+(declaim (ftype (function (ctx/x11 fixnum fixnum fixnum fixnum color) t) %draw-rectangle/x11))
 (defun %draw-rectangle/x11 (ctx x y width height color)
+  (when (color-invisible-p color)
+    (return-from %draw-rectangle/x11))
   (setf (xlib:gcontext-foreground (gcontext ctx)) (convert-to-x11-color ctx color))
   (xlib:draw-rectangle (window ctx) (gcontext ctx) x y width height t))
+
+
 (defmethod %get-draw-rectangle-function ((ctx ctx/x11))
   #'%draw-rectangle/x11)
 
@@ -162,8 +162,16 @@ allocates the color"
 (defmethod get-window-height ((ctx ctx/x11))
   (xlib:drawable-height (window ctx)))
 
+(defun need-new-frame-buffers-p (ctx)
+  (or (not (slot-boundp ctx 'front-buffer))
+      (not (slot-boundp ctx 'back-buffer))
+      ())
+  )
+
 (defmethod begin-drawing ((ctx ctx/x11))
-  (declare (ignore ctx)))
+  ;; (when (or (not (slot-boundp ))))
+  (declare (ignore ctx))
+  )
 
 (defun convert-keycode (ctx code)
   "Converts an X11 keycode to a clgfw key"
@@ -179,6 +187,7 @@ allocates the color"
     key
     ))
 
+#|
 (defclass image/x11 ()
   ((pixmap :accessor pixmap :initarg :pixmap)
    (ctx :accessor ctx :initarg :ctx)))
@@ -220,6 +229,7 @@ allocates the color"
                        (round width)
                        (round height)
                        t))
+|#
 
 (defmethod end-drawing ((ctx ctx/x11) &aux display)
   (setf display (display ctx))
@@ -228,10 +238,10 @@ allocates the color"
   (setf (fill-pointer (released-keys ctx)) 0) ;;reset released keys
 
   ;;; TODO Implement double buffering
-  (xlib:display-finish-output display)
+  ;; (xlib:display-finish-output display)
 
-  ;; (xlib:display-force-output display)
-  ;; (sleep 0.005)
+  (xlib:display-force-output display)
+  ;; (sleep 0.01)
   (when (xlib:event-listen display)
     (xlib:event-case (display)
       ;; (:resize-request (width height)
