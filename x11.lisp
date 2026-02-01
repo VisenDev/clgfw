@@ -39,9 +39,13 @@
   (assert (typep key 'key) (key) "~a is not a valid clgfw key" key)
   (find key (released-keys ctx)))
 
+;; (define-condition broken-windowing-backend-warning (error) ())
+
 (defun init-window/x11 (width height title &aux ctx)
   "Initialize the x11 window and return the created ctx"
   (declare (ignorable width height title))
+  (error "The x11 backend is broken right now, the screen flickers for unknown reasons")
+  
   (setf ctx (make-instance 'ctx/x11))
   (with-slots (black white font display screen window gcontext colormap) ctx
     (setf display (xlib:open-default-display))
