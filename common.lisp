@@ -53,16 +53,9 @@
          (result (the fixnum (logior result b)))
          (result (the fixnum (ash result 8)))
          (result (the fixnum (logior result a))))
-    result))
+    (the color result)))
 
-;; (defun clamp-byte (number)
-;;   "Clamps a number into the range 0..255"
-;;   (when (< number 0)
-;;     (return-from clamp-byte 0))
-;;   (when (> number 255)
-;;     (return-from clamp-byte 255))
-;;   (coerce number 'unsigned-byte))
-
+(declaim (ftype (function (fixnum) fixnum) clamp-u8))
 (defun clamp-u8 (number)
   (declare (optimize (speed 3) (safety 0))
            (type fixnum number))
@@ -72,8 +65,7 @@
          ((> number 255) 255)
          (t number))))
 
-;; (declaim (ftype (function (color color) color) color-alpha-composite))
-
+(declaim (ftype (function (color color) color) color-blend))
 (defun color-blend (base applied-color)
   (declare (optimize (speed 3)
                      (safety 3)
@@ -114,96 +106,215 @@
            (optimize (speed 3)))
   (= 255 (color-a color)))
 
-;;; RECTS
-(defstruct rect
-  (x 0 :type fixnum)
-  (y 0 :type fixnum)
-  (w 0 :type fixnum)
-  (h 0 :type fixnum))
-
-(defstruct (color-rect (:include rect))
-  (color (make-color) :type color))
-
-;;; PUBLIC INTERFACE
+;;; KEY
+(deftype key ()
+  '(member
+    :quote :comma :minus :period :slash
+    :zero :one :two :three :four :five :six :seven :eight :nine
+    :semicolon :equal
+    :a :b :c :d :e :f :g :h :i :j :k :l :m
+    :n :o :p :q :r :s :t :u :v :w :x :y :z
+    :left-bracket :backslash :right-bracket :backtick
+    :space :escape :enter :tab :backspace :insert :delete                             
+    :right :left :down :up :page-up :page-down :home                               
+    :end :caps-lock :scroll-lock :num-lock :print-screen :pause
+    :f1 :f2 :f3 :f4 :f5 :f6 :f7 :f8 :f9 :f10 :f11 :f12
+    :left-shift :right-shift                        
+    :left-control :right-control
+    :left-alt :right-alt
+    :left-super :right-super
+    :left-meta :right-meta
+    :left-hyper :right-hyper
+    :kb-menu
+    :keypad-0 :keypad-1 :keypad-2
+    :keypad-3 :keypad-4 :keypad-5
+    :keypad-6 :keypad-7 :keypad-8                           
+    :keypad-9 :keypad-decimal :keypad-divide
+    :keypad-multiply :keypad-subtract
+    :keypad-add :keypad-enter :keypad-equal                       
+    ))
 
 (deftype mouse-button () '(member :left :right :middle))
 
-(defun init-window (width height title)
-  "This is the entry point, it returns an appropriate ctx object 
-   which can be used with the other generic functions to manipulate
-   the window."
-  #+abcl (funcall 'init-window/jvm width height title)
-  #-abcl (progn
-           #+linux(funcall 'init-window/linux width height title)
-           #-linux (error "Only linux or abcl is supported right now"))
-)
+;; (defun init-window (width height title)
+;;   "This is the entry point, it returns an appropriate ctx object 
+;;    which can be used with the other generic functions to manipulate
+;;    the window."
+;;   #+abcl (funcall 'init-window/jvm width height title)
+;;   #-abcl (progn
+;;            #+linux(funcall 'init-window/linux width height title)
+;;            #-linux (error "Only linux or abcl is supported right now"))
+;; )
 
 
 
-(defgeneric close-window (ctx))
-(defgeneric window-should-keep-running (ctx)) ;; TODO maybe rename this to window-should-keep-running-p
-(defgeneric begin-drawing (ctx))
-(defgeneric end-drawing (ctx)) ;; TODO maybe schedule a gc to happen here so as to ensure a consistent framerate?
+;;; A CALLBACK HANDLER SHOULD IMPLEMENT THESE FUNCTIONS
+(defgeneric callback-on-mouse-move  (handler x y))
+(defgeneric callback-on-mouse-down  (handler mouse-button))
+(defgeneric callback-on-mouse-up    (handler mouse-button))
+(defgeneric callback-on-key-down    (handler key))
+(defgeneric callback-on-key-up      (handler key))
 
-;;; Drawing
-(defgeneric %get-draw-rectangle-function (ctx)
-  (:documentation "Returns the actual function for the given backend that draws a 
-                   rectangle. This is useful when optimizing a draw routine that
-                   needs to draw many rectangles.
-                   (You can avoid the generic function overhead)"))
-(defgeneric draw-rectangle (ctx x y width height color)
-  (:method (ctx (x fixnum) (y fixnum) (width fixnum) (height fixnum) color)
-    (funcall (%get-draw-rectangle-function ctx) ctx x y width height color))
-  (:method (ctx (x number) (y number) (width number) (height number) color)
-    "Converts any non-fixnums to fixnums before calling the fixnum specific version"
-    (funcall (%get-draw-rectangle-function ctx) ctx
-                      (the fixnum (round x))
-                      (the fixnum (round y))
-                      (the fixnum (round width))
-                      (the fixnum (round height))
-                      color)))
+;;; A BACKEND SHOULD IMPLEMENT THESE FUNCTIONS
+(defgeneric backend-init-window           (width height title callback-handler-instance))
+(defgeneric backend-close-window          (ctx))
+(defgeneric backend-window-should-close-p (ctx))
+(defgeneric backend-begin-drawing         (ctx))
+(defgeneric backend-end-drawing           (ctx))
+(defgeneric backend-draw-rectangle        (ctx x y w h color))
+(defgeneric backend-draw-text             (ctx x y text-height color string))
+(defgeneric backend-draw-canvas           (ctx x y canvas &optional color))
+(defgeneric backend-create-canvas         (ctx w h))
+(defgeneric backend-destroy-canvas        (ctx canvas))
+(defgeneric backend-canvas-draw-rectangle (ctx canvas x y w h color))
+(defgeneric backend-canvas-draw-text      (ctx canvas x y text-height color))
+(defgeneric backend-canvas-draw-canvas    (ctx canvas x y w h &optional tint))
 
-(defgeneric get-mouse-x (ctx))
-(defgeneric get-mouse-y (ctx))
-(defgeneric get-window-width (ctx))
-(defgeneric get-window-height (ctx))
+(defclass window-state ()
+  ((backend :accessor backend)
+   (keyboard-state :accessor keyboard-state :initform (make-hash-table :test 'eq :size 256))
+   (mouse-x :initform 0 :accessor mouse-x :type fixnum)
+   (mouse-y :initform 0 :accessor mouse-y :type fixnum)
+   (mouse-left-button-down :accessor mouse-left-button-down :initform nil)
+   (mouse-middle-button-down :accessor mouse-middle-button-down :initform nil)
+   (mouse-right-button-down :accessor mouse-right-button-down :initform nil)
+   (pressed-keys
+    :accessor pressed-keys
+    :initform (make-array 256 :element-type 'symbol :fill-pointer 0 :initial-element nil)
+    :documentation "A vector of all the keys which have been pressed this frame")
+   (released-keys
+    :accessor released-keys
+    :initform (make-array 256 :element-type 'symbol :fill-pointer 0 :initial-element nil)
+    :documentation "A vector of all the keys which have been released this frame")
+   (pressed-mouse-buttons
+    :accessor pressed-mouse-buttons
+    :initform (make-array 3 :element-type 'symbol :fill-pointer 0 :initial-element nil))
+   (released-mouse-buttons
+    :accessor pressed-mouse-buttons
+    :initform (make-array 3 :element-type 'symbol :fill-pointer 0 :initial-element nil))))
 
-(defgeneric is-mouse-button-down (ctx button))
-(defgeneric is-key-down (ctx key))
-(defgeneric is-key-pressed (ctx key)
-  (:documentation "Like is-key-down, but only return true on the frame that the key is first pressed"))
-(defgeneric is-key-released (ctx key)
-  (:documentation "Like is-key-pressed, but only returns true when the key is released"))
-(defgeneric set-target-fps (ctx fps)
-  (:documentation "Adds a limit to how fast new frames should be drawn"))
-(defgeneric get-delta-time (ctx)
-  (:documentation "How many milliseconds of time have passed since the last frame"))
-(defgeneric get-fps (ctx))
-(defgeneric draw-text (ctx x y text-height color text)
-  (:documentation "Draws some text on screen using the default font for the chosen backend"))
+(defmethod callback-on-mouse-move ((handler window-state) x y)
+  (setf (mouse-x handler) x)
+  (setf (mouse-x handler) y))
 
-;;TODO add implementations for the following functions
-(defgeneric measure-text-width (ctx text-height text)
-  (:documentation "Returns the width needed if the input text were drawn on the screen"))
-(defgeneric get-input-characters (ctx)
-  (:documentation "Returns a vector containing character representations of every key that has 
-                   been pressed this frame. This is intended for use in things like text input
-                   widgets."))
+(defmethod callback-on-mouse-down ((handler window-state) mouse-button)
+  (vector-push (pressed-mouse-buttons handler) mouse-button)
+  (ecase mouse-button
+    (:left (setf (mouse-left-button-down handler) t))
+    (:right (setf (mouse-right-button-down handler) t))
+    (:middle (setf (mouse-middle-button-down handler) t))))
 
-(defgeneric create-sprite (ctx width height)
-  (:documentation "An sprite can be used as the ctx for various draw functions, allowing
-                   certain graphics to be saved and then drawn to the screen later"))
-(defgeneric draw-sprite (ctx sprite x y &optional tint)
-  (:documentation "Draws the sprite at x y"))
-(defgeneric destroy-sprite (sprite) ;; TODO investigate using trivial-garbage to call this fn
-  (:documentation "Destroys the sprite, may be important if the sprite
-                   is represented as a gpu texture in a given backend"))
+(defmethod callback-on-mouse-up ((handler window-state) mouse-button)
+  (vector-push (released-mouse-buttons handler) mouse-button)
+  (ecase mouse-button
+    (:left (setf (mouse-left-button-down handler) nil))
+    (:right (setf (mouse-right-button-down handler) nil))
+    (:middle (setf (mouse-middle-button-down handler) nil))))
 
+(defmethod callback-on-key-down ((handler window-state) key)
+  (declare (type key key))
+  (vector-push key (pressed-keys handler))
+  (setf (gethash key (keyboard-state handler)) t))
 
-;; Utilities defined using the above apis
-(defun is-key-up (ctx key)
-  "Inverse is-key-down"
-  (not (is-key-down ctx key)))
+(defmethod callback-on-key-up  ((handler window-state) key)
+  (declare (type key key))
+  (vector-push key (released-keys handler))
+  (setf (gethash key (keyboard-state handler)) nil))
+
+;;; ==== PUBLIC INTERFACE ====
+(declaim (ftype (function (window-state) fixnum) get-mouse-x))
+(defun get-mouse-x (window-state)
+  (mouse-x window-state))
+
+(declaim (ftype (function (window-state) fixnum) get-mouse-y))
+(defun get-mouse-y (window-state)
+  (mouse-y window-state))
+
+(declaim (ftype (function (window-state mouse-button) boolean) is-mouse-button-down))
+(defun is-mouse-button-down (window-state button)
+  (ecase button
+    (:left (mouse-left-button-down window-state))
+    (:right (mouse-right-button-down window-state))
+    (:middle (mouse-middle-button-down window-state))))
+
+(declaim (ftype (function (window-state mouse-button) boolean) is-mouse-button-up))
+(defun is-mouse-button-up (window-state button)
+  (ecase button
+    (:left (mouse-left-button-down window-state))
+    (:right (mouse-right-button-down window-state))
+    (:middle (mouse-middle-button-down window-state))))
+
+(declaim (ftype (function (window-state mouse-button) boolean) is-mouse-button-pressed))
+(defun is-mouse-button-pressed (window-state button)
+  (find button (pressed-mouse-buttons ctx)))
+
+(declaim (ftype (function (window-state mouse-button) boolean) is-mouse-button-released))
+(defun is-mouse-button-released (window-state button)
+  (find button (released-mouse-buttons ctx)))
+
+(declaim (ftype (function (window-state key) boolean) is-key-down))
+(defun is-key-down (window-state key)
+  (gethash key (keyboard-state window-state) nil))
+
+(declaim (ftype (function (window-state key) boolean) is-key-up))
+(defun is-key-up (window-state key)
+  (not (gethash key (keyboard-state window-state) nil)))
+
+(declaim (ftype (function (window-state key) boolean) is-key-pressed))
+(defun is-key-pressed (window-state key)
+    (find key (pressed-keys window-state)))
+
+(declaim (ftype (function (window-state key) boolean) is-key-released))
+(defun is-key-released (window-state key)
+    (find key (released-keys window-state)))
+
+(declaim (ftype (function (window-state) t) begin-drawing))
+(defun begin-drawing (window-state)
+  (backend-begin-drawing (backend window-state)))
+
+(declaim (ftype (function (window-state) t) end-drawing))
+(defun end-drawing (window-state)
+  (backend-end-drawing (backend window-state)))
+
+(declaim (ftype (function (window-state) boolean) window-should-close-p]))
+(defun window-should-close-p (window-state)
+  (backend-window-should-close-p (backend window-state)))
+
+(declaim (ftype (function (window-state) boolean) window-should-keep-running-p))
+(defun window-should-keep-running-p (window-state)
+  (not (backend-window-should-close-p (backend window-state))))
+
+(declaim (ftype (function (window-state number number number number color) t) draw-rectangle))
+(defun draw-rectangle (window-state x y w h color)
+  (backend-draw-rectangle (backend window-state) (floor x) (floor y) (floor w) (floor h) color))
+
+(declaim (ftype (function (window-state number number number color) t) draw-text))
+(defun draw-text (window-state x y text-height color)
+  (backend-draw-text (backend window-state) (floor x) (floor y) (floor text-height) color))
+
+(declaim (ftype (function (window-state number number &optional color) t) draw-canvas))
+(defun draw-canvas (window-state x y canvas &optional tint)
+  (backend-draw-canvas (backend window-state) (floor x) (floor y) canvas tint))
+
+(declaim (ftype (function (window-state number number) t)))
+(defun create-canvas (window-state width height)
+  (backend-create-canvas (backend window-state) (floor width) (floor height)))
+
+(declaim (ftype (function (window-state t) t) destroy-canvas))
+(defun destroy-canvas (window-state canvas)
+  (backend-destroy-canvas (backend window-state) canvas))
+
+(declaim (ftype (function (window-state t number number number number color) t) canvas-draw-rectangle))
+(defun canvas-draw-rectangle (window-state canvas x y w h color)
+  (backend-canvas-draw-rectangle (backend window-state) (floor x) (floor y) (floor w) (floor h) color))
+
+(declaim (ftype (function (window-state t number number number color) t) canvas-draw-text))
+(defun canvas-draw-text (window-state canvas x y text-height color)
+  (backend-canvas-draw-text (backend window-state) (floor x) (floor y) (floor text-height) color))
+
+(declaim (ftype (function (window-state t number number t &optional color) t) canvas-draw-canvas))
+(defun canvas-draw-canvas (window-state target-canvas x y source-canvas &optional tint)
+  (backend-canvas-draw-canvas (backend window-state) target-canvas (floor x) (floor y) source-canvas color))
 
 (defmacro with-window (name (width height title) &body body)
   `(let ((,name (init-window ,width ,height ,title)))
@@ -215,142 +326,11 @@
   `(progn
      (begin-drawing ,state)
      (unwind-protect (progn ,@body)
-       (end-drawing ,state)))
-  )
+       (end-drawing ,state))))
 
 (defmacro while-running (state &body body)
   `(loop :while (window-should-keep-running ,state)
          :do ,@body))
-
-(defmacro while-running/with-drawing (state &body body)
-  `(while-running ,state
-    (with-drawing ,state ,@body))
-  )
-
-(deftype key ()
-  '(member
-    :quote                              ; key: '
-    :comma                              ; key: ,
-    :minus                              ; key: -
-    :period                             ; key: .
-    :slash                              ; key: /
-    :zero                               ; key: 0
-    :one                                ; key: 1
-    :two                                ; key: 2
-    :three                              ; key: 3
-    :four                               ; key: 4
-    :five                               ; key: 5
-    :six                                ; key: 6
-    :seven                              ; key: 7
-    :eight                              ; key: 8
-    :nine                               ; key: 9
-    :semicolon                          ; key: ;
-    :equal                              ; key: =
-    :a                                  ; key: a | A
-    :b                                  ; key: b | B
-    :c                                  ; key: c | C
-    :d                                  ; key: d | D
-    :e                                  ; key: e | E
-    :f                                  ; key: f | F
-    :g                                  ; key: g | G
-    :h                                  ; key: h | H
-    :i                                  ; key: i | I
-    :j                                  ; key: j | J
-    :k                                  ; key: k | K
-    :l                                  ; key: l | L
-    :m                                  ; key: m | M
-    :n                                  ; key: n | N
-    :o                                  ; key: o | O
-    :p                                  ; key: p | P
-    :q                                  ; key: q | Q
-    :r                                  ; key: r | R
-    :s                                  ; key: s | S
-    :t                                  ; key: t | T
-    :u                                  ; key: u | U
-    :v                                  ; key: v | V
-    :w                                  ; key: w | W
-    :x                                  ; key: x | X
-    :y                                  ; key: y | Y
-    :z                                  ; key: z | Z
-    :left-bracket                       ; key: [
-    :backslash                          ; key: \
-    :right-bracket                      ; key: ]
-    :backtick                           ; key: `
-    
-    ;; function keys
-    :space                              ; key: space
-    :escape                             ; key: esc
-    :enter                              ; key: enter
-    :tab                                ; key: tab
-    :backspace                          ; key: backspace
-    :insert                             ; key: ins
-    :delete                             ; key: del
-    :right                              ; key: cursor right
-    :left                               ; key: cursor left
-    :down                               ; key: cursor down
-    :up                                 ; key: cursor up
-    :page-up                            ; key: page up
-    :page-down                          ; key: page down
-    :home                               ; key: home
-    :end                                ; key: end
-    :caps-lock                          ; key: caps lock
-    :scroll-lock                        ; key: scroll down
-    :num-lock                           ; key: num lock
-    :print-screen                       ; key: print screen
-    :pause                              ; key: pause
-    :f1                                 ; key: f1
-    :f2                                 ; key: f2
-    :f3                                 ; key: f3
-    :f4                                 ; key: f4
-    :f5                                 ; key: f5
-    :f6                                 ; key: f6
-    :f7                                 ; key: f7
-    :f8                                 ; key: f8
-    :f9                                 ; key: f9
-    :f10                                ; key: f10
-    :f11                                ; key: f11
-    :f12                                ; key: f12
-    
-    :left-shift                         ; key: shift left
-    :right-shift                        ; key: shift right
-    
-    :left-control                       ; key: control left
-    :right-control                      ; key: control right
-    
-    :left-alt                           ; key: alt left
-    :right-alt                          ; key: alt right
-    
-    :left-super                         ; key: super left
-    :right-super                        ; key: super right
-
-    :left-meta                          ; key: meta left
-    :right-meta                         ; key: meta right
-
-    :left-hyper                         ; key: meta left
-    :right-hyper                        ; key: meta right
-    
-    :kb-menu                            ; key: kb menu
-
-    ;; keypad keys         
-    :keypad-0                           ; key: keypad 0
-    :keypad-1                           ; key: keypad 1
-    :keypad-2                           ; key: keypad 2
-    :keypad-3                           ; key: keypad 3
-    :keypad-4                           ; key: keypad 4
-    :keypad-5                           ; key: keypad 5
-    :keypad-6                           ; key: keypad 6
-    :keypad-7                           ; key: keypad 7
-    :keypad-8                           ; key: keypad 8
-    :keypad-9                           ; key: keypad 9
-    :keypad-decimal                     ; key: keypad .
-    :keypad-divide                      ; key: keypad /
-    :keypad-multiply                    ; key: keypad *
-    :keypad-subtract                    ; key: keypad -
-    :keypad-add                         ; key: keypad +
-    :keypad-enter                       ; key: keypad enter
-    :keypad-equal                       ; key: keypad =
-    ))
-
 
 (defun key->char (key)
   "Returns the corresponding character if possible or nil otherwise"
