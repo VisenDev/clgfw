@@ -5,11 +5,12 @@
         #+(and linux (not abcl)) #:wayflan-client.xdg-shell)
   (:export #:init-window
            #:close-window
-           #:window-should-keeping-running
+           #:window-should-keeping-running-p
+           #:window-should-close-p
            #:begin-drawing
            #:end-drawing
            #:draw-rectangle
-           #:%get-draw-rectangle-function
+           #:set-preferred-text-height
            #:draw-text
            #:draw-sprite
            #:create-sprite
@@ -37,20 +38,36 @@
            #:color-invisible-p
            #:color-opaque-p
            #:color-blend
-           
-           #:color-rect-x
-           #:color-rect-y
-           #:color-rect-w
-           #:color-rect-h
-           #:color-rect-color
-           #:make-color-rect
-           #:color-rect
+
+           ;; IO
+           #:char->key
+           #:key->char
+           #:button
+           #:key
+
+           ;; For Writing New Backends
+           #:*backends*
+           #:backend-init-window              
+           #:backend-close-window             
+           #:backend-window-should-close-p    
+           #:backend-begin-drawing            
+           #:backend-end-drawing              
+           #:backend-draw-rectangle           
+           #:backend-set-preferred-text-height
+           #:backend-get-text-height          
+           #:backend-measure-text-width       
+           #:backend-draw-text                
+           #:backend-draw-canvas              
+           #:backend-create-canvas            
+           #:backend-destroy-canvas           
+           #:backend-canvas-draw-rectangle    
+           #:backend-canvas-draw-text         
+           #:backend-canvas-draw-canvas       
 
            ;; Utility wrappers
            #:with-window
            #:with-drawing
            #:while-running
-           #:while-running/with-drawing
 
            ;; Anaphoric Macros
            #:when-it

@@ -1,11 +1,15 @@
-(in-package #:clgfw)
+(defpackage #:clgfw/backend/x11
+  (:use #:cl)
+  (:export #:backend/x11))
+(in-package #:clgfw/backend/x11)
 
-(defclass ctx/x11 (fps-manager)
+(push 'backend/x11 clgfw:*backends*)
+
+(defclass backend/x11 ()
   ((window-should-keep-running  :accessor window-should-keep-running :initform t)
    (wm-delete-atom :accessor wm-delete-atom)
-   (mouse-left-button-down :accessor mouse-left-button-down :initform nil)
-   (mouse-middle-button-down :accessor mouse-middle-button-down :initform nil)
-   (mouse-right-button-down :accessor mouse-right-button-down :initform nil)
+   (handler :accessor handler
+            :documentation "callback-handler-instance")
    (black :accessor black)
    (white :accessor white)
    (font :accessor font :initform nil)
@@ -16,39 +20,16 @@
    (colormap :accessor colormap)
    (front-buffer :accessor front-buffer)
    (back-buffer :accessor back-buffer)
-   (keyboard-state :accessor keyboard-state :initform (make-hash-table :test 'eq :size 256))
-   (pressed-keys :accessor pressed-keys
-                 :initform (make-array 256 :element-type 'symbol :fill-pointer 0 :initial-element nil)
-                 :documentation "A vector of all the keys which have been pressed this frame")
-   (released-keys :accessor released-keys
-                 :initform (make-array 256 :element-type 'symbol :fill-pointer 0 :initial-element nil)
-                 :documentation "A vector of all the keys which have been released this frame")
    (color-cache :accessor color-cache
                 :initform (make-hash-table :size 128))
    ))
 
-(defmethod is-key-down ((ctx ctx/x11) key)
-  (assert (typep key 'key) (key) "~a is not a valid clgfw key" key)
-  (gethash key (keyboard-state ctx) nil))
+(defmethod clgfw:backend-window-should-close-p ((ctx backend/x11))
+  (not (window-should-keep-running ctx)))
 
-(defmethod is-key-pressed ((ctx ctx/x11) key)
-  (assert (typep key 'key) (key) "~a is not a valid clgfw key" key)
-  (find key (pressed-keys ctx)))
-
-(defmethod is-key-released ((ctx ctx/x11) key)
-  (assert (typep key 'key) (key) "~a is not a valid clgfw key" key)
-  (find key (released-keys ctx)))
-
-;; (define-condition broken-windowing-backend-warning (error) ())
-
-(defun init-window/x11 (width height title &aux ctx)
+(defmethod clgfw:backend-init-window ((ctx backend/x11) width height title callback-handler-instance)
   "Initialize the x11 window and return the created ctx"
-  (declare (ignorable width height title))
-   
-  (setf ctx (make-instance 'ctx/x11))
-
-  (setf (target-fps ctx) 30) ;; TODO remove this call
-                             ;; The X server won't be able to keep up with higher fps
+  (setf (handler ctx) callback-handler-instance)
   
   (with-slots (black white font display screen window gcontext colormap) ctx
     (setf display (xlib:open-default-display))
@@ -88,40 +69,32 @@
     (setf (wm-delete-atom ctx) (xlib:intern-atom display "WM_DELETE_WINDOW"))
     (xlib:map-window window)
     (setf colormap (xlib:screen-default-colormap screen))
-    ;; (setf (front-buffer ctx) (xlib:create-back-buffer ))
-    
-    
-    ;; (xlib:display-finish-output display)
     (xlib:display-force-output display)
     ctx)
   )
 
-(declaim (ftype (function (ctx/x11 color) xlib:color) convert-to-x11-color))
+(declaim (ftype (function (backend/x11 clgfw:color) xlib:color) convert-to-x11-color))
 (defun convert-to-x11-color (ctx color)
   "Computes a hash for the color to see if it is in the colormap already, otherwise, 
 allocates the color"
   (declare (optimize (speed 3) (safety 0)))
-  (when-it (gethash color (color-cache ctx))
+  (clgfw:when-it (gethash color (color-cache ctx))
     (return-from convert-to-x11-color it))
-  ;; (format t "Allocating missing xlib color ~x :(~%" color)
+  (format t "Allocating missing xlib color ~x :(~%" color)
   (setf (gethash color (color-cache ctx))
         (xlib:alloc-color (colormap ctx)
                           (xlib:make-color 
-                           :red (the float (/ (color-r color) 256f0))  
-                           :green (the float (/ (color-g color) 256f0))
-                           :blue (the float (/ (color-b color) 256f0)))))
+                           :red (the float (/ (clgfw:color-r color) 256f0))  
+                           :green (the float (/ (clgfw:color-g color) 256f0))
+                           :blue (the float (/ (clgfw:color-b color) 256f0)))))
   (convert-to-x11-color ctx color))
 
-(declaim (ftype (function (ctx/x11 fixnum fixnum fixnum fixnum color) t) %draw-rectangle/x11))
-(defun %draw-rectangle/x11 (ctx x y width height color)
-  (when (color-invisible-p color)
-    (return-from %draw-rectangle/x11))
+(defmethod clgfw:backend-draw-rectangle ((ctx backend/x11) x y width height color)
+  (when (clgfw:color-invisible-p color)
+    (return-from clgfw:backend-draw-rectangle))
   (setf (xlib:gcontext-foreground (gcontext ctx)) (convert-to-x11-color ctx color))
   (xlib:draw-rectangle (window ctx) (gcontext ctx) x y width height t))
 
-
-(defmethod %get-draw-rectangle-function ((ctx ctx/x11))
-  #'%draw-rectangle/x11)
 
 (defun find-closest-xserver-font (display text-height)
   (declare (type integer text-height))
@@ -137,48 +110,23 @@ allocates the color"
           :do (when up-font (return (print up-font)))
               (when (and down-font (> down 5)) (return down-font)))))
 
-#|
-(defmethod draw-text ((ctx ctx/x11) x y text-height color text)
-  (declare (ignorable text-height))
+(defmethod clgfw:backend-set-preferred-text-height ((ctx backend/x11) text-height)
+  (clgfw:if-it (find-closest-xserver-font (display ctx) (round text-height))
+               (setf (xlib:gcontext-font (gcontext ctx)) it)
+               (setf (xlib:gcontext-font (gcontext ctx))
+                     (first (xlib:list-font-names (display ctx) "*"))))
+
+  (print (xlib:gcontext-font (gcontext ctx))))
+
+
+(defmethod clgfw:backend-draw-text ((ctx backend/x11) x y color text)
   (with-slots (gcontext display) ctx
-    (setf (xlib:gcontext-foreground gcontext) (get-xlib-color ctx color))
+    (setf (xlib:gcontext-foreground gcontext) (convert-to-x11-color ctx color))
+    (xlib:draw-glyphs (window ctx) (gcontext ctx) x (+ y 15) text)))
 
-    ;; I'm having trouble figuring out how to get the right sized xlib font
-    
-    ;; (setf (xlib:gcontext-font (gcontext ctx)) (find-closest-xserver-font display 100))
-    (xlib:draw-glyphs (window ctx) gcontext(round x) (- (round y) 15) text)))
-|#
 
-(defmethod get-mouse-x ((ctx ctx/x11))
-  (multiple-value-bind (x) (xlib:query-pointer (window ctx)) x))
-
-(defmethod get-mouse-y ((ctx ctx/x11))
-  (multiple-value-bind (x y) (xlib:query-pointer (window ctx))
-    (declare (ignore x))
-    y))
-
-(defmethod is-mouse-button-down ((ctx ctx/x11) (button symbol))
-  (ecase button
-    (:left (mouse-left-button-down ctx))
-    (:right (mouse-right-button-down ctx))
-    (:middle (mouse-middle-button-down ctx))))
-
-(defmethod get-window-width ((ctx ctx/x11))
-  (xlib:drawable-width (window ctx)))
-
-(defmethod get-window-height ((ctx ctx/x11))
-  (xlib:drawable-height (window ctx)))
-
-(defun need-new-frame-buffers-p (ctx)
-  (or (not (slot-boundp ctx 'front-buffer))
-      (not (slot-boundp ctx 'back-buffer))
-      ())
-  )
-
-(defmethod begin-drawing ((ctx ctx/x11))
-  ;; (when (or (not (slot-boundp ))))
-  (declare (ignore ctx))
-  )
+(defmethod clgfw:backend-begin-drawing ((ctx backend/x11))
+  (declare (ignore ctx)))
 
 (defun convert-keycode (ctx code)
   "Converts an X11 keycode to a clgfw key"
@@ -186,9 +134,9 @@ allocates the color"
          (sym (xlib:keycode->keysym (display ctx) code index))
          (key
            (typecase sym
-             (integer (char->key (code-char sym)))
-             (character (char->key sym))
-             (symbol (assert (typep sym 'key)) sym)
+             (integer (clgfw:char->key (code-char sym)))
+             (character (clgfw:char->key sym))
+             (symbol (assert (typep sym 'clgfw:key)) sym)
              (t (error "unsupported type ~a" sym))
              )))
     key
@@ -199,7 +147,7 @@ allocates the color"
   ((pixmap :accessor pixmap :initarg :pixmap)
    (ctx :accessor ctx :initarg :ctx)))
 
-(defmethod create-image ((ctx ctx/x11) width height)
+(defmethod create-image ((ctx backend/x11) width height)
   (make-instance
    'image/x11
    :ctx ctx
@@ -213,7 +161,7 @@ allocates the color"
   (xlib:free-pixmap (pixmap image))
   (slot-makunbound image 'pixmap))
 
-(defmethod draw-image ((ctx ctx/x11) (image image/x11) x y)
+(defmethod draw-image ((ctx backend/x11) (image image/x11) x y)
   (with-accessors ((pixmap pixmap)) image
     (xlib:copy-area pixmap (gcontext ctx) 0 0
                     (xlib:drawable-width pixmap) (xlib:drawable-height pixmap)
@@ -238,65 +186,67 @@ allocates the color"
                        t))
 |#
 
-(defmethod end-drawing ((ctx ctx/x11) &aux display)
+(defmethod clgfw:backend-end-drawing ((ctx backend/x11) &aux display)
   (setf display (display ctx))
   
-  (setf (fill-pointer (pressed-keys ctx)) 0)  ;;reset pressed keys
-  (setf (fill-pointer (released-keys ctx)) 0) ;;reset released keys
+  (clgfw::callback-on-window-resize
+   (handler ctx)
+   (xlib:drawable-width (window ctx))
+   (xlib:drawable-height (window ctx)))
 
-  ;;; TODO Implement double buffering
-  ;; (xlib:display-finish-output display)
-
+  (multiple-value-bind (x y) (xlib:pointer-position (window ctx))
+    (clgfw::callback-on-mouse-move (handler ctx) x y))
+  
   (xlib:display-force-output display)
-  (when (xlib:event-listen display)
-    (xlib:event-case (display)
-      ;; (:resize-request (width height)
-      ;;                  (format t "Window resized to ~a/~a~%" width height)
-      ;;                  (setf (xlib:drawable-height (window ctx)) height)
-      ;;                  (setf (xlib:drawable-width (window ctx)) width))
-      (:key-press (code)
-                  (let ((key (convert-keycode ctx code)))
-                    (when key
-                      (vector-push (the symbol key) (pressed-keys ctx))
-                      (setf (gethash key (keyboard-state ctx)) t)))
-                  t)
-      (:key-release (code)
-                    (let ((key (convert-keycode ctx code)))
-                      (when key
-                        (vector-push (the symbol key) (released-keys ctx))
-                        (setf (gethash key (keyboard-state ctx)) nil)))
-                    t)
-      (:button-press (code)
-                     (ecase code
-                       (1 (setf (mouse-left-button-down ctx) t))
-                       (2 (setf (mouse-middle-button-down ctx) t))
-                       (3 (setf (mouse-right-button-down ctx) t)))
-                     t
-                     )
-      (:button-release (code)
-                       (ecase code
-                         (1 (setf (mouse-left-button-down ctx) nil))
-                         (2 (setf (mouse-middle-button-down ctx) nil))
-                         (3 (setf (mouse-right-button-down ctx) nil)))
-                       t
-                       )
-      (:client-message (type data)
-                       ;; TYPE is an atom
-                       ;; DATA is a vector of 32-bit values
-                       (when (and (eq type :wm_protocols)
-                                  (eq (aref data 0) (wm-delete-atom ctx)))
-                         (setf (window-should-keep-running ctx) nil)
-                         (return-from end-drawing))
+  (loop
+    :while (xlib:event-listen display)
+    :do
+       (xlib:event-case (display)
+         ;; (:resize-request (width height)
+         ;;                  (format t "Window resized to ~a/~a~%" width height)
+         ;;                  (setf (xlib:drawable-height (window ctx)) height)
+         ;;                  (setf (xlib:drawable-width (window ctx)) width))
+         (:key-press (code)
+                     (clgfw:when-it (convert-keycode ctx code)
+                       (clgfw::callback-on-key-down (handler ctx) it))
+                     t)
+         (:key-release (code)
+                       (clgfw:when-it (convert-keycode ctx code)
+                         (clgfw::callback-on-key-up (handler ctx) it))
                        t)
-      (:destroy-notify ()
-                       (setf (window-should-keep-running ctx) nil)
-                       (return-from end-drawing))
-      (t () t)))
-  )
+         (:button-press (code)
+                        (clgfw::callback-on-mouse-down
+                         (handler ctx)
+                         (ecase code
+                           (1 :left)
+                           (2 :middle)
+                           (3 :right)))
+                        t)
+         (:button-release (code)
+                          (clgfw::callback-on-mouse-up
+                           (handler ctx)
+                           (ecase code
+                             (1 :left)
+                             (2 :middle)
+                             (3 :right)))
+                          t
+                          )
+         (:client-message (type data)
+                          ;; TYPE is an atom
+                          ;; DATA is a vector of 32-bit values
+                          (when (and (eq type :wm_protocols)
+                                     (eq (aref data 0) (wm-delete-atom ctx)))
+                            (setf (window-should-keep-running ctx) nil)
+                            (return-from clgfw::backend-end-drawing))
+                          t)
+         (:destroy-notify ()
+                          (setf (window-should-keep-running ctx) nil)
+                          (return-from clgfw::backend-end-drawing))
+         (t () t)))
+                       )
 
-(defmethod close-window ((ctx ctx/x11))
+(defmethod clgfw:backend-close-window ((ctx backend/x11))
   (xlib:close-display (display ctx) :abort nil))
-
 
 
 ;; (defun image-text ()

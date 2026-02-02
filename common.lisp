@@ -9,20 +9,25 @@
 
 (defmacro unless-it (test &body body)
   "Anaphoric unless, stores test result in `it`"
-  `(let ((it ,test))
-     (unless it
+  `(let ((,(intern "IT") ,test))
+     (unless ,(intern "IT")
        ,@body)))
 
 (defmacro if-it (test then else)
   "Anaphoric if, stores test result in `it`"
-  `(let ((it ,test))
-     (if it
+  `(let ((,(intern "IT") ,test))
+     (if ,(intern "IT")
          ,then
          ,else)))
 
 (defmacro appendf (target-list &rest other-lists)
   "Appends lists to the end of target-list"
   `(setf ,target-list (append ,target-list ,@other-lists)))
+
+;;; ==== BOOLEAN ====
+(declaim (ftype (function (t) boolean) make-boolean))
+(defun make-boolean (value)
+  (not (not value)))
 
 ;;; ==== COLORS ====
 (deftype color () '(integer 0 #xffffffff))
@@ -158,19 +163,22 @@
 (defgeneric callback-on-window-resize (handler width height))
 
 ;;; A BACKEND SHOULD IMPLEMENT THESE FUNCTIONS
-(defgeneric backend-init-window           (ctx width height title callback-handler-instance))
-(defgeneric backend-close-window          (ctx))
-(defgeneric backend-window-should-close-p (ctx))
-(defgeneric backend-begin-drawing         (ctx))
-(defgeneric backend-end-drawing           (ctx))
-(defgeneric backend-draw-rectangle        (ctx x y w h color))
-(defgeneric backend-draw-text             (ctx x y text-height color string))
-(defgeneric backend-draw-canvas           (ctx x y canvas &optional color))
-(defgeneric backend-create-canvas         (ctx w h))
-(defgeneric backend-destroy-canvas        (ctx canvas))
-(defgeneric backend-canvas-draw-rectangle (ctx canvas x y w h color))
-(defgeneric backend-canvas-draw-text      (ctx canvas x y text-height color))
-(defgeneric backend-canvas-draw-canvas    (ctx canvas x y w h &optional tint))
+(defgeneric backend-init-window               (ctx width height title callback-handler-instance))
+(defgeneric backend-close-window              (ctx))
+(defgeneric backend-window-should-close-p     (ctx))
+(defgeneric backend-begin-drawing             (ctx))
+(defgeneric backend-end-drawing               (ctx))
+(defgeneric backend-draw-rectangle            (ctx x y w h color))
+(defgeneric backend-set-preferred-text-height (ctx text-height))
+(defgeneric backend-get-text-height           (ctx))
+(defgeneric backend-measure-text-width        (ctx text))
+(defgeneric backend-draw-text                 (ctx x y color string))
+(defgeneric backend-draw-canvas               (ctx x y canvas &optional color))
+(defgeneric backend-create-canvas             (ctx w h))
+(defgeneric backend-destroy-canvas            (ctx canvas))
+(defgeneric backend-canvas-draw-rectangle     (ctx canvas x y w h color))
+(defgeneric backend-canvas-draw-text          (ctx canvas x y color))
+(defgeneric backend-canvas-draw-canvas        (ctx canvas x y w h &optional tint))
 
 (defclass window-state ()
   ((backend :accessor backend)
@@ -203,17 +211,17 @@
 
 (defmethod callback-on-mouse-move ((handler window-state) x y)
   (setf (mouse-x handler) x)
-  (setf (mouse-x handler) y))
+  (setf (mouse-y handler) y))
 
 (defmethod callback-on-mouse-down ((handler window-state) mouse-button)
-  (vector-push (pressed-mouse-buttons handler) mouse-button)
-  (ecase mouse-button
+  (vector-push mouse-button (pressed-mouse-buttons handler))
+  (ecase (print mouse-button)
     (:left (setf (mouse-left-button-down handler) t))
     (:right (setf (mouse-right-button-down handler) t))
     (:middle (setf (mouse-middle-button-down handler) t))))
 
 (defmethod callback-on-mouse-up ((handler window-state) mouse-button)
-  (vector-push (released-mouse-buttons handler) mouse-button)
+  (vector-push mouse-button (released-mouse-buttons handler))
   (ecase mouse-button
     (:left (setf (mouse-left-button-down handler) nil))
     (:right (setf (mouse-right-button-down handler) nil))
@@ -239,7 +247,7 @@
 
 (defun init-window (width height title)
   "Attempts to initialize a window on your platform"
-  (delete-duplicates *backends*)
+  (setf *backends* (delete-duplicates *backends*))
   (let ((window (make-instance 'window-state)))
     (dolist (backend *backends*)
       (let* ((instance (make-instance backend)))
@@ -284,27 +292,27 @@
 
 (declaim (ftype (function (window-state mouse-button) boolean) is-mouse-button-pressed))
 (defun is-mouse-button-pressed (window-state button)
-  (find button (pressed-mouse-buttons window-state)))
+  (make-boolean (find button (pressed-mouse-buttons window-state))))
 
 (declaim (ftype (function (window-state mouse-button) boolean) is-mouse-button-released))
 (defun is-mouse-button-released (window-state button)
-  (find button (released-mouse-buttons window-state)))
+  (make-boolean (find button (released-mouse-buttons window-state))))
 
 (declaim (ftype (function (window-state key) boolean) is-key-down))
 (defun is-key-down (window-state key)
-  (gethash key (keyboard-state window-state) nil))
+  (make-boolean (gethash key (keyboard-state window-state) nil)))
 
 (declaim (ftype (function (window-state key) boolean) is-key-up))
 (defun is-key-up (window-state key)
-  (not (gethash key (keyboard-state window-state) nil)))
+  (make-boolean (not (gethash key (keyboard-state window-state) nil))))
 
 (declaim (ftype (function (window-state key) boolean) is-key-pressed))
 (defun is-key-pressed (window-state key)
-    (find key (pressed-keys window-state)))
+  (make-boolean (find key (pressed-keys window-state))))
 
 (declaim (ftype (function (window-state key) boolean) is-key-released))
 (defun is-key-released (window-state key)
-    (find key (released-keys window-state)))
+  (make-boolean (find key (released-keys window-state))))
 
 (declaim (ftype (function (window-state) t) begin-drawing))
 (defun begin-drawing (window-state)
@@ -332,11 +340,11 @@
 (defun draw-rectangle (window-state x y w h color)
   (backend-draw-rectangle (backend window-state) (floor x) (floor y) (floor w) (floor h) color))
 
-(declaim (ftype (function (window-state number number number color string) t) draw-text))
-(defun draw-text (window-state x y text-height color text)
-  (backend-draw-text (backend window-state) (floor x) (floor y) (floor text-height) color text))
+(declaim (ftype (function (window-state number number color string) t) draw-text))
+(defun draw-text (window-state x y color text)
+  (backend-draw-text (backend window-state) (floor x) (floor y) color text))
 
-(declaim (ftype (function (window-state number number &optional color) t) draw-canvas))
+(declaim (ftype (function (window-state number number t &optional color) t) draw-canvas))
 (defun draw-canvas (window-state x y canvas &optional tint)
   (backend-draw-canvas (backend window-state) (floor x) (floor y) canvas tint))
 
@@ -352,13 +360,20 @@
 (defun canvas-draw-rectangle (window-state canvas x y w h color)
   (backend-canvas-draw-rectangle (backend window-state) canvas (floor x) (floor y) (floor w) (floor h) color))
 
-(declaim (ftype (function (window-state t number number number color) t) canvas-draw-text))
-(defun canvas-draw-text (window-state canvas x y text-height color)
-  (backend-canvas-draw-text (backend window-state) canvas (floor x) (floor y) (floor text-height) color))
+(declaim (ftype (function (window-state t number number color) t) canvas-draw-text))
+(defun canvas-draw-text (window-state canvas x y color)
+  (backend-canvas-draw-text (backend window-state) canvas (floor x) (floor y) color))
 
 (declaim (ftype (function (window-state t number number t &optional color) t) canvas-draw-canvas))
 (defun canvas-draw-canvas (window-state target-canvas x y source-canvas &optional tint)
   (backend-canvas-draw-canvas (backend window-state) target-canvas (floor x) (floor y) source-canvas tint))
+
+(declaim (ftype (function (window-state number) t) set-preferred-text-height))
+(defun set-preferred-text-height (window-state text-height)
+  "Requests that the backend draws text at the given text-height. Might not always work because
+   certain backends (ie clx) cannot draw arbitrary text sizes. Always use the text measuring
+   functions to check the real size that text will be rendered at."
+  (backend-set-preferred-text-height (backend window-state) (round text-height)))
 
 (defmacro with-window (name (width height title) &body body)
   `(let ((,name (init-window ,width ,height ,title)))

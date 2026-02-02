@@ -7,12 +7,13 @@
   "Example main function"
   (let ((bg clgfw:+space+)
         (fg clgfw:+moon+)
-        (text-size 40)
         (x 0) (y 0) (sz 60) (delta-x 0.2) (delta-y 0.2))
     (clgfw:with-window ctx (800 600 "Hello")
       (let (;; (img (clgfw:create-sprite ctx 800 800))
             )
         ;; (clgfw:draw-text img 10 100 text-size fg "Press 'q' to quit!")
+        ;; (clgfw:set-target-fps)
+        (clgfw:set-preferred-text-height ctx 20)
         
         (clgfw:while-running ctx
           (clgfw:with-drawing ctx
@@ -25,8 +26,7 @@
               (clgfw:draw-rectangle ctx 0 0 w h bg)
               (clgfw:draw-rectangle ctx (floor x) (floor y) sz sz fg)
 
-              
-              (clgfw:draw-text ctx 300 10 text-size fg
+              (clgfw:draw-text ctx 100 10 clgfw:+red+
                                (format nil "FPS ~a" 30 ;; (clgfw:get-fps ctx)
                                        ))
               
