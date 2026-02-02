@@ -148,17 +148,18 @@
 
 
 
+
 ;;; A CALLBACK HANDLER SHOULD IMPLEMENT THESE FUNCTIONS
-(defgeneric callback-on-mouse-move  (handler x y))
-(defgeneric callback-on-mouse-down  (handler mouse-button))
-(defgeneric callback-on-mouse-up    (handler mouse-button))
-(defgeneric callback-on-key-down    (handler key))
-(defgeneric callback-on-key-up      (handler key))
+(defgeneric callback-on-mouse-move    (handler x y))
+(defgeneric callback-on-mouse-down    (handler mouse-button))
+(defgeneric callback-on-mouse-up      (handler mouse-button))
+(defgeneric callback-on-key-down      (handler key))
+(defgeneric callback-on-key-up        (handler key))
+(defgeneric callback-on-window-resize (handler width height))
 
 ;;; A BACKEND SHOULD IMPLEMENT THESE FUNCTIONS
-(defgeneric backend-init-window           (width height title callback-handler-instance))
+(defgeneric backend-init-window           (ctx width height title callback-handler-instance))
 (defgeneric backend-close-window          (ctx))
-(defgeneric backend-window-should-close-p (ctx))
 (defgeneric backend-begin-drawing         (ctx))
 (defgeneric backend-end-drawing           (ctx))
 (defgeneric backend-draw-rectangle        (ctx x y w h color))
@@ -222,6 +223,23 @@
   (setf (gethash key (keyboard-state handler)) nil))
 
 ;;; ==== PUBLIC INTERFACE ====
+
+(defparameter *backends* nil)
+
+(defun init-window (width height title)
+  "Attempts to initialize a window on your platform"
+  (let ((window (make-instance 'window-state)))
+    (dolist (backend *backends*)
+      (let* ((instance (make-instance backend)))
+        (when-it (backend-init-window instance width height title window)
+          (return-from init-window it)))))
+  (error "No appropriate backend found :(")
+  )
+
+(declaim (ftype (function (window-state) t) close-window))
+(defun close-window (window-state)
+  (backend-close-window (backend window-state)))
+
 (declaim (ftype (function (window-state) fixnum) get-mouse-x))
 (defun get-mouse-x (window-state)
   (mouse-x window-state))

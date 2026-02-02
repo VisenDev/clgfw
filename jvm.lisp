@@ -5,15 +5,16 @@
 
 (require 'java)
 
-(defclass ctx/jvm (fps-manager)
+(defclass backend/jvm (fps-manager)
   ((frame :accessor frame)
+   (callback-handler-instance :accessor handler)
    canvas
    buffer-strategy
    graphics
    (window-should-keep-running :initform t :accessor window-should-keep-running)))
 
 ;; MouseInfo.getPointerInfo().getLocation()
-(defmethod get-mouse-x ((ctx ctx/jvm))
+(defmethod get-mouse-x ((ctx backend/jvm))
   (java:jfield '|x| 
                (java:jcall
                 (java:jmethod '|java.awt.PointerInfo| '|getLocation|)
@@ -22,7 +23,7 @@
                  '|java.awt.MouseInfo|
                  ))))
 
-(defmethod get-mouse-y ((ctx ctx/jvm))
+(defmethod get-mouse-y ((ctx backend/jvm))
   (java:jfield '|y| 
                (java:jcall
                 (java:jmethod '|java.awt.PointerInfo| '|getLocation|)
@@ -31,78 +32,76 @@
                  '|java.awt.MouseInfo|
                  ))))
 
-(defun init-window/jvm (width height title)
+(defmethod backend-init-window ((ctx backend/jvm) width height title callback-handler-instance)
   (declare (ignorable width height title))
-  (let ((result (make-instance 'ctx/jvm)))
-    (with-slots (frame canvas buffer-strategy graphics window-should-keep-running) result
-      (setf frame (java:jnew (java:jclass '|java.awt.Frame|)))
-      (setf canvas (java:jnew (java:jclass '|java.awt.Canvas|)))
-      (java:jcall
-       #.(java:jmethod '|java.awt.Frame| '|setSize| '|int| '|int|)
-       frame width height)
-      (java:jcall
-       #.(java:jmethod '|java.awt.Frame| '|add| '|java.awt.Component|)
-       frame canvas)
-      (java:jcall
-       #.(java:jmethod '|java.awt.Frame| '|setVisible| '|boolean|)
-       frame t)
-      (java:jcall
-       #.(java:jmethod '|java.awt.Frame| '|setTitle| '|java.lang.String|)
-       frame title)
+  (setf (handler ctx) callback-handler-instance)
+  (with-slots (frame canvas buffer-strategy graphics window-should-keep-running) ctx
+    (setf frame (java:jnew (java:jclass '|java.awt.Frame|)))
+    (setf canvas (java:jnew (java:jclass '|java.awt.Canvas|)))
+    (java:jcall
+     #.(java:jmethod '|java.awt.Frame| '|setSize| '|int| '|int|)
+     frame width height)
+    (java:jcall
+     #.(java:jmethod '|java.awt.Frame| '|add| '|java.awt.Component|)
+     frame canvas)
+    (java:jcall
+     #.(java:jmethod '|java.awt.Frame| '|setVisible| '|boolean|)
+     frame t)
+    (java:jcall
+     #.(java:jmethod '|java.awt.Frame| '|setTitle| '|java.lang.String|)
+     frame title)
 
-      ;; the tricky bit
-      (let ((clgfw-window-adapter
-              (java:jnew-runtime-class "ClgfwWindowAdapter"
-                                       :superclass "java.awt.event.WindowAdapter"
-                                       :access-flags '(:public)
-                                       :methods `(("windowClosing" :void ("java.awt.event.WindowEvent")
-                                                                   ,(lambda (this event)
-                                                                      (declare (ignore this event))
-                                                                      (setf window-should-keep-running nil)
-                                                                      )
-                                                                   ))
-                                       )))
-        (java:jcall
-         #.(java:jmethod '|java.awt.Frame| '|addWindowListener| '|java.awt.event.WindowListener|)
-         frame (java:jnew clgfw-window-adapter)))
-
+    ;; the tricky bit
+    (let ((clgfw-window-adapter
+            (java:jnew-runtime-class "ClgfwWindowAdapter"
+                                     :superclass "java.awt.event.WindowAdapter"
+                                     :access-flags '(:public)
+                                     :methods `(("windowClosing" :void ("java.awt.event.WindowEvent")
+                                                                 ,(lambda (this event)
+                                                                    (declare (ignore this event))
+                                                                    (setf window-should-keep-running nil)
+                                                                    )
+                                                                 ))
+                                     )))
       (java:jcall
-       #.(java:jmethod '|java.awt.Canvas| '|createBufferStrategy| '|int|)
-       canvas 2)
-      (setf buffer-strategy (java:jcall
-                             #.(java:jmethod '|java.awt.Canvas| '|getBufferStrategy|)
-                             canvas))
+       #.(java:jmethod '|java.awt.Frame| '|addWindowListener| '|java.awt.event.WindowListener|)
+       frame (java:jnew clgfw-window-adapter)))
 
-      (java:jcall
-       #.(java:jmethod '|java.awt.Canvas| '|setIgnoreRepaint| '|boolean|)
-       canvas t)
+    (java:jcall
+     #.(java:jmethod '|java.awt.Canvas| '|createBufferStrategy| '|int|)
+     canvas 2)
+    (setf buffer-strategy (java:jcall
+                           #.(java:jmethod '|java.awt.Canvas| '|getBufferStrategy|)
+                           canvas))
 
-      (java:jcall
-       #.(java:jmethod '|java.awt.Frame| '|setIgnoreRepaint| '|boolean|)
-       frame t)
+    (java:jcall
+     #.(java:jmethod '|java.awt.Canvas| '|setIgnoreRepaint| '|boolean|)
+     canvas t)
 
-      )
-    (return-from init-window/jvm result)
+    (java:jcall
+     #.(java:jmethod '|java.awt.Frame| '|setIgnoreRepaint| '|boolean|)
+     frame t)
+
     )
-  )
+  (return-from init-window/jvm ctx))
 
-(defmethod get-window-width ((ctx ctx/jvm))
+(defmethod get-window-width ((ctx backend/jvm))
   (java:jcall
    #.(java:jmethod '|java.awt.Frame| '|getWidth|)
    (frame ctx)))
 
-(defmethod get-window-height ((ctx ctx/jvm))
+(defmethod get-window-height ((ctx backend/jvm))
   (java:jcall
    #.(java:jmethod '|java.awt.Frame| '|getHeight|)
    (frame ctx)))
 
-(defmethod begin-drawing ((ctx ctx/jvm))
+(defmethod begin-drawing ((ctx backend/jvm))
   (with-slots (graphics buffer-strategy canvas) ctx
     (setf graphics (java:jcall
                     #.(java:jmethod '|java.awt.image.BufferStrategy| '|getDrawGraphics|)
                     buffer-strategy))))
 
-(defmethod end-drawing ((ctx ctx/jvm))
+(defmethod end-drawing ((ctx backend/jvm))
   (with-slots (graphics buffer-strategy) ctx
     (java:jcall
      #.(java:jmethod '|java.awt.Graphics| '|dispose|)
@@ -130,7 +129,7 @@
                (color-b color)))
         (cached color))))
 
-(defmethod draw-rectangle ((ctx ctx/jvm) x y width height color)
+(defmethod draw-rectangle ((ctx backend/jvm) x y width height color)
   (declare (ignorable color))
   (with-slots (graphics) ctx
     (java:jcall
@@ -146,7 +145,7 @@
     )
   )
 
-(defmethod draw-text ((ctx ctx/jvm) x y text-height color text)
+(defmethod draw-text ((ctx backend/jvm) x y text-height color text)
   (with-slots (graphics) ctx
     (java:jcall
      #.(java:jmethod '|java.awt.Graphics| '|setColor| '|java.awt.Color|)
@@ -172,7 +171,7 @@
      (round x) (round (+ y text-height)))    
     ))
 
-(defmethod close-window ((ctx ctx/jvm))
+(defmethod close-window ((ctx backend/jvm))
   (with-slots (frame) ctx
     (java:jcall
      #.(java:jmethod '|java.awt.Frame| '|dispose|)
@@ -224,13 +223,13 @@
 ;;  )
 
 
-;; (defmethod close-window ((ctx ctx/jvm))
+;; (defmethod close-window ((ctx backend/jvm))
 ;;   (with-slots (frame) ctx
 ;;     (#"dispose" frame))
 ;;   )
 
 ;; (defun init-window/jvm (width height title)
-;;   (let ((ctx (make-instance 'ctx/jvm)))
+;;   (let ((ctx (make-instance 'backend/jvm)))
 ;;     (with-slots (frame canvas graphics) ctx
 ;;       (setf frame (jss:new 'Jframe title))
 ;;       (setf canvas (jss:new *my-canvas*))
