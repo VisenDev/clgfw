@@ -1,4 +1,4 @@
-(defpackage #:clgfw
+(uiop:define-package #:clgfw
   (:use #:cl
         #+(and linux (not abcl)) #:wayflan
         #+(and linux (not abcl)) #:wayflan-client

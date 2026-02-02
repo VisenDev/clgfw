@@ -4,6 +4,7 @@
   :license "Apache-2"
   :description "Common Lisp General Framework for Windowing"
   :depends-on ("local-time"
+               "uiop"
 
                ;; X11
                (:feature (:and :linux (:not :abcl)) "clx")
@@ -24,14 +25,14 @@
   :components ((:file "package")
                (:file "common")
                (:file "colors")
-               (:file "fps")
-               (:module "bdf"
-                        :components
-                        ((:file "bdf")
-                         (:file "font-loader")
-                         (:file "renderer")))
-               (:module "sprite"
-                        :components ((:file "sprite")))
+               ;; (:file "fps")
+               ;; (:module "bdf"
+               ;;          :components
+               ;;          ((:file "bdf")
+               ;;           (:file "font-loader")
+               ;;           (:file "renderer")))
+               ;; (:module "sprite"
+               ;;          :components ((:file "sprite")))
                (:file "x11" :if-feature (:and :linux (:not :abcl)))
                (:file "wayland" :if-feature (:and :linux (:not :abcl)))
                (:file "linux" :if-feature (:and :linux (:not :abcl)))

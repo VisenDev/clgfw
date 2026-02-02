@@ -45,14 +45,14 @@
 (declaim (ftype (function (&optional fixnum fixnum fixnum fixnum) color) make-color))
 (defun make-color (&optional (r 0) (g 0) (b 0) (a #xff))
   (declare (optimize (speed 3) (safety 3) (debug 3))
-           (type fixnum r g b a))
-  (let* ((result (the fixnum r))
-         (result (the fixnum (ash result 8)))
-         (result (the fixnum (logior result g)))
-         (result (the fixnum (ash result 8)))
-         (result (the fixnum (logior result b)))
-         (result (the fixnum (ash result 8)))
-         (result (the fixnum (logior result a))))
+           (type color r g b a))
+  (let* ((result (the color r))
+         (result (the color (ash result 8)))
+         (result (the color (logior result g)))
+         (result (the color (ash result 8)))
+         (result (the color (logior result b)))
+         (result (the color (ash result 8)))
+         (result (the color (logior result a))))
     (the color result)))
 
 (declaim (ftype (function (fixnum) fixnum) clamp-u8))
@@ -160,6 +160,7 @@
 ;;; A BACKEND SHOULD IMPLEMENT THESE FUNCTIONS
 (defgeneric backend-init-window           (ctx width height title callback-handler-instance))
 (defgeneric backend-close-window          (ctx))
+(defgeneric backend-window-should-close-p (ctx))
 (defgeneric backend-begin-drawing         (ctx))
 (defgeneric backend-end-drawing           (ctx))
 (defgeneric backend-draw-rectangle        (ctx x y w h color))
@@ -174,6 +175,12 @@
 (defclass window-state ()
   ((backend :accessor backend)
    (keyboard-state :accessor keyboard-state :initform (make-hash-table :test 'eq :size 256))
+   (window-width :accessor window-width :initform 0)
+   (window-height :accessor window-height :initform 0)
+   (old-window-width :accessor old-window-width :initform 0
+                     :documentation "Used to check if the current window width has changed")
+   (old-window-height :accessor old-window-height :initform 0
+                      :documentation "Used to check if the current window height has changed")
    (mouse-x :initform 0 :accessor mouse-x :type fixnum)
    (mouse-y :initform 0 :accessor mouse-y :type fixnum)
    (mouse-left-button-down :accessor mouse-left-button-down :initform nil)
@@ -191,7 +198,7 @@
     :accessor pressed-mouse-buttons
     :initform (make-array 3 :element-type 'symbol :fill-pointer 0 :initial-element nil))
    (released-mouse-buttons
-    :accessor pressed-mouse-buttons
+    :accessor released-mouse-buttons
     :initform (make-array 3 :element-type 'symbol :fill-pointer 0 :initial-element nil))))
 
 (defmethod callback-on-mouse-move ((handler window-state) x y)
@@ -222,19 +229,24 @@
   (vector-push key (released-keys handler))
   (setf (gethash key (keyboard-state handler)) nil))
 
+(defmethod callback-on-window-resize ((handler window-state) width height)
+  (setf (window-width handler) width)
+  (setf (window-height handler) height))
+
 ;;; ==== PUBLIC INTERFACE ====
 
-(defparameter *backends* nil)
+(defvar *backends* nil)
 
 (defun init-window (width height title)
   "Attempts to initialize a window on your platform"
+  (delete-duplicates *backends*)
   (let ((window (make-instance 'window-state)))
     (dolist (backend *backends*)
       (let* ((instance (make-instance backend)))
         (when-it (backend-init-window instance width height title window)
-          (return-from init-window it)))))
-  (error "No appropriate backend found :(")
-  )
+          (setf (backend window) it)
+          (return-from init-window window)))))
+  (error "No appropriate backend found :("))
 
 (declaim (ftype (function (window-state) t) close-window))
 (defun close-window (window-state)
@@ -247,6 +259,14 @@
 (declaim (ftype (function (window-state) fixnum) get-mouse-y))
 (defun get-mouse-y (window-state)
   (mouse-y window-state))
+
+(declaim (ftype (function (window-state) fixnum) get-window-width))
+(defun get-window-width (window-state)
+  (window-width window-state))
+
+(declaim (ftype (function (window-state) fixnum) get-window-height))
+(defun get-window-height (window-state)
+  (window-height window-state))
 
 (declaim (ftype (function (window-state mouse-button) boolean) is-mouse-button-down))
 (defun is-mouse-button-down (window-state button)
@@ -264,11 +284,11 @@
 
 (declaim (ftype (function (window-state mouse-button) boolean) is-mouse-button-pressed))
 (defun is-mouse-button-pressed (window-state button)
-  (find button (pressed-mouse-buttons ctx)))
+  (find button (pressed-mouse-buttons window-state)))
 
 (declaim (ftype (function (window-state mouse-button) boolean) is-mouse-button-released))
 (defun is-mouse-button-released (window-state button)
-  (find button (released-mouse-buttons ctx)))
+  (find button (released-mouse-buttons window-state)))
 
 (declaim (ftype (function (window-state key) boolean) is-key-down))
 (defun is-key-down (window-state key)
@@ -292,6 +312,12 @@
 
 (declaim (ftype (function (window-state) t) end-drawing))
 (defun end-drawing (window-state)
+  (setf (fill-pointer (pressed-keys window-state)) 0)
+  (setf (fill-pointer (released-keys window-state)) 0)
+  (setf (fill-pointer (pressed-mouse-buttons window-state)) 0)
+  (setf (fill-pointer (released-mouse-buttons window-state)) 0)
+  (setf (old-window-width window-state) (window-width window-state))
+  (setf (old-window-height window-state) (window-height window-state))
   (backend-end-drawing (backend window-state)))
 
 (declaim (ftype (function (window-state) boolean) window-should-close-p]))
@@ -306,9 +332,9 @@
 (defun draw-rectangle (window-state x y w h color)
   (backend-draw-rectangle (backend window-state) (floor x) (floor y) (floor w) (floor h) color))
 
-(declaim (ftype (function (window-state number number number color) t) draw-text))
-(defun draw-text (window-state x y text-height color)
-  (backend-draw-text (backend window-state) (floor x) (floor y) (floor text-height) color))
+(declaim (ftype (function (window-state number number number color string) t) draw-text))
+(defun draw-text (window-state x y text-height color text)
+  (backend-draw-text (backend window-state) (floor x) (floor y) (floor text-height) color text))
 
 (declaim (ftype (function (window-state number number &optional color) t) draw-canvas))
 (defun draw-canvas (window-state x y canvas &optional tint)
@@ -324,15 +350,15 @@
 
 (declaim (ftype (function (window-state t number number number number color) t) canvas-draw-rectangle))
 (defun canvas-draw-rectangle (window-state canvas x y w h color)
-  (backend-canvas-draw-rectangle (backend window-state) (floor x) (floor y) (floor w) (floor h) color))
+  (backend-canvas-draw-rectangle (backend window-state) canvas (floor x) (floor y) (floor w) (floor h) color))
 
 (declaim (ftype (function (window-state t number number number color) t) canvas-draw-text))
 (defun canvas-draw-text (window-state canvas x y text-height color)
-  (backend-canvas-draw-text (backend window-state) (floor x) (floor y) (floor text-height) color))
+  (backend-canvas-draw-text (backend window-state) canvas (floor x) (floor y) (floor text-height) color))
 
 (declaim (ftype (function (window-state t number number t &optional color) t) canvas-draw-canvas))
 (defun canvas-draw-canvas (window-state target-canvas x y source-canvas &optional tint)
-  (backend-canvas-draw-canvas (backend window-state) target-canvas (floor x) (floor y) source-canvas color))
+  (backend-canvas-draw-canvas (backend window-state) target-canvas (floor x) (floor y) source-canvas tint))
 
 (defmacro with-window (name (width height title) &body body)
   `(let ((,name (init-window ,width ,height ,title)))
@@ -347,7 +373,7 @@
        (end-drawing ,state))))
 
 (defmacro while-running (state &body body)
-  `(loop :while (window-should-keep-running ,state)
+  `(loop :while (window-should-keep-running-p ,state)
          :do ,@body))
 
 (defun key->char (key)

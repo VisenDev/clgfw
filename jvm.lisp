@@ -13,8 +13,15 @@
    graphics
    (window-should-keep-running :initform t :accessor window-should-keep-running)))
 
+(push 'backend/jvm *backends*)
+
+(defmethod backend-window-should-close-p ((ctx backend/jvm))
+  (not (window-should-keep-running ctx))
+  )
+
 ;; MouseInfo.getPointerInfo().getLocation()
-(defmethod get-mouse-x ((ctx backend/jvm))
+(defun get-mouse-x/java (ctx)
+  (declare (ignorable ctx))
   (java:jfield '|x| 
                (java:jcall
                 (java:jmethod '|java.awt.PointerInfo| '|getLocation|)
@@ -23,7 +30,8 @@
                  '|java.awt.MouseInfo|
                  ))))
 
-(defmethod get-mouse-y ((ctx backend/jvm))
+(defmethod get-mouse-y/java (ctx)
+  (declare (ignorable ctx))
   (java:jfield '|y| 
                (java:jcall
                 (java:jmethod '|java.awt.PointerInfo| '|getLocation|)
@@ -83,25 +91,25 @@
      frame t)
 
     )
-  (return-from init-window/jvm ctx))
+  (return-from backend-init-window ctx))
 
-(defmethod get-window-width ((ctx backend/jvm))
+(defmethod backend-get-window-width ((ctx backend/jvm))
   (java:jcall
    #.(java:jmethod '|java.awt.Frame| '|getWidth|)
    (frame ctx)))
 
-(defmethod get-window-height ((ctx backend/jvm))
+(defmethod backend-get-window-height ((ctx backend/jvm))
   (java:jcall
    #.(java:jmethod '|java.awt.Frame| '|getHeight|)
    (frame ctx)))
 
-(defmethod begin-drawing ((ctx backend/jvm))
+(defmethod backend-begin-drawing ((ctx backend/jvm))
   (with-slots (graphics buffer-strategy canvas) ctx
     (setf graphics (java:jcall
                     #.(java:jmethod '|java.awt.image.BufferStrategy| '|getDrawGraphics|)
                     buffer-strategy))))
 
-(defmethod end-drawing ((ctx backend/jvm))
+(defmethod backend-end-drawing ((ctx backend/jvm))
   (with-slots (graphics buffer-strategy) ctx
     (java:jcall
      #.(java:jmethod '|java.awt.Graphics| '|dispose|)
@@ -118,18 +126,24 @@
       (java:jclass '|java.awt.Toolkit|)))))
 
 (defun get-cached-color (color)
-  (if (cached color)
-      (cached color)
-      (progn
-        (setf (cached color)
-              (java:jnew
-               (java:jclass '|java.awt.Color|)
-               (color-r color)
-               (color-g color)
-               (color-b color)))
-        (cached color))))
+  (java:jnew
+   (java:jclass '|java.awt.Color|)
+   (color-r color)
+   (color-g color)
+   (color-b color))
+  ;; (if (cached color)
+  ;;     (cached color)
+  ;;     (progn
+  ;;       (setf (cached color)
+  ;;             (java:jnew
+  ;;              (java:jclass '|java.awt.Color|)
+  ;;              (color-r color)
+  ;;              (color-g color)
+  ;;              (color-b color)))
+  ;;       (cached color)))
+  )
 
-(defmethod draw-rectangle ((ctx backend/jvm) x y width height color)
+(defmethod backend-draw-rectangle ((ctx backend/jvm) x y width height color)
   (declare (ignorable color))
   (with-slots (graphics) ctx
     (java:jcall
@@ -145,7 +159,7 @@
     )
   )
 
-(defmethod draw-text ((ctx backend/jvm) x y text-height color text)
+(defmethod backend-draw-text ((ctx backend/jvm) x y text-height color text)
   (with-slots (graphics) ctx
     (java:jcall
      #.(java:jmethod '|java.awt.Graphics| '|setColor| '|java.awt.Color|)
@@ -171,7 +185,7 @@
      (round x) (round (+ y text-height)))    
     ))
 
-(defmethod close-window ((ctx backend/jvm))
+(defmethod backend-close-window ((ctx backend/jvm))
   (with-slots (frame) ctx
     (java:jcall
      #.(java:jmethod '|java.awt.Frame| '|dispose|)
@@ -179,18 +193,18 @@
     )
   )
 
-(defun test-main/jvm ()
-  (let ((ctx (init-window/jvm 600 400 "hello"))
-        (i 0))
-    (loop :while (window-should-keep-running ctx)
-          :do (begin-drawing ctx)
-              (draw-rectangle ctx i i 100 100 t)
-              (incf i)
-              (end-drawing ctx)
-          )
-    (close-window ctx)
-    )
-  )
+;; (defun test-main/jvm ()
+;;   (let ((ctx (init-window/jvm 600 400 "hello"))
+;;         (i 0))
+;;     (loop :while (window-should-keep-running ctx)
+;;           :do (begin-drawing ctx)
+;;               (draw-rectangle ctx i i 100 100 t)
+;;               (incf i)
+;;               (end-drawing ctx)
+;;           )
+;;     (close-window ctx)
+;;     )
+;;   )
 
 
 ;; (defclass jvm-canvas ()
