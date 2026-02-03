@@ -73,7 +73,7 @@
     ctx)
   )
 
-(declaim (ftype (function (backend/x11 clgfw:color) xlib:color) convert-to-x11-color))
+(declaim (ftype (function (backend/x11 clgfw:color) t) convert-to-x11-color))
 (defun convert-to-x11-color (ctx color)
   "Computes a hash for the color to see if it is in the colormap already, otherwise, 
 allocates the color"
