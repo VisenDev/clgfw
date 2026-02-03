@@ -7,7 +7,7 @@
                "uiop"
 
                ;; X11
-               (:feature (:and :linux (:not :abcl)) "clx")
+               (:feature (:and (:or :linux :macos) (:not :abcl)) "clx")
 
                ;; WAYLAND
                (:feature (:and :linux (:not :abcl)) "wayflan")
@@ -33,7 +33,8 @@
                ;;           (:file "renderer")))
                ;; (:module "sprite"
                ;;          :components ((:file "sprite")))
-               (:file "x11" :if-feature (:and :linux (:not :abcl)))
+
+               (:file "x11" :if-feature (:and (:or :linux :macos) (:not :abcl)))
                (:file "wayland" :if-feature (:and :linux (:not :abcl)))
                (:file "linux" :if-feature (:and :linux (:not :abcl)))
                (:file "jvm" :if-feature :abcl)
