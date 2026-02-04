@@ -1,6 +1,7 @@
-(in-package #:clgfw)
-
-;; #.(use-package '(#:wayflan #:wayflan-client #:wayflan-client.xdg-shell))
+(defpackage #:clgfw/backend/wayland
+  (:use #:cl #:wayflan #:wayflan-client #:wayflan-client.xdg-shell)
+  (:export #:backend/wayland))
+(in-package #:clgfw/backend/wayland)
 
 ;;; This program is based on several examples from the wayflan repo
 ;;;
@@ -12,16 +13,17 @@
 ;;; This work isn't licensed yet
 ;;; See LICENSE for more details.
 
-(defclass render-buffer () (
-   (pool-data :accessor pool-data
+(push 'backend/wayland clgfw:*backends*)
+
+(defclass render-buffer ()
+  ((pool-data :accessor pool-data
               :initarg :pool-data
               :documentation "This is the actual memory buffer that can be aref'd to write pixels")
    (buffer :accessor buffer
            :initarg :buffer
-           :documentation "The wayland buffer made from the pool data")
-   ))
+           :documentation "The wayland buffer made from the pool data")))
 
-(defclass ctx/wayland (fps-manager)
+(defclass backend/wayland ()
   (;; Globals
    (wl-display :accessor wl-display)
    wl-registry
@@ -49,72 +51,26 @@
    (xkb-context :initform (xkb:xkb-context-new ()))
    (xkb-keymap :initform (cffi:null-pointer))
    (xkb-state :initform (cffi:null-pointer))
-
-   (mouse-x :initform 0 :accessor mouse-x :type fixnum)
-   (mouse-y :initform 0 :accessor mouse-y :type fixnum)
-   (mouse-left-button-down :accessor mouse-left-button-down :initform nil)
-   (mouse-middle-button-down :accessor mouse-middle-button-down :initform nil)
-   (mouse-right-button-down :accessor mouse-right-button-down :initform nil)
-   (keyboard-state :accessor keyboard-state :initform (make-hash-table :test 'eq :size 256))
-
+   (handler :accessor handler :documentation "callback handler instance")
    (need-next-frame-p :accessor need-next-frame :initform t)
    (window-resized-p :accessor window-resized-p :initform t)
    (width :initform 640 :accessor width :type fixnum)
    (height :initform 480 :accessor height :type fixnum)
    (configured :accessor configured :initform nil)
    (window-should-close-p :initform nil :accessor window-should-close-p)
-   (pressed-keys :accessor pressed-keys
-                 :initform (make-array 256
-                                       :element-type 'symbol
-                                       :fill-pointer 0
-                                       :initial-element nil)
-                 :documentation "A vector of all the keys which have been pressed this frame")
-   (released-keys :accessor released-keys
-                 :initform (make-array 256 :element-type 'symbol
-                                           :fill-pointer 0
-                                           :initial-element nil)
-                 :documentation "A vector of all the keys which have been released this frame")
-   )
-  
-  (:documentation "An example Wayland application"))
+   (preferred-text-height :accessor preferred-text-height :initform 25
+                          :documentation "At what size should text be drawn")))
 
-(declaim (ftype (function (t) fixnum) width))
-(declaim (ftype (function (t) fixnum) height))
+(defmethod clgfw:backend-window-should-close-p ((ctx backend/wayland))
+  (window-should-close-p ctx))
 
-(defmethod is-mouse-button-down ((ctx ctx/wayland) (button symbol))
-  (ecase button
-    (:left (mouse-left-button-down ctx))
-    (:right (mouse-right-button-down ctx))
-    (:middle (mouse-middle-button-down ctx))))
+(defmethod clgfw:backend-set-preferred-text-height ((ctx backend/wayland) text-height)
+  (setf (preferred-text-height ctx) text-height))
 
-(defmethod is-key-down ((ctx ctx/wayland) key)
-  (assert (typep key 'key) (key) "~a is not a valid clgfw key" key)
-  (gethash key (keyboard-state ctx) nil))
-
-(defmethod is-key-pressed ((ctx ctx/wayland) key)
-  (assert (typep key 'key) (key) "~a is not a valid clgfw key" key)
-  (find key (pressed-keys ctx)))
-
-(defmethod is-key-released ((ctx ctx/wayland) key)
-  (assert (typep key 'key) (key) "~a is not a valid clgfw key" key)
-  (find key (pressed-keys ctx)))
-
-(declaim (ftype (function (t) fixnum) get-window-width))
-(defmethod get-window-width ((ctx ctx/wayland))
-  (width ctx))
-
-(declaim (ftype (function (t) fixnum) get-window-height))
-(defmethod get-window-height ((ctx ctx/wayland))
-  (height ctx))
-
-(defmethod get-mouse-x ((ctx ctx/wayland))
-  (mouse-x ctx))
-
-(defmethod get-mouse-y ((ctx ctx/wayland))
-  (mouse-y ctx))
-
-(defmethod window-should-keep-running ((ctx ctx/wayland))
-  (not (window-should-close-p ctx)))
+(defmethod clgfw:backend-draw-text ((ctx backend/wayland) x y color text)
+  (declare (ignore ctx x y color text))
+  ;;TODO implement
+  )
 
 (defun handle-pointer (ctx &rest event)
   (with-slots (width height mouse-x mouse-y
@@ -122,47 +78,27 @@
     (event-case event
       ;; Update pointer position
       (:enter (serial surface x y)
-              (declare (ignore serial surface))
-              (setf mouse-x (floor x) mouse-y (floor y)))
+              (declare (ignore serial surface x y))
+              ;; (setf mouse-x (floor x) mouse-y (floor y))
+              )
       (:leave (serial surface)
               (declare (ignore serial surface))
               ;; (setf mouse-x 0 mouse-y 0)
               )
       (:motion (time-ms x y)
                (declare (ignore time-ms))
-               (setf mouse-x (floor x) mouse-y (floor y)))
+               (clgfw::callback-on-mouse-move (handler ctx) (floor x) (floor y)))
       ;; Update active cell state based on mousedown location
       (:button (serial time-ms button state)
                (declare (ignore serial time-ms))
-               (cond
-                 ((= button input-event-codes:+btn-left+) (setf (mouse-left-button-down ctx) (eq state :pressed)))
-                 ((= button input-event-codes:+btn-right+) (setf (mouse-right-button-down ctx) (eq state :pressed)))
-                 ((= button input-event-codes:+btn-middle+) (setf (mouse-middle-button-down ctx) (eq state :pressed)))
-                 )
-               ;; (when (= button input-event-codes:+btn-left+)
-               ;;   (setf (mouse-left-button-down))
-               ;;   (format t "Left mouse is ~a~%" state)
-               ;;   ;; (setf hover-active? (eq state :pressed))
-               ;;   ;; (when (and hover-cell (eq state :pressed))
-               ;;   ;;   (destructuring-bind (x y) hover-cell
-               ;;   ;;     (funcall (cdr (aref buttons y x)) ctx)))
-               ;;   )
-               )
-      ;; Update hover cell
-      ;; (:frame ()
-      ;;  (block cells
-      ;;    (when hover-active?
-      ;;      (return-from cells))
-      ;;    (when (and mouse-x mouse-y)
-      ;;      (do-cells (x y)
-      ;;        (multiple-value-bind (cx cy cw ch) (cell-region x y width height)
-      ;;          (when (and (<= cx mouse-x (+ cx cw))
-      ;;                     (<= cy mouse-y (+ cy ch)))
-      ;;            (setf hover-cell (list x y))
-      ;;            (return-from cells)))))
-      ;;    (setf hover-cell nil))
-      ;;  (draw-and-commit ctx))
-      )))
+
+               (let ((button (cond
+                               ((= button input-event-codes:+btn-left+) :left)
+                               ((= button input-event-codes:+btn-right+) :right)
+                               ((= button input-event-codes:+btn-middle+) :middle))))
+                 (if (eq state :pressed)
+                     (clgfw::callback-on-mouse-down (handler ctx) button)
+                     (clgfw::callback-on-mouse-up (handler ctx) button)))))))
 
 (defun handle-seat (ctx &rest event)
   (with-slots (wl-seat wl-pointer wl-keyboard) ctx
@@ -197,12 +133,6 @@
 
   ;; Reset window resized flag
   (setf (window-resized-p ctx) nil)
-  
-  ;; (unless (>
-  ;;          (calculate-buffer-memory-needed ctx)
-  ;;          (or (backing-pool-data-size ctx) 0))
-  ;;   (return-from ensure-buffer-memory-allocated))
-  
   (format t "Reallocating memory due to window resize~%")
   
   (with-slots (shm wl-shm pool backing-pool-data
@@ -240,17 +170,16 @@
       (push (evelambda (:release ())) (wl-proxy-hooks (buffer back-buffer)))
       )))
 
-(defmethod begin-drawing ((ctx ctx/wayland))
+(defmethod clgfw:backend-begin-drawing ((ctx backend/wayland))
   (ensure-buffer-memory-allocated ctx)
-  )
+  (loop :until (need-next-frame ctx)
+        :do (sleep 0.001)
+            (wl-display-dispatch-event (wl-display ctx))))
 
-(defmethod end-drawing ((ctx ctx/wayland))
+(defmethod clgfw:backend-end-drawing ((ctx backend/wayland))
   (when (window-should-close-p ctx)
-    (return-from end-drawing))
+    (return-from clgfw:backend-end-drawing))
 
-  (setf (fill-pointer (pressed-keys ctx)) 0)
-  (setf (fill-pointer (released-keys ctx)) 0)
-  
   (ensure-buffer-memory-allocated ctx)
   
   (unless (configured ctx)
@@ -258,10 +187,7 @@
       (wl-display-dispatch-event (wl-display ctx))
       (when (configured ctx) (return))))
 
-  (loop :until (need-next-frame ctx)
-        :do ;; (format t "Waiting for next frame to be needed...~%")
-            (sleep 0.001)
-            (wl-display-dispatch-event (wl-display ctx)))
+
   (setf (need-next-frame ctx) nil)
   (with-slots (wl-surface) ctx
     (let ((wl-buffer (buffer (back-buffer ctx))))
@@ -274,18 +200,17 @@
   (let* ((fb (front-buffer ctx))
          (bb (back-buffer ctx)))
     (setf (front-buffer ctx) bb)
-    (setf (back-buffer ctx) fb))
-  )
+    (setf (back-buffer ctx) fb)))
 
 (defun color-to-xrbg (color)
-  (declare (type color color))
+  (declare (type clgfw:color color))
   (let* ((result #xff)
          (result (ash result 8))
-         (result (+ result (color-r color)))
+         (result (+ result (clgfw:color-r color)))
          (result (ash result 8))
-         (result (+ result (color-g color)))
+         (result (+ result (clgfw:color-g color)))
          (result (ash result 8))
-         (result (+ result (color-b color)))
+         (result (+ result (clgfw:color-b color)))
          )
     result))
 
@@ -294,14 +219,13 @@
   (let ((r (ldb (byte 8 16) xrgb))
         (g (ldb (byte 8 8) xrgb))
         (b (ldb (byte 8 0) xrgb)))
-    (make-color r g b)))
+    (clgfw:make-color r g b)))
 
-(declaim (ftype (function (ctx/wayland fixnum fixnum fixnum fixnum color) t) %draw-rectangle/wayland))
-(defun %draw-rectangle/wayland (ctx x y w h color)
+(defmethod clgfw:backend-draw-rectangle ((ctx backend/wayland) x y w h color)
   (declare (optimize (speed 3) (safety 1) (debug 0) (space 0)))
   (when (or (zerop (width ctx))
             (zerop (height ctx)))
-    (return-from %draw-rectangle/wayland))
+    (return-from clgfw:backend-draw-rectangle))
 
   (ensure-buffer-memory-allocated ctx)
   (let* ((pool-data (pool-data (back-buffer ctx)))
@@ -310,7 +234,7 @@
          (x-end (the fixnum (floor (min (+ x w) (width ctx)))))
          (y-end (the fixnum (floor (min (+ y h) (height ctx))))))
 
-    (if (color-opaque-p color)
+    (if (clgfw:color-opaque-p color)
         (loop :with xrgb = (color-to-xrbg color)
               :for dy :from (the fixnum (floor y)) :below y-end
               :do (loop :with dy-offset = (the fixnum (* (max 0 dy) row-pixels)) 
@@ -330,9 +254,6 @@
                            (setf (cffi:mem-aref pool-data :uint32
                                                 (+ dx dy-offset))
                                  xrgb))))))
-
-(defmethod %get-draw-rectangle-function ((ctx ctx/wayland))
-  #'%draw-rectangle/wayland)
 
 (defun handle-frame-callback (ctx callback &rest event)
   (event-ecase event
@@ -358,7 +279,7 @@
               keysym
               ))
 
-(declaim (ftype (function (integer) key) convert-key))
+(declaim (ftype (function (integer) clgfw:key) convert-key))
 (defun convert-key (sym)
   (alexandria:eswitch (sym :test '=)
     ;; letters
@@ -491,16 +412,6 @@
 ;;reset readtable
 #.(setf *readtable* (copy-readtable nil))
 
-(defun handle-keydown (ctx sym)
-  (let ((key (convert-key sym)))
-    (vector-push key (pressed-keys ctx))
-    (setf (gethash key (keyboard-state ctx)) t)))
-
-(defun handle-keyup (ctx sym)
-  (let ((key (convert-key sym)))
-    (vector-push key (released-keys ctx))
-    (setf (gethash key (keyboard-state ctx)) nil)))
-
 (defun handle-keyboard (ctx &rest event)
   (with-slots (xkb-context xkb-keymap xkb-state) ctx
     (event-case event
@@ -526,17 +437,6 @@
                   (xkb:xkb-state-update-mask
                    xkb-state depressed latched locked 0 0 group))
 
-      ;; Handle keys as focus enters the surface
-      ;; (:enter (serial surface keys)
-      ;;         (declare (ignore serial surface))
-      ;;         (dotimes (i (length keys))
-      ;;           (let* ((keycode (+ 8 (aref keys i)))
-      ;;                  (sym (xkb:xkb-state-key-get-one-sym xkb-state keycode)))
-      ;;             (when (plusp sym)
-      ;;               (if (eq state :pressed)
-      ;;                   (handle-keydown ctx sym)
-      ;;                   (handle-keyup ctx sym))))))
-
       ;; Handle keys as they're pressed
       (:key (serial time-ms key state)
             (declare (ignore serial time-ms))
@@ -544,8 +444,8 @@
                    (sym (xkb:xkb-state-key-get-one-sym xkb-state keycode)))
               (when (plusp sym)
                 (if (eq state :pressed)
-                    (handle-keydown ctx sym)
-                    (handle-keyup ctx sym))))))))
+                    (clgfw::callback-on-key-down (handler ctx) (convert-key sym))
+                    (clgfw::callback-on-key-up (handler ctx) (convert-key sym)))))))))
 
 (defun handle-registry (ctx registry &rest event)
   (with-slots (wl-shm wl-compositor xdg-wm-base wl-seat wl-registry) ctx
@@ -577,7 +477,7 @@
                                  (xdg-wm-base.pong xdg-wm-base serial)))
                         (wl-proxy-hooks xdg-wm-base))))))))
 
-(defmethod close-window ((ctx ctx/wayland))
+(defmethod clgfw:backend-close-window ((ctx backend/wayland))
   (ignore-errors
    (progn
      (with-slots (shm pool) ctx
@@ -589,93 +489,63 @@
 
 ;;; TODO: I need to configure what the initial cursor looks like
 
-(defun init-window/wayland (width height title)
+(defmethod clgfw:backend-init-window
+    ((ctx backend/wayland) width height title callback-handler-instance)
   (declare (ignore width height))
-  (let ((ctx (make-instance 'ctx/wayland)))
-    (with-slots (wl-display wl-registry wl-shm wl-compositor
-                 xdg-wm-base wl-surface xdg-surface xdg-toplevel
-                 width height shm front-buffer back-buffer pool)
-        ctx
-        
-      ;; Register all globals
-      (setf wl-display (wl-display-connect)
-            wl-registry (wl-display.get-registry wl-display))
-      (push (alexandria:curry 'handle-registry ctx wl-registry)
-            (wl-proxy-hooks wl-registry))
-      (wl-display-roundtrip wl-display)
+  (setf (handler ctx) callback-handler-instance)
+  (with-slots (wl-display wl-registry wl-shm wl-compositor
+               xdg-wm-base wl-surface xdg-surface xdg-toplevel
+               width height shm front-buffer back-buffer pool)
+      ctx
+    
+    ;; Register all globals
+    (setf wl-display (wl-display-connect)
+          wl-registry (wl-display.get-registry wl-display))
+    (push (alexandria:curry 'handle-registry ctx wl-registry)
+          (wl-proxy-hooks wl-registry))
+    (wl-display-roundtrip wl-display)
 
-      ;; Allocate shm
-      (setf shm (posix-shm:open-shm* :direction :io))
-      (ensure-buffer-memory-allocated ctx)
+    ;; Allocate shm
+    (setf shm (posix-shm:open-shm* :direction :io))
+    (ensure-buffer-memory-allocated ctx)
 
-      ;; Create the surface & give it the toplevel role
-      (setf wl-surface (wl-compositor.create-surface wl-compositor)
-            xdg-surface (xdg-wm-base.get-xdg-surface
-                         xdg-wm-base wl-surface)
-            xdg-toplevel (xdg-surface.get-toplevel xdg-surface))
-      (push (evlambda
-              (:close ()
-                      (setf (window-should-close-p ctx) t)))
-            (wl-proxy-hooks xdg-toplevel))
-      (push (evelambda
-              (:configure (serial)
-                          (format t "configure received serial=~a~%" serial)
-                          (xdg-surface.ack-configure xdg-surface serial)
-                          (setf (configured ctx) t)
-                          ))
-            (wl-proxy-hooks xdg-surface))
-      (push (evlambda
-              (:configure (new-width new-height states)
-                          (declare (ignore states))
+    ;; Create the surface & give it the toplevel role
+    (setf wl-surface (wl-compositor.create-surface wl-compositor)
+          xdg-surface (xdg-wm-base.get-xdg-surface
+                       xdg-wm-base wl-surface)
+          xdg-toplevel (xdg-surface.get-toplevel xdg-surface))
+    (push (evlambda
+            (:close ()
+                    (setf (window-should-close-p ctx) t)))
+          (wl-proxy-hooks xdg-toplevel))
+    (push (evelambda
+            (:configure (serial)
+                        (format t "configure received serial=~a~%" serial)
+                        (xdg-surface.ack-configure xdg-surface serial)
+                        (setf (configured ctx) t)
+                        ))
+          (wl-proxy-hooks xdg-surface))
+    (push (evlambda
+            (:configure (new-width new-height states)
+                        (declare (ignore states))
 
-                          (format t "Window resized to ~ax~a~%" new-width new-height)
-                          ;; Adjust the height and draw a new frame
-                          (if (or (zerop new-width) (zerop new-height))
-                              (setf width 480 height 360)
-                              (setf width new-width height new-height))
-                          (setf (window-resized-p ctx) t)
-                          )
-              (:close ()
-                      (setf (window-should-close-p ctx) t)))
-            (wl-proxy-hooks xdg-toplevel))
-      (xdg-toplevel.set-title xdg-toplevel title)
-      (wl-surface.commit wl-surface)
-
-
-      (let ((cb (wl-surface.frame wl-surface)))
-        (push (alexandria:curry 'handle-frame-callback ctx cb)
-              (wl-proxy-hooks cb)))
-      (wl-display-roundtrip wl-display)
-      (return-from init-window/wayland ctx)
-      )
-    )
-  )
+                        (format t "Window resized to ~ax~a~%" new-width new-height)
+                        (clgfw::callback-on-window-resize (handler ctx) new-width new-height)
+                        ;; Adjust the height and draw a new frame
+                        (if (or (zerop new-width) (zerop new-height))
+                            (setf width 480 height 360)
+                            (setf width new-width height new-height))
+                        (setf (window-resized-p ctx) t)
+                        )
+            (:close ()
+                    (setf (window-should-close-p ctx) t)))
+          (wl-proxy-hooks xdg-toplevel))
+    (xdg-toplevel.set-title xdg-toplevel title)
+    (wl-surface.commit wl-surface)
 
 
-;;; Temporary testing code
-(defun my/run ()
-  (let ((app (init-window/wayland 100 100 "foo"))
-        (x 10)
-        (y 35)
-        (dx 1)
-        (dy 1)
-        (bg1 (make-color 130 200 220))
-        (bg2 (make-color 200 120 230)))
-    (loop :until (window-should-close-p app)
-          :for bg = (if (is-key-down app :left-shift) bg1 bg2)
-          :do
-             (begin-drawing app)
-             (draw-rectangle app 0 0 (width app) (height app) bg)
-             (draw-rectangle app x y 30 30 (make-color 10 200 20))
-             (when (> x 270)
-               (setf dx -1))
-             (when (<= x 0)
-               (setf dx 1))
-             (when (> y 270)
-               (setf dy -1))
-             (when (<= y 0)
-               (setf dy 1))
-             (setf x (+ x dx))
-             (setf y (+ y dy))
-             (end-drawing app))
-    (close-window app)))
+    (let ((cb (wl-surface.frame wl-surface)))
+      (push (alexandria:curry 'handle-frame-callback ctx cb)
+            (wl-proxy-hooks cb)))
+    (wl-display-roundtrip wl-display)
+    (return-from clgfw:backend-init-window ctx)))
