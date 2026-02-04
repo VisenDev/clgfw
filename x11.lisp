@@ -73,11 +73,11 @@
     ctx)
   )
 
-(declaim (ftype (function (backend/x11 clgfw:color) t) convert-to-x11-color))
+;; (declaim (ftype (function (backend/x11 clgfw:color) t) convert-to-x11-color))
 (defun convert-to-x11-color (ctx color)
   "Computes a hash for the color to see if it is in the colormap already, otherwise, 
 allocates the color"
-  (declare (optimize (speed 3) (safety 0)))
+  (declare (optimize (speed 3) (safety 1)))
   (clgfw:when-it (gethash color (color-cache ctx))
     (return-from convert-to-x11-color it))
   (format t "Allocating missing xlib color ~x :(~%" color)

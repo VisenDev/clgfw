@@ -1,44 +1,34 @@
+(defsystem "clgfw/core"
+  :version "0.0.1"
+  :author "Robert Wess Burnett"
+  :license "Apache-2"
+  :description "Common Lisp General Framework for Windowing"
+  :depends-on ("local-time" "uiop")
+  :serial t
+  :components ((:file "package")
+               (:file "common")
+               (:file "colors")))
+
+(defsystem "clgfw/backend/wayland"
+  :depends-on ("clgfw/core" "wayflan" "posix-shm" "input-event-codes" "cl-xkb")
+  :components ((:file "wayland")))
+
+(defsystem "clgfw/backend/x11"
+  :depends-on ("clgfw/core" "clx")
+  :components ((:file "x11")))
+
+(defsystem "clgfw/backend/jvm"
+  :depends-on ("clgfw/core")
+  :components ((:file "jvm")))
+
 (defsystem "clgfw"
   :version "0.0.1"
   :author "Robert Wess Burnett"
   :license "Apache-2"
   :description "Common Lisp General Framework for Windowing"
-  :depends-on ("local-time"
-               "uiop"
-
-               ;; X11
-               (:feature (:and (:or :linux :macos :darwin :bsd) (:not :abcl)) "clx")
-
-               ;; WAYLAND
-               (:feature (:and :linux (:not :abcl)) "wayflan")
-               (:feature (:and :linux (:not :abcl)) "posix-shm")
-               (:feature (:and :linux (:not :abcl)) "input-event-codes")
-               (:feature (:and :linux (:not :abcl)) "cl-xkb")
-
-               ;; COCOA
-               ;; (:feature (:and (:or :darwin :macos) (:not :abcl)) "cffi")
-               ;; (:feature (:and (:or :darwin :macos) (:not :abcl)) "cffi-libffi")
-               ;; (:feature (:and (:or :darwin :macos) (:not :abcl)) "cffi-object")
-
-               )
-  :serial t
-  :components ((:file "package")
-               (:file "common")
-               (:file "colors")
-               ;; (:file "fps")
-               ;; (:module "bdf"
-               ;;          :components
-               ;;          ((:file "bdf")
-               ;;           (:file "font-loader")
-               ;;           (:file "renderer")))
-               ;; (:module "sprite"
-               ;;          :components ((:file "sprite")))
-
-               (:file "x11" :if-feature (:and (:or :linux :macos :darwin :bsd) (:not :abcl)))
-               (:file "wayland" :if-feature (:and :linux (:not :abcl)))
-               (:file "linux" :if-feature (:and :linux (:not :abcl)))
-               (:file "jvm" :if-feature :abcl)
-               ))
+  :depends-on ((:feature :abcl "clgfw/backend/jvm")
+               (:feature (:or :bsd :linux :unix :macos :macosx :darwin) "clgfw/backend/x11")
+               (:feature :linux "clgfw/backend/wayland")))
 
 (defsystem "clgfw/example/hello"
   :depends-on ("clgfw")
