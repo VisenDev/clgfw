@@ -21,12 +21,20 @@
   :depends-on ("clgfw/core")
   :components ((:file "jvm")))
 
+(defsystem "clgfw/backend/ansi"
+  :depends-on ("clgfw/core")
+  :components ((:file "ansi")))
+
+;; TODO: CLOG backend??
+
 (defsystem "clgfw"
   :version "0.0.1"
   :author "Robert Wess Burnett"
   :license "Apache-2"
   :description "Common Lisp General Framework for Windowing"
-  :depends-on ((:feature :abcl "clgfw/backend/jvm")
+  :depends-on ("clgfw/core"
+               "clgfw/backend/ansi"
+               (:feature :abcl "clgfw/backend/jvm")
                (:feature (:or :bsd :linux :unix :macos :macosx :darwin) "clgfw/backend/x11")
                (:feature :linux "clgfw/backend/wayland")))
 
