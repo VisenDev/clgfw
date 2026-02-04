@@ -1,8 +1,5 @@
 (uiop:define-package #:clgfw
-  (:use #:cl
-        #+(and linux (not abcl)) #:wayflan
-        #+(and linux (not abcl)) #:wayflan-client
-        #+(and linux (not abcl)) #:wayflan-client.xdg-shell)
+  (:use #:cl)
   (:export #:init-window
            #:close-window
            #:window-should-keeping-running-p
@@ -12,9 +9,6 @@
            #:draw-rectangle
            #:set-preferred-text-height
            #:draw-text
-           #:draw-sprite
-           #:create-sprite
-           #:destroy-sprite
            #:get-mouse-x
            #:get-mouse-y
            #:is-mouse-button-down
@@ -27,8 +21,6 @@
            #:get-fps
            #:get-delta-time
            #:set-target-fps
-
-           ;; Common functions between implementations
            #:make-color
            #:color
            #:color-r
@@ -39,11 +31,24 @@
            #:color-opaque-p
            #:color-blend
 
-           ;; IO
+           ;; IO Constants and Functions
            #:char->key
            #:key->char
            #:button
            #:key
+
+           ;; These are just wrappers around init-window/close-window, etc...
+           #:with-window
+           #:with-drawing
+           #:while-running
+
+           ;; Anaphoric Macros (used in some of the backends)
+           #:when-it
+           #:unless-it
+           #:if-it
+
+           ;; Useful macros
+           #:appendf
 
            ;; For Writing New Backends
            #:*backends*
@@ -62,20 +67,12 @@
            #:backend-destroy-canvas           
            #:backend-canvas-draw-rectangle    
            #:backend-canvas-draw-text         
-           #:backend-canvas-draw-canvas       
+           #:backend-canvas-draw-canvas
 
-           ;; Utility wrappers
-           #:with-window
-           #:with-drawing
-           #:while-running
-
-           ;; Anaphoric Macros
-           #:when-it
-           #:unless-it
-           #:if-it
-
-           ;; Useful macros
-           #:appendf
-           ))
-(in-package #:clgfw)
-
+           ;; Callbacks a backend should call to update clgfw about user input
+           #:callback-on-mouse-move   
+           #:callback-on-mouse-down   
+           #:callback-on-mouse-up     
+           #:callback-on-key-down     
+           #:callback-on-key-up       
+           #:callback-on-window-resize))
