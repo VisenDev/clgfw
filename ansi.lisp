@@ -26,6 +26,11 @@
 (defun reset-colors () (esc "0m"))
 (defun hide-cursor () (esc "?25l"))
 (defun show-cursor () (esc "?25h"))
+(defun save-screen ()  (esc "?47h"))
+(defun restore-screen ()  (esc "?47l"))
+(defun report-exact-coordinates () (esc "?1006h"))
+(defun mouse-tracking-enable () (esc "?1003h"))
+(defun mouse-tracking-disable () (esc "?1003l"))
 
 (defun goto (x y) (esc "~a;~aH" y x))
 (defun set-foreground-color (8bitcolor) (esc "38;5;~a;m" 8bitcolor))
@@ -38,12 +43,15 @@
                                       title callback-handler-instance)
   (declare (ignore width height title))
   (setf (handler ctx) callback-handler-instance)
+  (save-screen)
   (hide-cursor)
+  (mouse-tracking-enable)
   ctx)
 
 (defmethod clgfw:backend-close-window ((ctx backend/ansi))
   (reset-cursor)
   (clear-screen)
+  (restore-screen)
   (show-cursor))
 
 (defmethod clgfw:backend-get-text-height ((ctx backend/ansi)) 1)
@@ -68,7 +76,7 @@
 (defmethod clgfw:backend-end-drawing ((ctx backend/ansi))
   (declare (ignore ctx))
   (finish-output *standard-output*)
-  (sleep 0.003))
+  (sleep 0.3))
 
 (defmethod clgfw:backend-draw-rectangle ((ctx backend/ansi) x y w h color)
   (set-foreground-color (color->8bit color))
@@ -84,12 +92,17 @@
 
 ;;; For testing
 (defun main ()
-  (clgfw:with-window ctx (100 100 "foo")
-    (clgfw:while-running ctx
-      (clgfw:with-drawing ctx
-        (clgfw:draw-rectangle ctx 10 10 50 10 clgfw:+blue+)
-        (clgfw:draw-text ctx 11 11 clgfw:+moon+ "Hello World")
+  (let ((clgfw:*backends* `(backend/ansi))
+        (i 0))
+    (clgfw:with-window ctx (100 100 "foo")
+      (clgfw:while-running ctx
+        (incf i)
+        (when (> i 100)
+          (return-from main))
+        (clgfw:with-drawing ctx
+          (clgfw:draw-rectangle ctx 0 0 50 10 clgfw:+whitesmoke+)
+          (clgfw:draw-text ctx 1 1 clgfw:+moon+ "Hello World")
+          )
         )
-      )
-    )
+      ))
   )
