@@ -24,11 +24,10 @@
                 (return-from main))
               
               (clgfw:draw-rectangle ctx 0 0 w h bg)
-              (clgfw:draw-rectangle ctx (floor x) (floor y) sz sz fg)
+              ;; 
+              ;; (clgfw:draw-rectangle ctx (floor x) (floor y) sz sz fg)
 
-              (clgfw:draw-text ctx 100 10 clgfw:+red+
-                               (format nil "FPS ~a" 30 ;; (clgfw:get-fps ctx)
-                                       ))
+              (clgfw:draw-text ctx 0 0 clgfw:+red+ (format nil "|w:~a|h:~a|" w h))
               
               ;; (clgfw:draw-text ctx 10 100 text-size fg "Press 'q' to quit!")
               ;; (clgfw:draw-sprite ctx img 10 100
@@ -41,20 +40,21 @@
               ;;                                       0 255)
               ;;                                      255))
 
-              (clgfw:draw-rectangle ctx (- (clgfw:get-mouse-x ctx) 10) (- (clgfw:get-mouse-y ctx) 10)
-                                    20 20
-                                    (clgfw:make-color 200 100 100 100))
+              ;; (clgfw:draw-rectangle ctx (- (clgfw:get-mouse-x ctx) 10) (- (clgfw:get-mouse-y ctx) 10)
+              ;;                       20 20
+              ;;                       (clgfw:make-color 200 100 100 100))
               
-              (incf x (* ;; (clgfw:get-delta-time ctx)
-                       delta-x))
-              (incf y (* ;; (clgfw:get-delta-time ctx)
-                       delta-y))
-              (when (or (< x 0) (> x (- w sz)))
-                (setf delta-x (* delta-x -1))
-                (incf delta-x (- 0.005 (random 0.01)))
-                )
-              (when (or (< y 0) (> y (- h sz)))
-                (setf delta-y (* delta-y -1))
-                (incf delta-y (- 0.005 (random 0.01)))
-                ))))))))
+              ;; (incf x (* ;; (clgfw:get-delta-time ctx)
+              ;;          delta-x))
+              ;; (incf y (* ;; (clgfw:get-delta-time ctx)
+              ;;          delta-y))
+              ;; (when (or (< x 0) (> x (- w sz)))
+              ;;   (setf delta-x (* delta-x -1))
+              ;;   (incf delta-x (- 0.005 (random 0.01)))
+              ;;   )
+              ;; (when (or (< y 0) (> y (- h sz)))
+              ;;   (setf delta-y (* delta-y -1))
+              ;;   (incf delta-y (- 0.005 (random 0.01)))
+              ;;   )
+              )))))))
 
