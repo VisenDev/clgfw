@@ -9,7 +9,7 @@
 
 (defun esc (control-string &rest args)
   "Construct ansi terminal escape code"
-  (apply #'format *standard-output*
+  (apply #'format t
          (format nil "~a[~a" #\Esc control-string) args))
 
 (defparameter *coordinate-downscale-factor* 1/10
@@ -31,10 +31,36 @@
 (defun report-exact-coordinates () (esc "?1006h"))
 (defun mouse-tracking-enable () (esc "?1003h"))
 (defun mouse-tracking-disable () (esc "?1003l"))
+(defun request-cursor-position () (esc "6n"))
+
+(defun save-cursor-position () (format t "~a37" #\Esc))
+(defun restore-cursor-position () (format t "~a38" #\Esc))
 
 (defun goto (x y) (esc "~a;~aH" y x))
 (defun set-foreground-color (8bitcolor) (esc "38;5;~a;m" 8bitcolor))
 (defun set-background-color (8bitcolor) (esc "48;5;~a;m" 8bitcolor))
+
+(defun move-cursor-bottom-right ()
+  (goto 999 999))
+
+(defun read-stdin ()
+  (loop :for ch = (read-char-no-hang)
+        :while ch
+        :collect ch :into chars
+        :finally (return (apply #'concatenate 'string chars))))
+
+(defun get-window-bounds ()
+  (save-cursor-position)
+  (move-cursor-bottom-right)
+  (request-cursor-position)
+  (let ((str (read-stdin)))
+    (restore-cursor-position)
+    (assert (char= #\Esc (char str 0)))
+    (assert (char= #\[ (char str 1)))
+    (multiple-value-bind (rows pos) (parse-integer str :start 2)
+      (assert (char= #\; (char str pos)))
+      (let ((cols (parse-integer str :start (1+ pos))))
+        (values rows cols)))))
 
 (defclass backend/ansi ()
   ((handler :accessor handler)))
@@ -68,14 +94,15 @@
 (defmethod clgfw:backend-draw-text ((ctx backend/ansi) x y color text)
   (goto x y)
   (set-foreground-color (color->8bit color))
-  (format *standard-output* "~a" text))
+  (format t "~a" text))
 
 (defmethod clgfw:backend-begin-drawing ((ctx backend/ansi))
-  (declare (ignore ctx)))
+  (multiple-value-bind (w h) (get-window-bounds)
+    (clgfw:callback-on-window-resize (handler ctx) w h)))
 
 (defmethod clgfw:backend-end-drawing ((ctx backend/ansi))
   (declare (ignore ctx))
-  (finish-output *standard-output*)
+  (finish-output t)
   (sleep 0.3))
 
 (defmethod clgfw:backend-draw-rectangle ((ctx backend/ansi) x y w h color)
@@ -84,7 +111,7 @@
   (loop :for dy :from y :below (+ h y)
         :do
            (goto x dy)
-           (loop :repeat x :do (format *standard-output* "#"))))
+           (loop :repeat x :do (format t "#"))))
 
 (defmethod clgfw:backend-window-should-close-p ((ctx backend/ansi))
   ;;TODO make this more advanced
@@ -100,9 +127,9 @@
         (when (> i 100)
           (return-from main))
         (clgfw:with-drawing ctx
-          (clgfw:draw-rectangle ctx 0 0 50 10 clgfw:+whitesmoke+)
-          (clgfw:draw-text ctx 1 1 clgfw:+moon+ "Hello World")
-          )
-        )
-      ))
-  )
+          (clgfw:draw-rectangle
+           ctx 0 0
+           (clgfw:get-window-width ctx)
+           (clgfw:get-window-height ctx)
+           clgfw:+whitesmoke+)
+          (clgfw:draw-text ctx 1 1 clgfw:+moon+ "Hello World"))))))
