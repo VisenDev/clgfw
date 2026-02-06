@@ -1,5 +1,5 @@
 (defpackage #:clgfw/backend/x11
-  (:use #:cl)
+  (:use #:cl #:alexandria)
   (:export #:backend/x11))
 (in-package #:clgfw/backend/x11)
 
@@ -78,8 +78,8 @@
   "Computes a hash for the color to see if it is in the colormap already, otherwise, 
 allocates the color"
   (declare (optimize (speed 3) (safety 1)))
-  (clgfw:when-it (gethash color (color-cache ctx))
-    (return-from convert-to-x11-color it))
+  (when-let (x11-color (gethash color (color-cache ctx)))
+    (return-from convert-to-x11-color x11-color))
   (format t "Allocating missing xlib color ~x :(~%" color)
   (setf (gethash color (color-cache ctx))
         (xlib:alloc-color (colormap ctx)
@@ -111,8 +111,8 @@ allocates the color"
               (when (and down-font (> down 5)) (return down-font)))))
 
 (defmethod clgfw:backend-set-preferred-text-height ((ctx backend/x11) text-height)
-  (clgfw:if-it (find-closest-xserver-font (display ctx) (round text-height))
-               (setf (xlib:gcontext-font (gcontext ctx)) it)
+  (if-let (font (find-closest-xserver-font (display ctx) (round text-height)))
+               (setf (xlib:gcontext-font (gcontext ctx)) font)
                (setf (xlib:gcontext-font (gcontext ctx))
                      (first (xlib:list-font-names (display ctx) "*"))))
 
@@ -207,15 +207,15 @@ allocates the color"
          ;;                  (setf (xlib:drawable-height (window ctx)) height)
          ;;                  (setf (xlib:drawable-width (window ctx)) width))
          (:key-press (code)
-                     (clgfw:when-it (convert-keycode ctx code)
-                       (clgfw::callback-on-key-down (handler ctx) it))
+                     (when-let (key (convert-keycode ctx code))
+                       (clgfw:callback-on-key-down (handler ctx) key))
                      t)
          (:key-release (code)
-                       (clgfw:when-it (convert-keycode ctx code)
-                         (clgfw::callback-on-key-up (handler ctx) it))
+                       (when-let (key (convert-keycode ctx code))
+                         (clgfw:callback-on-key-up (handler ctx) key))
                        t)
          (:button-press (code)
-                        (clgfw::callback-on-mouse-down
+                        (clgfw:callback-on-mouse-down
                          (handler ctx)
                          (ecase code
                            (1 :left)
@@ -223,7 +223,7 @@ allocates the color"
                            (3 :right)))
                         t)
          (:button-release (code)
-                          (clgfw::callback-on-mouse-up
+                          (clgfw:callback-on-mouse-up
                            (handler ctx)
                            (ecase code
                              (1 :left)
@@ -237,11 +237,11 @@ allocates the color"
                           (when (and (eq type :wm_protocols)
                                      (eq (aref data 0) (wm-delete-atom ctx)))
                             (setf (window-should-keep-running ctx) nil)
-                            (return-from clgfw::backend-end-drawing))
+                            (return-from clgfw:backend-end-drawing))
                           t)
          (:destroy-notify ()
                           (setf (window-should-keep-running ctx) nil)
-                          (return-from clgfw::backend-end-drawing))
+                          (return-from clgfw:backend-end-drawing))
          (t () t)))
                        )
 

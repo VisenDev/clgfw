@@ -229,7 +229,7 @@
 
   (ensure-buffer-memory-allocated ctx)
   (let* ((pool-data (pool-data (back-buffer ctx)))
-         (stride (the fixnum (* (width ctx) 4)))     ; bytes per row
+         (stride (the fixnum (* (width ctx) 4))) ; bytes per row
          (row-pixels (the fixnum (/ stride 4)))
          (x-end (the fixnum (floor (min (+ x w) (width ctx)))))
          (y-end (the fixnum (floor (min (+ y h) (height ctx))))))

@@ -53,25 +53,25 @@
                      (safety 3)
                      (debug 3))
            (type color base applied-color))
-  (let* ((applied-color-a (the fixnum (color-a applied-color)))
-         (base-a (the fixnum (color-a base)))
-         (inverse-applied-a (the fixnum (- 255 applied-color-a)))
-         (out-a (the fixnum (+ applied-color-a (truncate (+ (the fixnum (* base-a inverse-applied-a)) 127) 255)))))
+  (let* ((applied-color-a (the color (color-a applied-color)))
+         (base-a (the color (color-a base)))
+         (inverse-applied-a (the color (- 255 applied-color-a)))
+         (out-a (the color (+ applied-color-a (truncate (+ (the color (* base-a inverse-applied-a)) 127) 255)))))
     (when (zerop out-a)
       (return-from color-blend
         (make-color 0 0 0 0)))
 
-    (let* ((r (the fixnum (truncate
-                           (+ (the fixnum (* (color-r applied-color) applied-color-a))
-                              (truncate (the fixnum (* (color-r base) base-a inverse-applied-a)) 255))
+    (let* ((r (the color (truncate
+                           (+ (the color (* (color-r applied-color) applied-color-a))
+                              (truncate (the color (* (color-r base) base-a inverse-applied-a)) 255))
                            out-a)))
-           (g (the fixnum (truncate
-                           (+ (the fixnum (* (color-g applied-color) applied-color-a))
-                              (truncate (the fixnum (* (color-g base) base-a inverse-applied-a)) 255))
+           (g (the color (truncate
+                           (+ (the color (* (color-g applied-color) applied-color-a))
+                              (truncate (the color (* (color-g base) base-a inverse-applied-a)) 255))
                            out-a)))
-           (b (the fixnum (truncate
-                           (+ (the fixnum (* (color-b applied-color) applied-color-a))
-                              (truncate (the fixnum (* (color-b base) base-a inverse-applied-a)) 255))
+           (b (the color (truncate
+                           (+ (the color (* (color-b applied-color) applied-color-a))
+                              (truncate (the color (* (color-b base) base-a inverse-applied-a)) 255))
                            out-a))))
       (make-color
        (clamp-u8 r)
