@@ -1,5 +1,5 @@
 (uiop:define-package #:clgfw
-  (:use #:cl)
+  (:use #:cl #:alexandria)
   (:export #:init-window
            #:close-window
            #:window-should-keeping-running-p
@@ -30,8 +30,6 @@
            #:color-invisible-p
            #:color-opaque-p
            #:color-blend
-
-           ;; IO Constants and Functions
            #:char->key
            #:key->char
            #:button
@@ -41,14 +39,6 @@
            #:with-window
            #:with-drawing
            #:while-running
-
-           ;; Anaphoric Macros (used in some of the backends)
-           #:when-it
-           #:unless-it
-           #:if-it
-
-           ;; Useful macros
-           #:appendf
 
            ;; For Writing New Backends
            #:*backends*

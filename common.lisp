@@ -1,32 +1,9 @@
 (in-package #:clgfw)
 
-;;; ==== MACROS ====
-(defmacro when-it (test &body body)
-  "Anaphoric when, stores test result in `it`"
-  `(let ((,(intern "IT") ,test))
-     (when ,(intern "IT")
-       ,@body)))
-
-(defmacro unless-it (test &body body)
-  "Anaphoric unless, stores test result in `it`"
-  `(let ((,(intern "IT") ,test))
-     (unless ,(intern "IT")
-       ,@body)))
-
-(defmacro if-it (test then else)
-  "Anaphoric if, stores test result in `it`"
-  `(let ((,(intern "IT") ,test))
-     (if ,(intern "IT")
-         ,then
-         ,else)))
-
-(defmacro appendf (target-list &rest other-lists)
-  "Appends lists to the end of target-list"
-  `(setf ,target-list (append ,target-list ,@other-lists)))
-
 ;;; ==== BOOLEAN ====
 (declaim (ftype (function (t) boolean) make-boolean))
 (defun make-boolean (value)
+  "Coerces a truthy or falsesy value to a boolean"
   (not (not value)))
 
 ;;; ==== COLORS ====
@@ -140,18 +117,6 @@
     ))
 
 (deftype mouse-button () '(member :left :right :middle))
-
-;; (defun init-window (width height title)
-;;   "This is the entry point, it returns an appropriate ctx object 
-;;    which can be used with the other generic functions to manipulate
-;;    the window."
-;;   #+abcl (funcall 'init-window/jvm width height title)
-;;   #-abcl (progn
-;;            #+linux(funcall 'init-window/linux width height title)
-;;            #-linux (error "Only linux or abcl is supported right now"))
-;; )
-
-
 
 
 ;;; A CALLBACK HANDLER SHOULD IMPLEMENT THESE FUNCTIONS
@@ -443,8 +408,9 @@
     (:right-bracket #\])
     (:backslash    #\\)
     (:backtick     #\`)
-    (:space        #\Space))
-)
+    (:space        #\Space)
+
+    (:escape #\Esc)))
 
 
 (defun char->key (char)
@@ -500,5 +466,5 @@
     (#\\ :backslash)
     (#\` :backtick)
     (#\Space :space)
-    (#\Return :enter))
-  )
+    (#\Return :enter)
+    (#\Esc :escape)))
