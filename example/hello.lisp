@@ -23,11 +23,11 @@
               (when (clgfw:is-key-pressed ctx :q)
                 (return-from main))
               
-              (clgfw:draw-rectangle ctx 0 0 w h bg)
-              ;; 
-              ;; (clgfw:draw-rectangle ctx (floor x) (floor y) sz sz fg)
+              (clgfw:draw-rectangle ctx 0 0 w h clgfw:+greenyellow+)
+               
+              (clgfw:draw-rectangle ctx (floor x) (floor y) 20 20 clgfw:+blue+)
 
-              (clgfw:draw-text ctx 0 0 clgfw:+red+ (format nil "|w:~a|h:~a|" w h))
+              (clgfw:draw-text ctx 10 10 clgfw:+red+ (format nil "|w:~a|h:~a|" w h))
               
               ;; (clgfw:draw-text ctx 10 100 text-size fg "Press 'q' to quit!")
               ;; (clgfw:draw-sprite ctx img 10 100
@@ -48,13 +48,15 @@
               ;;          delta-x))
               ;; (incf y (* ;; (clgfw:get-delta-time ctx)
               ;;          delta-y))
-              ;; (when (or (< x 0) (> x (- w sz)))
-              ;;   (setf delta-x (* delta-x -1))
-              ;;   (incf delta-x (- 0.005 (random 0.01)))
-              ;;   )
-              ;; (when (or (< y 0) (> y (- h sz)))
-              ;;   (setf delta-y (* delta-y -1))
-              ;;   (incf delta-y (- 0.005 (random 0.01)))
-              ;;   )
+              (incf x delta-x)
+              (incf y delta-y)
+              (when (or (< x 0) (> x (- w sz)))
+                (setf delta-x (* delta-x -1))
+                (incf delta-x (- 0.005 (random 0.01)))
+                )
+              (when (or (< y 0) (> y (- h sz)))
+                (setf delta-y (* delta-y -1))
+                (incf delta-y (- 0.005 (random 0.01)))
+                )
               )))))))
 
