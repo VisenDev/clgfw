@@ -216,8 +216,8 @@
   (let ((window (make-instance 'window-state)))
     (dolist (backend *backends*)
       (let* ((instance (make-instance backend)))
-        (when-it (backend-init-window instance width height title window)
-          (setf (backend window) it)
+        (when-let (backend (backend-init-window instance width height title window))
+          (setf (backend window) backend)
           (return-from init-window window)))))
   (error "No appropriate backend found :("))
 

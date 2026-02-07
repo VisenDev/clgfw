@@ -58,6 +58,9 @@
   (charms:disable-echoing)
   (charms:enable-raw-input :interpret-control-characters t)
   (charms:enable-non-blocking-mode (win ctx))
+  (charms/ll:keypad (charms::window-pointer (win ctx)) charms/ll:TRUE)
+  (charms/ll:mousemask (logior charms/ll:ALL_MOUSE_EVENTS charms/ll:REPORT_MOUSE_POSITION))
+ 
   ctx)
 
 (defmethod clgfw:backend-set-preferred-text-height ((ctx backend/curses) text-height)
@@ -67,13 +70,38 @@
   (charms:finalize))
 
 (defmethod clgfw:backend-begin-drawing ((ctx backend/curses))
-  (when-let (ch (charms:get-char (win ctx) :ignore-error t))
-    (when-let (key (clgfw:char->key ch))
-      (clgfw:callback-on-key-down (handler ctx) key)))
+  (with-slots (handler win) ctx
+    (when-let (ch (charms:get-char win :ignore-error t))
+      (if (equal (char-code ch) charms/ll:KEY_MOUSE)
+
+          ;;then
+          (handler-case
+           (multiple-value-bind (bstate x y z id) (charms/ll:getmouse)
+             (declare (ignore z id))
+             (clgfw:callback-on-mouse-move handler (* 10 x) (* 10 y))
+             (when (logand charms/ll:BUTTON1_PRESSED bstate)
+               (clgfw:callback-on-mouse-down handler :left))
+             (when (logand charms/ll:BUTTON2_PRESSED bstate)
+               (clgfw:callback-on-mouse-down handler :middle))
+             (when (logand charms/ll:BUTTON3_PRESSED bstate)
+               (clgfw:callback-on-mouse-down handler :right))
+             (when (logand charms/ll:BUTTON1_RELEASED bstate)
+               (clgfw:callback-on-mouse-up handler :left))
+             (when (logand charms/ll:BUTTON2_RELEASED bstate)
+               (clgfw:callback-on-mouse-up handler :middle))
+             (when (logand charms/ll:BUTTON3_RELEASED bstate)
+               (clgfw:callback-on-mouse-up handler :right)))
+
+            (error (err)
+              (format t "Error: ~a" err)))
+          
+          ;;else
+          (when-let (key (clgfw:char->key ch))
+            (clgfw:callback-on-key-down (handler ctx) key)))))
   
   (multiple-value-bind (width height)
       (charms:window-dimensions (win ctx))
-    (clgfw:callback-on-window-resize (handler ctx) (* 10 (1+ width)) (* 10 (1+ height)))))
+    (clgfw:callback-on-window-resize (handler ctx) (* 10 width) (* 10 height))))
 
 
 
@@ -88,7 +116,7 @@
     :do
        (loop
          :for dy :from (adj y) :below (adj ( + y h))
-         :do (charms:write-char-at-point (win ctx) #\. dx dy))))
+         :do (ignore-errors (charms:write-char-at-point (win ctx) #\. dx dy)))))
 
 (defmethod clgfw:backend-draw-text ((ctx backend/curses) x y color text)
   ;; (charms/ll:init-color 0

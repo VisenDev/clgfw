@@ -21,6 +21,10 @@
   :depends-on ("clgfw/core")
   :components ((:file "jvm")))
 
+(defsystem "clgfw/backend/curses"
+  :depends-on ("clgfw/core" "cl-charms")
+  :components ((:file "curses")))
+
 ;; (defsystem "clgfw/backend/ansi"
 ;;   :depends-on ("clgfw/core")
 ;;   :components ((:file "ansi")))
@@ -35,6 +39,7 @@
   :depends-on ("clgfw/core"
                (:feature :abcl "clgfw/backend/jvm")
                (:feature (:or :bsd :linux :unix :macos :macosx :darwin) "clgfw/backend/x11")
+               (:feature (:or :bsd :linux :unix :macos :macosx :darwin) "clgfw/backend/curses")
                (:feature :linux "clgfw/backend/wayland")))
 
 (defsystem "clgfw/example/hello"

@@ -23,9 +23,9 @@
               (when (clgfw:is-key-pressed ctx :q)
                 (return-from main))
               
-              (clgfw:draw-rectangle ctx 0 0 w h clgfw:+greenyellow+)
+              (clgfw:draw-rectangle ctx 0 0 w h clgfw:+space+)
                
-              (clgfw:draw-rectangle ctx (floor x) (floor y) 20 20 clgfw:+blue+)
+              (clgfw:draw-rectangle ctx (floor x) (floor y) 20 20 clgfw:+moon+)
 
               (clgfw:draw-text ctx 10 10 clgfw:+red+ (format nil "|w:~a|h:~a|" w h))
               
@@ -40,9 +40,10 @@
               ;;                                       0 255)
               ;;                                      255))
 
-              ;; (clgfw:draw-rectangle ctx (- (clgfw:get-mouse-x ctx) 10) (- (clgfw:get-mouse-y ctx) 10)
-              ;;                       20 20
-              ;;                       (clgfw:make-color 200 100 100 100))
+              (clgfw:draw-rectangle ctx (- (clgfw:get-mouse-x ctx) 10) (- (clgfw:get-mouse-y ctx) 10)
+                                    20 20
+                                    (clgfw:make-color 200 100 100 100))
+              ;; (format t "x: ~a, y: ~a~%" (clgfw:get-mouse-x ctx) (clgfw:get-mouse-y ctx))
               
               ;; (incf x (* ;; (clgfw:get-delta-time ctx)
               ;;          delta-x))
