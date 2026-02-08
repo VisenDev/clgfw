@@ -47,6 +47,11 @@
        (* 6  (scale (clgfw:color-g color)))
        (scale (clgfw:color-b color)))))
 
+;; (defun print-to-tui (text)
+;;   "Prints text (or escape sequences) to the actual terminal running your lisp"
+;;   (format sb-sys:*stdout* "~a" text)
+;;   (force-output sb-sys:*stdout*))
+
 
 (defmethod clgfw:backend-init-window ((ctx backend/curses)
                                       width height title
@@ -60,6 +65,12 @@
   (charms:enable-non-blocking-mode (win ctx))
   (charms/ll:curs-set 0)
   (charms/ll:mouseinterval 0)
+  
+  ;; (print-to-tui (format nil "~a[?1003h" #\Esc))
+  ;; // Makes the terminal report mouse movement events
+  ;; (print-to-tui (format nil "~a[?1015h" #\Esc))
+  ;; (print-to-tui (format nil "~a[?1006h" #\Esc))
+  
   (charms/ll:keypad (charms::window-pointer (win ctx)) charms/ll:TRUE)
   (charms/ll:mousemask (logior charms/ll:ALL_MOUSE_EVENTS charms/ll:REPORT_MOUSE_POSITION))
  
@@ -113,6 +124,42 @@
     (clgfw:callback-on-window-resize (handler ctx) (* 10 width) (* 10 height))))
 
 
+(defparameter *rectangle-texture*
+  (loop
+    :with sz = 1000
+    :with vec = (make-array (list sz sz))
+    :for y :below sz
+    :do (loop :for x :below sz
+              :do (setf (aref vec y x) (random 10)))
+    :finally (return vec)))
+
+(cffi:defcvar ("acs_map" *ACS-MAP* :library charms/ll::libcurses) (:pointer charms/ll::chtype))
+
+(defun get-from-acs-map (acs-name)
+  "Get the ACS-NAME, found in cl-charms/low-level from the acs-map. 
+Note that this should be used with the write-acs-... functions."
+  (cffi:mem-aref (cffi:get-var-pointer '*ACS-MAP*) :int (char-int acs-name)))
+
+
+(defun write-acs-char-at-point (window acs-name y x)
+  "Write the character CHAR to the window WINDOW at the coordinates (X, Y)."
+  (let ((decimal-repr (char-int acs-name)))
+	(when (or (>= decimal-repr 128) (< decimal-repr 0)); acs_map is of size 128, thus we need to check the bounds.
+
+	  (return-from write-acs-char-at-point nil)))
+  (charms/ll:mvwaddch (charms::window-pointer window) y x
+                      (get-from-acs-map acs-name))
+  t)
+
+(defun ncurses-rectangle (window x1 y1 x2 y2)
+  (charms/ll:mvhline y1 x1 0 (- x2 x1))
+  (charms/ll:mvhline y2 x1 0 (- x2 x1))
+  (charms/ll:mvvline y1 x1 0 (- y2 y1))
+  (charms/ll:mvvline y1 x2 0 (- y2 y1))
+  (write-acs-char-at-point window charms/ll:ACS_ULCORNER y1 x1)
+  (write-acs-char-at-point window charms/ll:ACS_LLCORNER y2 x1)
+  (write-acs-char-at-point window charms/ll:ACS_URCORNER y1 x2)
+  (write-acs-char-at-point window charms/ll:ACS_LRCORNER y2 x2))
 
 (defmethod clgfw:backend-draw-rectangle ((ctx backend/curses) x y w h color)
   (charms/ll:attron (charms/ll:color-pair
@@ -122,12 +169,20 @@
                       -1
                       ;; (color->8bit color)
                       )))
+
   (loop
     :for dx :from (adj x) :below (adj (+ x w))
     :do
        (loop
          :for dy :from (adj y) :below (adj ( + y h))
-         :do (ignore-errors (charms:write-char-at-point (win ctx) #\# dx dy)))))
+         :for rand = (or (ignore-errors (aref *rectangle-texture* dy dx))
+                         0)
+         :for ch = (cond ((< rand 1) #\|)
+                         ((< rand 3) #\=)
+                         (t #\#))
+         :do (ignore-errors (charms:write-char-at-point (win ctx) ch dx dy))))
+  (ncurses-rectangle (win ctx) (adj x) (adj y) (1- (adj (+ x w))) (1- (adj (+ y h))))
+  )
 
 (defmethod clgfw:backend-draw-text ((ctx backend/curses) x y color text)
   ;; (charms/ll:init-color 0

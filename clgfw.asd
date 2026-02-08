@@ -3,7 +3,7 @@
   :author "Robert Wess Burnett"
   :license "Apache-2"
   :description "Common Lisp General Framework for Windowing"
-  :depends-on ("local-time" "uiop")
+  :depends-on ("local-time" "uiop" "alexandria")
   :serial t
   :components ((:file "package")
                (:file "common")
@@ -22,7 +22,7 @@
   :components ((:file "jvm")))
 
 (defsystem "clgfw/backend/curses"
-  :depends-on ("clgfw/core" "cl-charms")
+  :depends-on ("clgfw/core" "cl-charms" "alexandria")
   :components ((:file "curses")))
 
 ;; (defsystem "clgfw/backend/ansi"

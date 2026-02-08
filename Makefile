@@ -1,10 +1,8 @@
-CODE='(load "build.lisp")'
-
 sbcl:
-	sbcl --script build.lisp
+	sbcl --script script-build-hello.lisp
 
 ecl:
-	ecl --load build.lisp
+	ecl --load script-build-hello.lisp
 
 clean:
 	if [ -e hello ]; then trash hello; fi

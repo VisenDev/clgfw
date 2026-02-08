@@ -5,45 +5,40 @@
 
 (defun main ()
   "Example main function"
-  (let ((bg clgfw:+space+)
-        (fg clgfw:+moon+)
-        (x 0) (y 0) (sz 20) (delta-x 0.2) (delta-y 0.2))
+  (let ((x 0)
+        (y 0)
+        (sz 30)
+        (delta-x 0.2)
+        (delta-y 0.2))
     (clgfw:with-window ctx (800 600 "Hello")
-      (let (;; (img (clgfw:create-sprite ctx 800 800))
-            )
-        ;; (clgfw:draw-text img 10 100 text-size fg "Press 'q' to quit!")
-        ;; (clgfw:set-target-fps)
-        (clgfw:set-preferred-text-height ctx sz)
-        
-        (clgfw:while-running ctx
-          (clgfw:with-drawing ctx
-            (let ((w (clgfw:get-window-width ctx))
-                  (h (clgfw:get-window-height ctx)))
+      (clgfw:set-preferred-text-height ctx sz)
+      
+      (clgfw:while-running ctx
+        (clgfw:with-drawing ctx
+          (let ((w (clgfw:get-window-width ctx))
+                (h (clgfw:get-window-height ctx)))
 
-              (when (clgfw:is-key-pressed ctx :q)
-                (return-from main))
-              
-              (clgfw:draw-rectangle ctx 0 0 w h clgfw:+space+)
-               
-              (clgfw:draw-rectangle ctx (floor x) (floor y) sz sz clgfw:+moon+)
-
-              (clgfw:draw-text ctx 10 10 clgfw:+red+ (format nil "|w:~a|h:~a|" w h))
-              
-              (clgfw:draw-text ctx 10 100 clgfw:+brown+ "Press 'q' to quit!")
-                            (clgfw:draw-rectangle ctx (- (clgfw:get-mouse-x ctx) 10) (- (clgfw:get-mouse-y ctx) 10)
-                                    sz sz
-                                    (clgfw:make-color 200 100 100 100))
-              ;; (format t "x: ~a, y: ~a~%" (clgfw:get-mouse-x ctx) (clgfw:get-mouse-y ctx))
-              
-              (incf x delta-x)
-              (incf y delta-y)
-              (when (or (< x 0) (> x (- w sz)))
-                (setf delta-x (* delta-x -1))
-                (incf delta-x (- 0.005 (random 0.01)))
-                )
-              (when (or (< y 0) (> y (- h sz)))
-                (setf delta-y (* delta-y -1))
-                (incf delta-y (- 0.005 (random 0.01)))
-                )
-              )))))))
+            (when (clgfw:is-key-pressed ctx :q)
+              (return-from main))
+            
+            (clgfw:draw-rectangle ctx 0 0 w h clgfw:+space+)
+            (clgfw:draw-rectangle ctx (floor x) (floor y) sz sz clgfw:+moon+)
+            (clgfw:draw-text ctx 10 10 clgfw:+red+ (format nil "|w:~a|h:~a|" w h))
+            (clgfw:draw-text ctx 10 100 clgfw:+brown+ "Press 'q' to quit!")
+            (clgfw:draw-rectangle
+             ctx
+             (clgfw:get-mouse-x ctx)
+             (clgfw:get-mouse-y ctx)
+             sz sz
+             clgfw:+red+)
+            
+            (incf x delta-x)
+            (incf y delta-y)
+            (when (or (< x 0) (> x (- w sz)))
+              (setf delta-x (* delta-x -1))
+              (incf delta-x (- 0.005 (random 0.01)))
+              )
+            (when (or (< y 0) (> y (- h sz)))
+              (setf delta-y (* delta-y -1))
+              (incf delta-y (- 0.005 (random 0.01))))))))))
 
