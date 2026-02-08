@@ -126,6 +126,7 @@
 (defgeneric callback-on-key-down      (handler key))
 (defgeneric callback-on-key-up        (handler key))
 (defgeneric callback-on-window-resize (handler width height))
+(defgeneric callback-all-keys-up      (handler))
 
 ;;; A BACKEND SHOULD IMPLEMENT THESE FUNCTIONS
 (defgeneric backend-init-window               (ctx width height title callback-handler-instance))
@@ -201,6 +202,11 @@
   (declare (type key key))
   (vector-push key (released-keys handler))
   (setf (gethash key (keyboard-state handler)) nil))
+
+(defmethod callback-all-keys-up ((handler window-state))
+  (loop :for key :across (pressed-keys handler)
+        :do (callback-on-key-up handler key)
+        :finally (setf (fill-pointer (pressed-keys handler)) 0)))
 
 (defmethod callback-on-window-resize ((handler window-state) width height)
   (setf (window-width handler) width)
@@ -285,13 +291,13 @@
 
 (declaim (ftype (function (window-state) t) end-drawing))
 (defun end-drawing (window-state)
+  (backend-end-drawing (backend window-state))
   (setf (fill-pointer (pressed-keys window-state)) 0)
   (setf (fill-pointer (released-keys window-state)) 0)
   (setf (fill-pointer (pressed-mouse-buttons window-state)) 0)
   (setf (fill-pointer (released-mouse-buttons window-state)) 0)
   (setf (old-window-width window-state) (window-width window-state))
-  (setf (old-window-height window-state) (window-height window-state))
-  (backend-end-drawing (backend window-state)))
+  (setf (old-window-height window-state) (window-height window-state)))
 
 (declaim (ftype (function (window-state) boolean) window-should-close-p]))
 (defun window-should-close-p (window-state)
@@ -356,6 +362,7 @@
   `(loop :while (window-should-keep-running-p ,state)
          :do ,@body))
 
+
 (defun key->char (key)
   "Returns the corresponding character if possible or nil otherwise"
   (case key
@@ -414,57 +421,138 @@
 
 
 (defun char->key (char)
-  "Converts a character to a key, or returns nil"
+  "Convert an ascii terminal input character into a flat list of keys/modifiers.
+   The list represents all possible keys/modifiers that could have produced CHAR."
   (case char
-    ((#\a #\A) :a)
-    ((#\b #\B) :b)
-    ((#\c #\C) :c)
-    ((#\d #\D) :d)
-    ((#\e #\E) :e)
-    ((#\f #\F) :f)
-    ((#\g #\G) :g)
-    ((#\h #\H) :h)
-    ((#\i #\I) :i)
-    ((#\j #\J) :j)
-    ((#\k #\K) :k)
-    ((#\l #\L) :l)
-    ((#\m #\M) :m)
-    ((#\n #\N) :n)
-    ((#\o #\O) :o)
-    ((#\p #\P) :p)
-    ((#\q #\Q) :q)
-    ((#\r #\R) :r)
-    ((#\s #\S) :s)
-    ((#\t #\T) :t)
-    ((#\u #\U) :u)
-    ((#\v #\V) :v)
-    ((#\w #\W) :w)
-    ((#\x #\X) :x)
-    ((#\y #\Y) :y)
-    ((#\z #\Z) :z)
+    ;; letters
+    (#\a '(:a))
+    (#\b '(:b))
+    (#\c '(:c))
+    (#\d '(:d))
+    (#\e '(:e))
+    (#\f '(:f))
+    (#\g '(:g))
+    (#\h '(:h))
+    (#\i '(:i))
+    (#\j '(:j))
+    (#\k '(:k))
+    (#\l '(:l))
+    (#\m '(:m))
+    (#\n '(:n))
+    (#\o '(:o))
+    (#\p '(:p))
+    (#\q '(:q))
+    (#\r '(:r))
+    (#\s '(:s))
+    (#\t '(:t))
+    (#\u '(:u))
+    (#\v '(:v))
+    (#\w '(:w))
+    (#\x '(:x))
+    (#\y '(:y))
+    (#\z '(:z))
 
-    ((#\0 #\)) :zero)
-    ((#\1 #\!) :one)
-    ((#\2 #\@) :two)
-    ((#\3 #\#) :three)
-    ((#\4 #\$) :four)
-    ((#\5 #\%) :five)
-    ((#\6 #\^) :six)
-    ((#\7 #\&) :seven)
-    ((#\8 #\*) :eight)
-    ((#\9 #\() :nine)
+    ;; shifted letters
+    (#\A '(:a :left-shift))
+    (#\B '(:b :left-shift))
+    (#\C '(:c :left-shift))
+    (#\D '(:d :left-shift))
+    (#\E '(:e :left-shift))
+    (#\F '(:f :left-shift))
+    (#\G '(:g :left-shift))
+    (#\H '(:h :left-shift))
+    (#\I '(:i :left-shift))
+    (#\J '(:j :left-shift))
+    (#\K '(:k :left-shift))
+    (#\L '(:l :left-shift))
+    (#\M '(:m :left-shift))
+    (#\N '(:n :left-shift))
+    (#\O '(:o :left-shift))
+    (#\P '(:p :left-shift))
+    (#\Q '(:q :left-shift))
+    (#\R '(:r :left-shift))
+    (#\S '(:s :left-shift))
+    (#\T '(:t :left-shift))
+    (#\U '(:u :left-shift))
+    (#\V '(:v :left-shift))
+    (#\W '(:w :left-shift))
+    (#\X '(:x :left-shift))
+    (#\Y '(:y :left-shift))
+    (#\Z '(:z :left-shift))
 
-    (#\' :quote)
-    (#\, :comma)
-    (#\- :minus)
-    (#\. :period)
-    (#\/ :slash)
-    (#\; :semicolon)
-    (#\= :equal)
-    (#\[ :left-bracket)
-    (#\] :right-bracket)
-    (#\\ :backslash)
-    (#\` :backtick)
-    (#\Space :space)
-    (#\Return :enter)
-    (#\Esc :escape)))
+    ;; digits
+    (#\0 '(:zero))
+    (#\1 '(:one))
+    (#\2 '(:two))
+    (#\3 '(:three))
+    (#\4 '(:four))
+    (#\5 '(:five))
+    (#\6 '(:six))
+    (#\7 '(:seven))
+    (#\8 '(:eight))
+    (#\9 '(:nine))
+
+    ;; shifted digits
+    (#\) '(:zero :left-shift))
+    (#\! '(:one  :left-shift))
+    (#\@ '(:two  :left-shift))
+    (#\# '(:three :left-shift))
+    (#\$ '(:four :left-shift))
+    (#\% '(:five :left-shift))
+    (#\^ '(:six  :left-shift))
+    (#\& '(:seven :left-shift))
+    (#\* '(:eight :left-shift))
+    (#\( '(:nine :left-shift))
+
+    ;; punctuation
+    (#\' '(:quote))
+    (#\, '(:comma))
+    (#\- '(:minus))
+    (#\. '(:period))
+    (#\/ '(:slash))
+    (#\; '(:semicolon))
+    (#\= '(:equal))
+    (#\[ '(:left-bracket))
+    (#\] '(:right-bracket))
+    (#\\ '(:backslash))
+    (#\` '(:backtick))
+    (#\Space '(:space))
+
+    ;; shifted punctuation
+    (#\" '(:quote :left-shift))
+    (#\< '(:comma :left-shift))
+    (#\_ '(:minus :left-shift))
+    (#\> '(:period :left-shift))
+    (#\? '(:slash :left-shift))
+    (#\: '(:semicolon :left-shift))
+    (#\+ '(:equal :left-shift))
+    (#\{ '(:left-bracket :left-shift))
+    (#\} '(:right-bracket :left-shift))
+    (#\| '(:backslash :left-shift))
+    (#\~ '(:backtick :left-shift))
+
+    ;; special keys
+    (#\Tab        '(:tab))
+    (#\Newline   '(:enter))
+    (#\Return    '(:enter))
+    (#\Backspace '(:backspace))
+    (#\Esc       '(:escape
+                   :left-bracket :left-control
+                   :three :left-control))
+
+    ;; control aliases
+    (#\Nul '(:two :left-control))       ; Ctrl+2
+
+    (#\Fs  '(:backslash :left-control
+             :four :left-control))      ; Ctrl+\ / Ctrl+4
+
+    (#\Gs  '(:right-bracket :left-control
+             :five :left-control))      ; Ctrl+] / Ctrl+5
+
+    (#\Rs  '(:six :left-control))       ; Ctrl+6
+
+    (#\Us  '(:minus :left-control
+             :seven :left-control))     ; Ctrl+_ / Ctrl+7
+
+    (otherwise
+     nil)))

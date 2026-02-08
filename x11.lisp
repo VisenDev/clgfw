@@ -129,14 +129,14 @@ allocates the color"
   (declare (ignore ctx)))
 
 (defun convert-keycode (ctx code)
-  "Converts an X11 keycode to a clgfw key"
+  "Converts an X11 keycode to a list of clgfw keys"
   (let* ((index (xlib:default-keysym-index (display ctx) code 0))
          (sym (xlib:keycode->keysym (display ctx) code index))
          (key
            (typecase sym
              (integer (clgfw:char->key (code-char sym)))
              (character (clgfw:char->key sym))
-             (symbol (assert (typep sym 'clgfw:key)) sym)
+             (symbol (assert (typep sym 'clgfw:key)) (list sym))
              (t (error "unsupported type ~a" sym))
              )))
     key
@@ -207,12 +207,14 @@ allocates the color"
          ;;                  (setf (xlib:drawable-height (window ctx)) height)
          ;;                  (setf (xlib:drawable-width (window ctx)) width))
          (:key-press (code)
-                     (when-let (key (convert-keycode ctx code))
-                       (clgfw:callback-on-key-down (handler ctx) key))
+                     (when-let (keys (convert-keycode ctx code))
+                       (dolist (key keys)
+                         (clgfw:callback-on-key-down (handler ctx) key)))
                      t)
          (:key-release (code)
-                       (when-let (key (convert-keycode ctx code))
-                         (clgfw:callback-on-key-up (handler ctx) key))
+                       (when-let (keys (convert-keycode ctx code))
+                         (dolist (key keys)
+                           (clgfw:callback-on-key-up (handler ctx) key)))
                        t)
          (:button-press (code)
                         (clgfw:callback-on-mouse-down

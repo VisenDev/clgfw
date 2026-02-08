@@ -7,13 +7,13 @@
   "Example main function"
   (let ((bg clgfw:+space+)
         (fg clgfw:+moon+)
-        (x 0) (y 0) (sz 60) (delta-x 0.2) (delta-y 0.2))
+        (x 0) (y 0) (sz 20) (delta-x 0.2) (delta-y 0.2))
     (clgfw:with-window ctx (800 600 "Hello")
       (let (;; (img (clgfw:create-sprite ctx 800 800))
             )
         ;; (clgfw:draw-text img 10 100 text-size fg "Press 'q' to quit!")
         ;; (clgfw:set-target-fps)
-        (clgfw:set-preferred-text-height ctx 20)
+        (clgfw:set-preferred-text-height ctx sz)
         
         (clgfw:while-running ctx
           (clgfw:with-drawing ctx
@@ -25,30 +25,16 @@
               
               (clgfw:draw-rectangle ctx 0 0 w h clgfw:+space+)
                
-              (clgfw:draw-rectangle ctx (floor x) (floor y) 20 20 clgfw:+moon+)
+              (clgfw:draw-rectangle ctx (floor x) (floor y) sz sz clgfw:+moon+)
 
               (clgfw:draw-text ctx 10 10 clgfw:+red+ (format nil "|w:~a|h:~a|" w h))
               
-              ;; (clgfw:draw-text ctx 10 100 text-size fg "Press 'q' to quit!")
-              ;; (clgfw:draw-sprite ctx img 10 100
-              ;;                    (clgfw:make-color
-              ;;                     (alexandria:clamp (+ 50 (floor (* 255 (/ (clgfw:get-mouse-x ctx)
-              ;;                                                              (clgfw:get-window-width ctx)))))
-              ;;                                       0 255)
-              ;;                     (alexandria:clamp (+ 50 (floor (* 255 (/ (clgfw:get-mouse-y ctx)
-              ;;                                                              (clgfw:get-window-height ctx)))))
-              ;;                                       0 255)
-              ;;                                      255))
-
-              (clgfw:draw-rectangle ctx (- (clgfw:get-mouse-x ctx) 10) (- (clgfw:get-mouse-y ctx) 10)
-                                    20 20
+              (clgfw:draw-text ctx 10 100 clgfw:+brown+ "Press 'q' to quit!")
+                            (clgfw:draw-rectangle ctx (- (clgfw:get-mouse-x ctx) 10) (- (clgfw:get-mouse-y ctx) 10)
+                                    sz sz
                                     (clgfw:make-color 200 100 100 100))
               ;; (format t "x: ~a, y: ~a~%" (clgfw:get-mouse-x ctx) (clgfw:get-mouse-y ctx))
               
-              ;; (incf x (* ;; (clgfw:get-delta-time ctx)
-              ;;          delta-x))
-              ;; (incf y (* ;; (clgfw:get-delta-time ctx)
-              ;;          delta-y))
               (incf x delta-x)
               (incf y delta-y)
               (when (or (< x 0) (> x (- w sz)))

@@ -58,6 +58,8 @@
   (charms:disable-echoing)
   (charms:enable-raw-input :interpret-control-characters t)
   (charms:enable-non-blocking-mode (win ctx))
+  (charms/ll:curs-set 0)
+  (charms/ll:mouseinterval 0)
   (charms/ll:keypad (charms::window-pointer (win ctx)) charms/ll:TRUE)
   (charms/ll:mousemask (logior charms/ll:ALL_MOUSE_EVENTS charms/ll:REPORT_MOUSE_POSITION))
  
@@ -71,33 +73,40 @@
 
 (defmethod clgfw:backend-begin-drawing ((ctx backend/curses))
   (with-slots (handler win) ctx
-    (when-let (ch (charms:get-char win :ignore-error t))
-      (if (equal (char-code ch) charms/ll:KEY_MOUSE)
+    (loop :for ch = (charms:get-char win :ignore-error t)
+          :while ch
+          :do
+             (if (equal (char-code ch) charms/ll:KEY_MOUSE)
 
-          ;;then
-          (handler-case
-           (multiple-value-bind (bstate x y z id) (charms/ll:getmouse)
-             (declare (ignore z id))
-             (clgfw:callback-on-mouse-move handler (* 10 x) (* 10 y))
-             (when (logand charms/ll:BUTTON1_PRESSED bstate)
-               (clgfw:callback-on-mouse-down handler :left))
-             (when (logand charms/ll:BUTTON2_PRESSED bstate)
-               (clgfw:callback-on-mouse-down handler :middle))
-             (when (logand charms/ll:BUTTON3_PRESSED bstate)
-               (clgfw:callback-on-mouse-down handler :right))
-             (when (logand charms/ll:BUTTON1_RELEASED bstate)
-               (clgfw:callback-on-mouse-up handler :left))
-             (when (logand charms/ll:BUTTON2_RELEASED bstate)
-               (clgfw:callback-on-mouse-up handler :middle))
-             (when (logand charms/ll:BUTTON3_RELEASED bstate)
-               (clgfw:callback-on-mouse-up handler :right)))
+                 ;;then
+                 (handler-case
+                     (multiple-value-bind (bstate x y z id) (charms/ll:getmouse)
+                       (declare (ignore z id))
+                       (clgfw:callback-on-mouse-move handler (* 10 x) (* 10 y))
+                       (when (logand charms/ll:BUTTON1_PRESSED bstate)
+                         (clgfw:callback-on-mouse-down handler :left))
+                       (when (logand charms/ll:BUTTON2_PRESSED bstate)
+                         (clgfw:callback-on-mouse-down handler :middle))
+                       (when (logand charms/ll:BUTTON3_PRESSED bstate)
+                         (clgfw:callback-on-mouse-down handler :right))
+                       (when (logand charms/ll:BUTTON1_RELEASED bstate)
+                         (clgfw:callback-on-mouse-up handler :left))
+                       (when (logand charms/ll:BUTTON2_RELEASED bstate)
+                         (clgfw:callback-on-mouse-up handler :middle))
+                       (when (logand charms/ll:BUTTON3_RELEASED bstate)
+                         (clgfw:callback-on-mouse-up handler :right)))
 
-            (error (err)
-              (format t "Error: ~a" err)))
-          
-          ;;else
-          (when-let (key (clgfw:char->key ch))
-            (clgfw:callback-on-key-down (handler ctx) key)))))
+                   (error (err)
+                     (format t "Error: ~a" err)))
+                 
+                 ;;else
+                 (when-let (keys (clgfw:char->key ch))
+
+                   ;; TODO handle escape being treated as alt
+                   ;; (if (find :escape keys) ;;alt pressed
+                   ;;     (clgfw:callback-on-key-down handler :left-alt))
+                   (dolist (key keys)
+                     (clgfw:callback-on-key-down (handler ctx) key))))))
   
   (multiple-value-bind (width height)
       (charms:window-dimensions (win ctx))
@@ -110,13 +119,15 @@
                      (ensure-color-pair
                       ctx
                       (color->8bit color)
-                      (color->8bit color))))
+                      -1
+                      ;; (color->8bit color)
+                      )))
   (loop
     :for dx :from (adj x) :below (adj (+ x w))
     :do
        (loop
          :for dy :from (adj y) :below (adj ( + y h))
-         :do (ignore-errors (charms:write-char-at-point (win ctx) #\. dx dy)))))
+         :do (ignore-errors (charms:write-char-at-point (win ctx) #\# dx dy)))))
 
 (defmethod clgfw:backend-draw-text ((ctx backend/curses) x y color text)
   ;; (charms/ll:init-color 0
@@ -138,8 +149,10 @@
   nil)
 
 (defmethod clgfw:backend-end-drawing ((ctx backend/curses))
+  (clgfw:callback-all-keys-up (handler ctx))
+  
   (charms:refresh-window (win ctx))
-  (sleep 0.01))
+  (sleep 0.001))
 
 ;; (defun paint ()
 ;;   "Paint an asterisk at the cursor, or erase the one already painted."

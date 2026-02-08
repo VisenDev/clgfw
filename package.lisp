@@ -64,5 +64,6 @@
            #:callback-on-mouse-down   
            #:callback-on-mouse-up     
            #:callback-on-key-down     
-           #:callback-on-key-up       
-           #:callback-on-window-resize))
+           #:callback-on-key-up
+           #:callback-on-window-resize
+           #:callback-all-keys-up))
