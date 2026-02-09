@@ -1,8 +1,8 @@
 sbcl:
-	sbcl --script script-build-hello.lisp
+	sbcl --script scripts/build-hello.lisp
 
 ecl:
-	ecl --load script-build-hello.lisp
+	ecl --load scripts/build-hello.lisp
 
 clean:
 	if [ -e hello ]; then trash hello; fi
