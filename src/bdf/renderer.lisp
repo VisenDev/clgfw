@@ -39,7 +39,7 @@
     )
   )
 
-(defun resize-character (ctx bdf ch target-text-height)
+(defun resize-character (bdf ch target-text-height)
   (let ((scale (/ target-text-height (point-size bdf)))
         (bbx (bbx ch))
         (bitmap (bitmap ch)))
@@ -57,33 +57,30 @@
                    :dwidth (dwidth ch)
                    :swidth (swidth ch))))
 
-(declaim (ftype (function (t bdf character number) bdf-char) get-sized-character))
-(defun get-sized-character (ctx bdf lisp-character target-text-height)
+(declaim (ftype (function (bdf character number) bdf-char) get-sized-character))
+(defun get-sized-character (bdf lisp-character target-text-height)
   (with-slots (chars) bdf
-    (clgfw:when-it (gethash (make-bdf-char-lookup-key
-                             :character lisp-character
-                             :point-size (floor target-text-height))
-                            chars)
-        (return-from get-sized-character it))
+    (when-let (ch (gethash (make-bdf-char-lookup-key
+                            :character lisp-character
+                            :point-size (floor target-text-height))
+                           chars))
+        (return-from get-sized-character ch))
     (setf (gethash (make-bdf-char-lookup-key
                     :character lisp-character
                     :point-size (floor target-text-height))
                    chars)
-          (resize-character
-           ctx
-           bdf
-           (gethash (make-bdf-char-lookup-key
-                     :character lisp-character
-                     :point-size (point-size bdf))
-                    chars)
-           (floor target-text-height)))
-    (get-sized-character ctx bdf lisp-character target-text-height)))
+          (resize-character bdf
+                            (gethash (make-bdf-char-lookup-key
+                                      :character lisp-character
+                                      :point-size (point-size bdf))
+                                     chars)
+                            (floor target-text-height)))
+    (get-sized-character bdf lisp-character target-text-height)))
 
-(defun draw-character (ctx bdf x y text-height color character)
+(defun draw-character (backend bdf x y text-height color character)
   "Draws a character and returns how much many pixels were used"
   (declare (optimize (speed 3) (safety 3)))
-  (let* ((ch (get-sized-character ctx bdf character text-height))
-         )
+  (let* ((ch (get-sized-character bdf character text-height)))
     (with-slots (bitmap bbx) ch
       (declare (type (simple-array simple-bit-vector) bitmap))
       (with-slots (offset-x offset-y) bbx
@@ -94,16 +91,11 @@
                  (loop :for bit :of-type bit :across row
                        :for dx :of-type fixnum :from (floor (+ x offset-x))
                        :when (= 1 bit)
-                         :do (clgfw:draw-rectangle ctx dx dy 1 1 color))
+                         :do (clgfw:backend-draw-rectangle backend dx dy 1 1 color))
               :finally (return space-used))))))
 
-(defun draw-string (ctx bdf x y text-height color characters)
-
-  ;;;; TODO add caching of drawn characters as images 
+(defun draw-string (backend bdf x y text-height color characters)
   (loop :for ch :across characters
-        :for delta = (draw-character ctx bdf x y text-height color ch)
+        :for delta = (draw-character backend bdf x y text-height color ch)
         :do (incf x delta)))
 
-(defmethod clgfw:draw-text (ctx x y text-height color str)
-  ;;TODO find which font is closest to text-height
-  (draw-string ctx (first *fonts*) x y text-height color str))

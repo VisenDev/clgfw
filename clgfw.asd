@@ -28,9 +28,19 @@
                               (:file "colors")))))
 
 (defsystem "clgfw/backend/wayland"
-  :depends-on ("clgfw/core" "wayflan" "posix-shm" "input-event-codes" "cl-xkb")
+  :depends-on ("clgfw/core"
+               "alexandria"
+               "wayflan"
+               "posix-shm"
+               "input-event-codes"
+               "cl-xkb")
+  :serial t
   :components ((:module "src"
-                 :components ((:file "wayland")))))
+                :components ((:module "bdf"
+                              :components ((:file "bdf")
+                                           (:file "font-loader")
+                                           (:file "renderer")))
+                             (:file "wayland")))))
 
 (defsystem "clgfw/backend/x11"
   :depends-on ("clgfw/core" "clx")

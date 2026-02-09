@@ -560,3 +560,18 @@
             (wl-proxy-hooks cb)))
     (wl-display-roundtrip wl-display)
     (return-from clgfw:backend-init-window ctx)))
+
+(defmethod clgfw:backend-draw-text ((ctx backend/wayland) x y color text)
+  (clgfw/bdf:draw-string ctx clgfw/bdf:*fonts* x y (preferred-text-height ctx) color text))
+
+(defmethod clgfw:backend-create-canvas ((ctx backend/wayland) w h)
+  (make-array (list h w)
+              :element-type 'clgfw:color
+              :initial-element (clgfw:make-color 0 0 0 0)))
+
+(defmethod clgfw:backend-destroy-canvas ((ctx backend/wayland) canvas)
+  (declare (ignore ctx canvas)))
+
+
+;; TODO: create update sprite/ as a generic canvas backend
+;; (defmethod clgfw:backend-canvas-draw-rectangle )

@@ -6,8 +6,10 @@
 
 
 (defpackage #:clgfw/bdf
-  (:use #:cl)
-  (:export #:load-bdf))
+  (:use #:cl #:alexandria)
+  (:export #:load-bdf
+           #:draw-string
+           #:*fonts*))
 (in-package #:clgfw/bdf)
 
 (defclass bounding-box ()

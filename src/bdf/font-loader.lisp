@@ -5,10 +5,10 @@
 
 (eval-when (:compile-toplevel :load-toplevel)
   (defparameter *fonts*
-    (list (load-bdf
-           (asdf:system-relative-pathname
-            "clgfw"
-            "bdf/fonts/terminus/ter-u32n.bdf"))))
+    (load-bdf
+     (asdf:system-relative-pathname
+      "clgfw"
+      "src/bdf/fonts/terminus/ter-u32n.bdf")))
   ;; (defparameter *fonts*
   ;;   (loop
   ;;     :with dirs = (uiop:subdirectories (asdf:system-relative-pathname "clgfw" "bdf/fonts/"))
