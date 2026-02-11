@@ -173,9 +173,12 @@
 (defgeneric backend-draw-canvas               (ctx x y canvas &optional color))
 (defgeneric backend-create-canvas             (ctx w h))
 (defgeneric backend-destroy-canvas            (ctx canvas))
+(defgeneric backend-check-for-input           (ctx))
 (defgeneric backend-canvas-draw-rectangle     (ctx canvas x y w h color))
 (defgeneric backend-canvas-draw-text          (ctx canvas x y color))
 (defgeneric backend-canvas-draw-canvas        (ctx canvas x y w h &optional tint))
+
+(deftype redraw-frequency-type () `(member :target-fps :on-input))
 
 (defclass window-state ()
   ((backend :accessor backend)
@@ -204,13 +207,18 @@
     :initform (make-array 3 :element-type 'symbol :fill-pointer 0 :initial-element nil))
    (released-mouse-buttons
     :accessor released-mouse-buttons
-    :initform (make-array 3 :element-type 'symbol :fill-pointer 0 :initial-element nil))))
+    :initform (make-array 3 :element-type 'symbol :fill-pointer 0 :initial-element nil))
+   (target-fps :accessor target-fps :initform 60)
+   (redraw-frequency :accessor redraw-frequency :initform :on-input :type redraw-frequency-type)
+   (input-happened-p :accessor input-happened-p :initform t)))
 
 (defmethod callback-on-mouse-move ((handler window-state) x y)
+  (setf (input-happened-p handler) t)
   (setf (mouse-x handler) x)
   (setf (mouse-y handler) y))
 
 (defmethod callback-on-mouse-down ((handler window-state) mouse-button)
+  (setf (input-happened-p handler) t)
   (vector-push mouse-button (pressed-mouse-buttons handler))
   (ecase (print mouse-button)
     (:left (setf (mouse-left-button-down handler) t))
@@ -218,6 +226,7 @@
     (:middle (setf (mouse-middle-button-down handler) t))))
 
 (defmethod callback-on-mouse-up ((handler window-state) mouse-button)
+  (setf (input-happened-p handler) t)
   (vector-push mouse-button (released-mouse-buttons handler))
   (ecase mouse-button
     (:left (setf (mouse-left-button-down handler) nil))
@@ -226,20 +235,24 @@
 
 (defmethod callback-on-key-down ((handler window-state) key)
   (declare (type key key))
+  (setf (input-happened-p handler) t)
   (vector-push key (pressed-keys handler))
   (setf (gethash key (keyboard-state handler)) t))
 
 (defmethod callback-on-key-up  ((handler window-state) key)
   (declare (type key key))
+  (setf (input-happened-p handler) t)
   (vector-push key (released-keys handler))
   (setf (gethash key (keyboard-state handler)) nil))
 
 (defmethod callback-all-keys-up ((handler window-state))
+  (setf (input-happened-p handler) t)
   (loop :for key :across (pressed-keys handler)
         :do (callback-on-key-up handler key)
         :finally (setf (fill-pointer (pressed-keys handler)) 0)))
 
 (defmethod callback-on-window-resize ((handler window-state) width height)
+  (setf (input-happened-p handler) t)
   (setf (window-width handler) width)
   (setf (window-height handler) height))
 
@@ -334,7 +347,14 @@
   ;; TODO add fps management here:
   ;; Ideally, we should schedule a garbage collection if there is enough
   ;; time left in a frame, rather than just sleeping
-  )
+
+  (ecase (redraw-frequency window-state)
+    (:target-fps (error "TODO"))
+    (:on-input
+     (loop :until (input-happened-p window-state)
+           :do (sleep 0.001)
+               (backend-check-for-input (backend window-state))
+           :finally (setf (input-happened-p window-state) nil)))))
 
 (declaim (ftype (function (window-state) boolean) window-should-close-p]))
 (defun window-should-close-p (window-state)
@@ -382,6 +402,18 @@
    certain backends (ie clx) cannot draw arbitrary text sizes. Always use the text measuring
    functions to check the real size that text will be rendered at."
   (backend-set-preferred-text-height (backend window-state) (round text-height)))
+
+
+(declaim (ftype (function (window-state redraw-frequency-type &optional number) t) set-redraw-frequency))
+(defun set-redraw-frequency (window-state redraw-frequency-type &optional frames-per-second)
+  (ecase redraw-frequency-type
+    (:target-fps
+     (assert frames-per-second () "expected target frames-per-second") 
+     (setf (target-fps window-state) frames-per-second)
+     (setf (redraw-frequency window-state) :target-fps))
+    (:on-input
+     (assert (not frames-per-second))
+     (setf (redraw-frequency window-state) :on-input))))
 
 (defmacro with-window (name (width height title) &body body)
   `(let ((,name (init-window ,width ,height ,title)))

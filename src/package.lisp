@@ -74,7 +74,8 @@
            #:backend-draw-text                
            #:backend-draw-canvas              
            #:backend-create-canvas            
-           #:backend-destroy-canvas           
+           #:backend-destroy-canvas
+           #:backend-check-for-input
            #:backend-canvas-draw-rectangle    
            #:backend-canvas-draw-text         
            #:backend-canvas-draw-canvas

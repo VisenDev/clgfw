@@ -72,6 +72,9 @@
    (preferred-text-height :accessor preferred-text-height :initform 25
                           :documentation "At what size should text be drawn")))
 
+(defmethod clgfw:backend-check-for-input ((ctx backend/wayland))
+  (wl-display-dispatch-event (wl-display ctx)))
+
 (defmethod clgfw:backend-window-should-close-p ((ctx backend/wayland))
   (window-should-close-p ctx))
 
