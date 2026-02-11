@@ -55,7 +55,13 @@
            #:while-running
 
            ;; For Writing New Backends
-           #:*backends*
+           #:register-backend
+           #:unregister-all-backends
+           #:+priority-testing+
+           #:+priority-native+
+           #:+priority-primary+
+           #:+priority-secondary+
+           #:+priority-last+
            #:backend-init-window              
            #:backend-close-window             
            #:backend-window-should-close-p    

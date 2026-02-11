@@ -28,7 +28,7 @@
    graphics
    (window-should-keep-running :initform t :accessor window-should-keep-running)))
 
-(push 'backend/jvm *backends*)
+(clgfw:register-backend 'backend/jvm clgfw:+priority-native+)
 
 (defmethod backend-window-should-close-p ((ctx backend/jvm))
   (not (window-should-keep-running ctx))

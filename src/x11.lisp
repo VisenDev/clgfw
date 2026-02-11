@@ -17,7 +17,7 @@
   (:export #:backend/x11))
 (in-package #:clgfw/backend/x11)
 
-(push 'backend/x11 clgfw:*backends*)
+(clgfw:register-backend 'backend/x11 clgfw:+priority-secondary+)
 
 (defclass backend/x11 ()
   ((window-should-keep-running  :accessor window-should-keep-running :initform t)

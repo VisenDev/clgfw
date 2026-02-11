@@ -128,13 +128,12 @@
     :keypad-6 :keypad-7 :keypad-8                           
     :keypad-9 :keypad-decimal :keypad-divide
     :keypad-multiply :keypad-subtract
-    :keypad-add :keypad-enter :keypad-equal                       
-    ))
+    :keypad-add :keypad-enter :keypad-equal))
 
 (deftype mouse-button () '(member :left :right :middle))
 
 
-;;; A CALLBACK HANDLER SHOULD IMPLEMENT THESE FUNCTIONS
+;;; A BACKEND SHOULD CALL THESE FUNCTIONS WHEN THESE EVENTS OCCUR
 (defgeneric callback-on-mouse-move    (handler x y))
 (defgeneric callback-on-mouse-down    (handler mouse-button))
 (defgeneric callback-on-mouse-up      (handler mouse-button))
@@ -143,7 +142,24 @@
 (defgeneric callback-on-window-resize (handler width height))
 (defgeneric callback-all-keys-up      (handler))
 
-;;; A BACKEND SHOULD IMPLEMENT THESE FUNCTIONS
+;;; USE THESE FUNCTIONS AND CONSTANTS TO REGISTER YOUR NEW BACKEND
+(defvar *backends* (make-hash-table))
+(defconstant +priority-testing+ 999
+  "For testing backends while they are being developed")
+(defconstant +priority-native+ 99
+  "For backends that are native or built-in to the lisp implementation")
+(defconstant +priority-primary+ 66)
+(defconstant +priority-secondary+ 33)
+(defconstant +priority-last+ 0
+  "For backends that should only be used as a last resort")
+(defun unregister-all-backends ()
+  (clrhash *backends*))
+(defun register-backend (class-name &optional (priority +priority-secondary+))
+  "Use this to tell clgfw about a new backend that is available"
+  (setf (gethash class-name *backends*) (list :priority priority
+                                              :class-name class-name)))
+
+;;; A BACKEND SHOULD BE A CLASS THAT IMPLEMENT THESE FUNCTIONS
 (defgeneric backend-init-window               (ctx width height title callback-handler-instance))
 (defgeneric backend-close-window              (ctx))
 (defgeneric backend-window-should-close-p     (ctx))
@@ -228,15 +244,16 @@
   (setf (window-height handler) height))
 
 ;;; ==== PUBLIC INTERFACE ====
-
-(defvar *backends* nil)
-
 (defun init-window (width height title)
   "Attempts to initialize a window on your platform"
-  (setf *backends* (delete-duplicates *backends*))
-  (let ((window (make-instance 'window-state)))
-    (dolist (backend *backends*)
-      (let* ((instance (make-instance backend)))
+  (let ((prioritized-backends (sort (hash-table-values *backends*)
+                                    (lambda (lhs rhs)
+                                      (>
+                                       (getf lhs :priority)
+                                       (getf rhs :priority)))))
+        (window (make-instance 'window-state)))
+    (dolist (backend-info prioritized-backends)
+      (let* ((instance (make-instance (getf backend-info :class-name))))
         (when-let (backend (backend-init-window instance width height title window))
           (setf (backend window) backend)
           (return-from init-window window)))))
@@ -312,7 +329,12 @@
   (setf (fill-pointer (pressed-mouse-buttons window-state)) 0)
   (setf (fill-pointer (released-mouse-buttons window-state)) 0)
   (setf (old-window-width window-state) (window-width window-state))
-  (setf (old-window-height window-state) (window-height window-state)))
+  (setf (old-window-height window-state) (window-height window-state))
+
+  ;; TODO add fps management here:
+  ;; Ideally, we should schedule a garbage collection if there is enough
+  ;; time left in a frame, rather than just sleeping
+  )
 
 (declaim (ftype (function (window-state) boolean) window-should-close-p]))
 (defun window-should-close-p (window-state)

@@ -17,7 +17,7 @@
   (:export #:backend/curses))
 (in-package #:clgfw/backend/curses)
 
-(push 'backend/curses clgfw:*backends*)
+(clgfw:register-backend 'backend/curses clgfw:+priority-last+)
 
 (defclass backend/curses ()
   ((handler :accessor handler)

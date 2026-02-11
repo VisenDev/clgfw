@@ -24,7 +24,7 @@
 ;;; Devault's The Wayland Protocol, §7.3 thru §8.2. The program creates
 ;;; a toplevel surface that shows a moving checkerboard grid.
 
-(push 'backend/wayland clgfw:*backends*)
+(clgfw:register-backend 'backend/wayland clgfw:+priority-primary+)
 
 (defclass render-buffer ()
   ((pool-data :accessor pool-data
