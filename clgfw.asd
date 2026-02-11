@@ -40,22 +40,22 @@
                               :components ((:file "bdf")
                                            (:file "font-loader")
                                            (:file "renderer")))
-                             (:file "wayland")))))
+                             (:file "backend-wayland")))))
 
 (defsystem "clgfw/backend/x11"
   :depends-on ("clgfw/core" "clx")
   :components ((:module "src"
-                 :components ((:file "x11")))))
+                 :components ((:file "backend-x11")))))
 
 (defsystem "clgfw/backend/jvm"
   :depends-on ("clgfw/core")
   :components ((:module "src"
-                 :components ((:file "jvm")))))
+                 :components ((:file "backend-jvm")))))
 
 (defsystem "clgfw/backend/curses"
   :depends-on ("clgfw/core" "cl-charms" "alexandria")
   :components ((:module "src"
-                 :components ((:file "curses")))))
+                 :components ((:file "backend-curses")))))
 
 ;; TODO: CLOG backend??
 ;; TODO: JSCL backend??
