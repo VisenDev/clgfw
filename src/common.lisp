@@ -144,8 +144,6 @@
 
 ;;; USE THESE FUNCTIONS AND CONSTANTS TO REGISTER YOUR NEW BACKEND
 (defvar *backends* (make-hash-table))
-(defconstant +priority-testing+ 999
-  "For testing backends while they are being developed")
 (defconstant +priority-native+ 99
   "For backends that are native or built-in to the lisp implementation")
 (defconstant +priority-primary+ 66)
@@ -154,9 +152,14 @@
   "For backends that should only be used as a last resort")
 (defun unregister-all-backends ()
   (clrhash *backends*))
-(defun register-backend (class-name &optional (priority +priority-secondary+))
-  "Use this to tell clgfw about a new backend that is available"
-  (setf (gethash class-name *backends*) (list :priority priority
+(defun register-backend (class-name priority &optional testing)
+  "Use this to tell clgfw about a new backend that is available,
+   the predefined +priority-foo+ constants can be used to specify
+   which backend have priority. The testing parameter is used to
+   tell clgfw that the backend is currently being developed and
+   experimented with so it should temporarily take priority"
+  (setf (gethash class-name *backends*) (list :priority (if testing most-positive-fixnum
+                                                            priority)
                                               :class-name class-name)))
 
 ;;; A BACKEND SHOULD BE A CLASS THAT IMPLEMENT THESE FUNCTIONS
@@ -191,9 +194,11 @@
                       :documentation "Used to check if the current window height has changed")
    (mouse-x :initform 0 :accessor mouse-x :type fixnum)
    (mouse-y :initform 0 :accessor mouse-y :type fixnum)
-   (mouse-left-button-down :accessor mouse-left-button-down :initform nil)
-   (mouse-middle-button-down :accessor mouse-middle-button-down :initform nil)
-   (mouse-right-button-down :accessor mouse-right-button-down :initform nil)
+   ;; (mouse-left-button-down :accessor mouse-left-button-down :initform nil)
+   ;; (mouse-middle-button-down :accessor mouse-middle-button-down :initform nil)
+   ;; (mouse-right-button-down :accessor mouse-right-button-down :initform nil)
+   (mouse-button-states :initform (make-hash-table :test 'eq)
+                        :accessor mouse-button-states)
    (pressed-keys
     :accessor pressed-keys
     :initform (make-array 256 :element-type 'symbol :fill-pointer 0 :initial-element nil)
@@ -213,25 +218,21 @@
    (input-happened-p :accessor input-happened-p :initform t)))
 
 (defmethod callback-on-mouse-move ((handler window-state) x y)
-  (setf (input-happened-p handler) t)
-  (setf (mouse-x handler) x)
-  (setf (mouse-y handler) y))
+  (unless (and (= (mouse-x handler) x)
+               (= (mouse-y handler) y))
+    (setf (input-happened-p handler) t)
+    (setf (mouse-x handler) x)
+    (setf (mouse-y handler) y)))
 
 (defmethod callback-on-mouse-down ((handler window-state) mouse-button)
   (setf (input-happened-p handler) t)
   (vector-push mouse-button (pressed-mouse-buttons handler))
-  (ecase (print mouse-button)
-    (:left (setf (mouse-left-button-down handler) t))
-    (:right (setf (mouse-right-button-down handler) t))
-    (:middle (setf (mouse-middle-button-down handler) t))))
+  (setf (gethash mouse-button (mouse-button-states handler)) t))
 
 (defmethod callback-on-mouse-up ((handler window-state) mouse-button)
   (setf (input-happened-p handler) t)
   (vector-push mouse-button (released-mouse-buttons handler))
-  (ecase mouse-button
-    (:left (setf (mouse-left-button-down handler) nil))
-    (:right (setf (mouse-right-button-down handler) nil))
-    (:middle (setf (mouse-middle-button-down handler) nil))))
+  (setf (gethash mouse-button (mouse-button-states handler)) nil))
 
 (defmethod callback-on-key-down ((handler window-state) key)
   (declare (type key key))
@@ -252,9 +253,11 @@
         :finally (setf (fill-pointer (pressed-keys handler)) 0)))
 
 (defmethod callback-on-window-resize ((handler window-state) width height)
-  (setf (input-happened-p handler) t)
-  (setf (window-width handler) width)
-  (setf (window-height handler) height))
+  (unless (and (= (window-width handler) width)
+               (= (window-height handler) height))
+    (setf (input-happened-p handler) t)
+    (setf (window-width handler) width)
+    (setf (window-height handler) height)))
 
 ;;; ==== PUBLIC INTERFACE ====
 (defun init-window (width height title)
@@ -294,17 +297,11 @@
 
 (declaim (ftype (function (window-state mouse-button) boolean) is-mouse-button-down))
 (defun is-mouse-button-down (window-state button)
-  (ecase button
-    (:left (mouse-left-button-down window-state))
-    (:right (mouse-right-button-down window-state))
-    (:middle (mouse-middle-button-down window-state))))
+  (gethash button (mouse-button-states window-state)))
 
 (declaim (ftype (function (window-state mouse-button) boolean) is-mouse-button-up))
 (defun is-mouse-button-up (window-state button)
-  (ecase button
-    (:left (mouse-left-button-down window-state))
-    (:right (mouse-right-button-down window-state))
-    (:middle (mouse-middle-button-down window-state))))
+  (not (gethash button (mouse-button-states window-state))))
 
 (declaim (ftype (function (window-state mouse-button) boolean) is-mouse-button-pressed))
 (defun is-mouse-button-pressed (window-state button)
