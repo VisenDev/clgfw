@@ -1,11 +1,11 @@
 ;;;; Copyright 2026 Robert Wess Burnett
-;;;; 
+;;;;
 ;;;; Licensed under the Apache License, Version 2.0 (the "License");
 ;;;; you may not use this file except in compliance with the License.
 ;;;; You may obtain a copy of the License at
-;;;; 
+;;;;
 ;;;;     http://www.apache.org/licenses/LICENSE-2.0
-;;;; 
+;;;;
 ;;;; Unless required by applicable law or agreed to in writing, software
 ;;;; distributed under the License is distributed on an "AS IS" BASIS,
 ;;;; WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -62,12 +62,12 @@
          ((> number 255) 255)
          (t number))))
 
-(declaim (ftype (function (color color) color) color-blend))
+;; (declaim (ftype (function (color color) color) color-blend))
 (defun color-blend (base applied-color)
-  (declare (optimize (speed 3)
-                     (safety 3)
-                     (debug 3))
-           (type color base applied-color))
+  ;; (declare (optimize (speed 3)
+  ;;                    (safety 3)
+  ;;                    (debug 3))
+  ;;          (type color base applied-color))
   (let* ((applied-color-a (the color (color-a applied-color)))
          (base-a (the color (color-a base)))
          (inverse-applied-a (the color (- 255 applied-color-a)))
@@ -112,11 +112,11 @@
     :a :b :c :d :e :f :g :h :i :j :k :l :m
     :n :o :p :q :r :s :t :u :v :w :x :y :z
     :left-bracket :backslash :right-bracket :backtick
-    :space :escape :enter :tab :backspace :insert :delete                             
-    :right :left :down :up :page-up :page-down :home                               
+    :space :escape :enter :tab :backspace :insert :delete
+    :right :left :down :up :page-up :page-down :home
     :end :caps-lock :scroll-lock :num-lock :print-screen :pause
     :f1 :f2 :f3 :f4 :f5 :f6 :f7 :f8 :f9 :f10 :f11 :f12
-    :left-shift :right-shift                        
+    :left-shift :right-shift
     :left-control :right-control
     :left-alt :right-alt
     :left-super :right-super
@@ -125,7 +125,7 @@
     :kb-menu
     :keypad-0 :keypad-1 :keypad-2
     :keypad-3 :keypad-4 :keypad-5
-    :keypad-6 :keypad-7 :keypad-8                           
+    :keypad-6 :keypad-7 :keypad-8
     :keypad-9 :keypad-decimal :keypad-divide
     :keypad-multiply :keypad-subtract
     :keypad-add :keypad-enter :keypad-equal))
@@ -172,14 +172,14 @@
 (defgeneric backend-set-preferred-text-height (ctx text-height))
 (defgeneric backend-get-text-height           (ctx))
 (defgeneric backend-measure-text-width        (ctx text))
-(defgeneric backend-draw-text                 (ctx x y color string))
+(defgeneric backend-draw-text                 (ctx x y color text))
 (defgeneric backend-draw-canvas               (ctx x y canvas &optional color))
 (defgeneric backend-create-canvas             (ctx w h))
 (defgeneric backend-destroy-canvas            (ctx canvas))
 (defgeneric backend-check-for-input           (ctx))
-(defgeneric backend-canvas-draw-rectangle     (ctx canvas x y w h color))
-(defgeneric backend-canvas-draw-text          (ctx canvas x y color))
-(defgeneric backend-canvas-draw-canvas        (ctx canvas x y w h &optional tint))
+(defgeneric backend-draw-rectangle-on-canvas     (ctx canvas x y w h color))
+(defgeneric backend-draw-text-on-canvas          (ctx canvas x y color text))
+(defgeneric backend-draw-canvas-on-canvas        (ctx canvas x y w h &optional tint))
 
 (deftype redraw-frequency-type () `(member :target-fps :on-input))
 
@@ -194,9 +194,6 @@
                       :documentation "Used to check if the current window height has changed")
    (mouse-x :initform 0 :accessor mouse-x :type fixnum)
    (mouse-y :initform 0 :accessor mouse-y :type fixnum)
-   ;; (mouse-left-button-down :accessor mouse-left-button-down :initform nil)
-   ;; (mouse-middle-button-down :accessor mouse-middle-button-down :initform nil)
-   ;; (mouse-right-button-down :accessor mouse-right-button-down :initform nil)
    (mouse-button-states :initform (make-hash-table :test 'eq)
                         :accessor mouse-button-states)
    (pressed-keys
@@ -215,7 +212,11 @@
     :initform (make-array 3 :element-type 'symbol :fill-pointer 0 :initial-element nil))
    (target-fps :accessor target-fps :initform 60)
    (redraw-frequency :accessor redraw-frequency :initform :on-input :type redraw-frequency-type)
-   (input-happened-p :accessor input-happened-p :initform t)))
+   (input-happened-p :accessor input-happened-p :initform t)
+   (draw-on-canvas? :accessor draw-on-canvas? :initform nil
+                    :documentation "When non-nil, draw commands should apply to this
+                                    canvas instead of the window")
+   ))
 
 (defmethod callback-on-mouse-move ((handler window-state) x y)
   (unless (and (= (mouse-x handler) x)
@@ -363,16 +364,27 @@
 
 (declaim (ftype (function (window-state number number number number color) t) draw-rectangle))
 (defun draw-rectangle (window-state x y w h color)
-  (backend-draw-rectangle (backend window-state) (floor x) (floor y) (floor w) (floor h) color))
+  (with-slots (backend draw-on-canvas?) window-state
+    (if draw-on-canvas?
+        (backend-draw-rectangle-on-canvas window-state draw-on-canvas? x y w h color)
+        (backend-draw-rectangle backend x y w h color))))
 
 (declaim (ftype (function (window-state number number color string) t) draw-text))
 (defun draw-text (window-state x y color text)
-  (backend-draw-text (backend window-state) (floor x) (floor y) color text))
+  (with-slots (backend draw-on-canvas?) window-state
+    (if draw-on-canvas?
+        (backend-draw-text-on-canvas backend draw-on-canvas? x y color text)
+        (backend-draw-text backend x y color text))))
 
 (declaim (ftype (function (window-state number number t &optional color) t) draw-canvas))
 (defun draw-canvas (window-state x y canvas &optional tint)
-  (backend-draw-canvas (backend window-state) (floor x) (floor y) canvas tint))
+  (with-slots (backend draw-on-canvas?) window-state
+    (if draw-on-canvas?
+        (backend-draw-canvas-on-canvas backend draw-on-canvas? x y canvas tint)
+        (backend-draw-canvas backend x y canvas tint))))
 
+
+;;; CANVAS
 (declaim (ftype (function (window-state number number) t)))
 (defun create-canvas (window-state width height)
   (backend-create-canvas (backend window-state) (floor width) (floor height)))
@@ -381,18 +393,43 @@
 (defun destroy-canvas (window-state canvas)
   (backend-destroy-canvas (backend window-state) canvas))
 
-(declaim (ftype (function (window-state t number number number number color) t) canvas-draw-rectangle))
-(defun canvas-draw-rectangle (window-state canvas x y w h color)
-  (backend-canvas-draw-rectangle (backend window-state) canvas (floor x) (floor y) (floor w) (floor h) color))
+(defmacro with-canvas (varname (window-state width height) &body body)
+  `(let ((,varname (create-canvas ,window-state ,width ,height)))
+     (unwind-protect
+          (progn ,@body)
+       (destroy-canvas ,window-state ,varname))))
 
-(declaim (ftype (function (window-state t number number color) t) canvas-draw-text))
-(defun canvas-draw-text (window-state canvas x y color)
-  (backend-canvas-draw-text (backend window-state) canvas (floor x) (floor y) color))
+(defmacro with-canvases (window-state (&rest |(varname width height)|) &body body)
+  (let ((forms |(varname width height)|))
+    `(let ,(loop :for form :in forms
+                 :for varname = (first form)
+                 :for width = (second form)
+                 :for height = (third form)
+                 :collect `(,varname (create-canvas ,window-state ,width ,height)))
+       (unwind-protect
+            (progn ,@body)
+         ,@(mapcar (lambda (form) `(destroy-canvas ,window-state ,(first form)))
+                   forms)))))
 
-(declaim (ftype (function (window-state t number number t &optional color) t) canvas-draw-canvas))
-(defun canvas-draw-canvas (window-state target-canvas x y source-canvas &optional tint)
-  (backend-canvas-draw-canvas (backend window-state) target-canvas (floor x) (floor y) source-canvas tint))
+(defun begin-drawing-on-canvas (window-state canvas)
+  (with-slots (draw-on-canvas?) window-state
+    (assert (null draw-on-canvas?))
+    (setf draw-on-canvas? canvas)))
 
+(defun end-drawing-on-canvas (window-state canvas)
+  (with-slots (draw-on-canvas?) window-state
+    (assert (eq draw-on-canvas? canvas))
+    (setf draw-on-canvas? nil)))
+
+(defmacro with-drawing-on-canvas ((window-state canvas) &body body)
+  `(unwind-protect
+       (progn
+         (begin-drawing-on-canvas ,window-state ,canvas)
+         ,@body)
+    (end-drawing-on-canvas ,window-state ,canvas)))
+
+
+;;; TEXT HEIGHT
 (declaim (ftype (function (window-state number) t) set-preferred-text-height))
 (defun set-preferred-text-height (window-state text-height)
   "Requests that the backend draws text at the given text-height. Might not always work because
@@ -401,11 +438,12 @@
   (backend-set-preferred-text-height (backend window-state) (round text-height)))
 
 
+;;; REDRAW AND FPS
 (declaim (ftype (function (window-state redraw-frequency-type &optional number) t) set-redraw-frequency))
 (defun set-redraw-frequency (window-state redraw-frequency-type &optional frames-per-second)
   (ecase redraw-frequency-type
     (:target-fps
-     (assert frames-per-second () "expected target frames-per-second") 
+     (assert frames-per-second () "expected target frames-per-second")
      (setf (target-fps window-state) frames-per-second)
      (setf (redraw-frequency window-state) :target-fps))
     (:on-input

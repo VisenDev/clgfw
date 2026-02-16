@@ -1,11 +1,11 @@
 ;;;; Copyright 2026 Robert Wess Burnett
-;;;; 
+;;;;
 ;;;; Licensed under the Apache License, Version 2.0 (the "License");
 ;;;; you may not use this file except in compliance with the License.
 ;;;; You may obtain a copy of the License at
-;;;; 
+;;;;
 ;;;;     http://www.apache.org/licenses/LICENSE-2.0
-;;;; 
+;;;;
 ;;;; Unless required by applicable law or agreed to in writing, software
 ;;;; distributed under the License is distributed on an "AS IS" BASIS,
 ;;;; WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -23,6 +23,9 @@
            #:draw-rectangle
            #:set-preferred-text-height
            #:draw-text
+           #:draw-canvas
+           #:create-canvas
+           #:destroy-canvas
            #:get-mouse-x
            #:get-mouse-y
            #:is-mouse-button-down
@@ -53,38 +56,40 @@
            #:with-window
            #:with-drawing
            #:while-running
+           #:with-canvas
+           #:with-canvases
+           #:with-drawing-on-canvas
 
            ;; For Writing New Backends
            #:register-backend
            #:unregister-all-backends
-           #:+priority-testing+
            #:+priority-native+
            #:+priority-primary+
            #:+priority-secondary+
            #:+priority-last+
-           #:backend-init-window              
-           #:backend-close-window             
-           #:backend-window-should-close-p    
-           #:backend-begin-drawing            
-           #:backend-end-drawing              
-           #:backend-draw-rectangle           
+           #:backend-init-window
+           #:backend-close-window
+           #:backend-window-should-close-p
+           #:backend-begin-drawing
+           #:backend-end-drawing
+           #:backend-draw-rectangle
            #:backend-set-preferred-text-height
-           #:backend-get-text-height          
-           #:backend-measure-text-width       
-           #:backend-draw-text                
-           #:backend-draw-canvas              
-           #:backend-create-canvas            
+           #:backend-get-text-height
+           #:backend-measure-text-width
+           #:backend-draw-text
+           #:backend-draw-canvas
+           #:backend-create-canvas
            #:backend-destroy-canvas
            #:backend-check-for-input
-           #:backend-canvas-draw-rectangle    
-           #:backend-canvas-draw-text         
-           #:backend-canvas-draw-canvas
+           #:backend-draw-rectangle-on-canvas
+           #:backend-draw-text-on-canvas
+           #:backend-draw-canvas-on-canvas
 
            ;; Callbacks a backend should call to update clgfw about user input
-           #:callback-on-mouse-move   
-           #:callback-on-mouse-down   
-           #:callback-on-mouse-up     
-           #:callback-on-key-down     
+           #:callback-on-mouse-move
+           #:callback-on-mouse-down
+           #:callback-on-mouse-up
+           #:callback-on-key-down
            #:callback-on-key-up
            #:callback-on-window-resize
            #:callback-all-keys-up))
