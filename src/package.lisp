@@ -46,6 +46,7 @@
            #:color-a
            #:color-invisible-p
            #:color-opaque-p
+           #:color-premultiply-alpha
            #:color-blend
            #:char->key
            #:key->char

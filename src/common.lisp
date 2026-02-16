@@ -62,6 +62,13 @@
          ((> number 255) 255)
          (t number))))
 
+(defun color-premultiply-alpha (color)
+  (let ((a (/ (color-a color) 255)))
+    (make-color (floor (* a (color-r color)))
+                (floor (* a (color-g color)))
+                (floor (* a (color-b color)))
+                (floor (* a (color-a color))))))
+
 ;; (declaim (ftype (function (color color) color) color-blend))
 (defun color-blend (base applied-color)
   ;; (declare (optimize (speed 3)
@@ -77,17 +84,17 @@
         (make-color 0 0 0 0)))
 
     (let* ((r (the color (truncate
-                           (+ (the color (* (color-r applied-color) applied-color-a))
-                              (truncate (the color (* (color-r base) base-a inverse-applied-a)) 255))
-                           out-a)))
+                          (+ (the color (* (color-r applied-color) applied-color-a))
+                             (truncate (the color (* (color-r base) base-a inverse-applied-a)) 255))
+                          out-a)))
            (g (the color (truncate
-                           (+ (the color (* (color-g applied-color) applied-color-a))
-                              (truncate (the color (* (color-g base) base-a inverse-applied-a)) 255))
-                           out-a)))
+                          (+ (the color (* (color-g applied-color) applied-color-a))
+                             (truncate (the color (* (color-g base) base-a inverse-applied-a)) 255))
+                          out-a)))
            (b (the color (truncate
-                           (+ (the color (* (color-b applied-color) applied-color-a))
-                              (truncate (the color (* (color-b base) base-a inverse-applied-a)) 255))
-                           out-a))))
+                          (+ (the color (* (color-b applied-color) applied-color-a))
+                             (truncate (the color (* (color-b base) base-a inverse-applied-a)) 255))
+                          out-a))))
       (make-color
        (clamp-u8 r)
        (clamp-u8 g)
@@ -177,9 +184,9 @@
 (defgeneric backend-create-canvas             (ctx w h))
 (defgeneric backend-destroy-canvas            (ctx canvas))
 (defgeneric backend-check-for-input           (ctx))
-(defgeneric backend-draw-rectangle-on-canvas     (ctx canvas x y w h color))
-(defgeneric backend-draw-text-on-canvas          (ctx canvas x y color text))
-(defgeneric backend-draw-canvas-on-canvas        (ctx canvas x y w h &optional tint))
+(defgeneric backend-draw-rectangle-on-canvas  (ctx canvas x y w h color))
+(defgeneric backend-draw-text-on-canvas       (ctx canvas x y color text))
+(defgeneric backend-draw-canvas-on-canvas     (ctx canvas x y w h &optional tint))
 
 (deftype redraw-frequency-type () `(member :target-fps :on-input))
 
@@ -465,6 +472,9 @@
 (defmacro while-running (state &body body)
   `(loop :while (window-should-keep-running-p ,state)
          :do ,@body))
+
+
+
 
 
 (defun key->char (key)

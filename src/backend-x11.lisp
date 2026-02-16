@@ -217,6 +217,45 @@ allocates the color"
 (defmethod clgfw:backend-close-window ((ctx backend/x11))
   (xlib:close-display (display ctx) :abort nil))
 
+;;; CANVAS
+(defclass canvas/x11 ()
+  ((pixmap :accessor pixmap)
+   (picture :accessor picture)))
+
+(defmethod clgfw:backend-create-canvas ((ctx backend/x11) w h)
+  (let ((result (make-instance 'canvas/x11)))
+    (with-slots (pixmap picture) result
+      (setf pixmap (xlib:create-pixmap :width w
+                                       :height h
+                                       :depth 32
+                                       :drawable (window ctx)))
+      (setf picture
+            (xlib:render-create-picture
+             pixmap
+             :format (xlib:find-standard-picture-format
+                      (display ctx)
+                      :argb32))))
+    (return-from clgfw:backend-create-canvas result)))
+
+(defmethod clgfw:backend-destroy-canvas ((ctx backend/x11) (canvas canvas/x11))
+  (xlib:free-pixmap (pixmap canvas))
+  (setf (pixmap canvas) nil)
+  (setf (picture canvas) nil))
+
+(defmethod clgfw:backend-draw-rectangle-on-canvas ((ctx backend/x11) (canvas canvas/x11)
+                                                   x y w h color)
+
+  (let ((buffer (make-array 4 :element-type 'fixnum :initial-element 0))
+        (col (clgfw:color-premultiply-alpha color)))
+    (declare (dynamic-extent buffer)
+             (optimize (speed 3)))
+    (setf (aref buffer 0) (ash (clgfw:color-r col) 8))
+    (setf (aref buffer 1) (ash (clgfw:color-g col) 8))
+    (setf (aref buffer 2) (ash (clgfw:color-b col) 8))
+    (setf (aref buffer 3) (ash (clgfw:color-a col) 8))
+    (with-slots (pixmap picture) canvas
+      (xlib:render-fill-rectangle picture :over buffer x y w h))))
+
 
 ;; (defun image-text ()
 
