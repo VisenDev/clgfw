@@ -27,8 +27,19 @@
                               (:file "common")
                               (:file "colors")))))
 
+(defsystem "clgfw/module/bdf"
+  :depends-on ("clgfw/core")
+  :components
+  ((:module "src"
+     :components ((:module "bdf"
+                   :serial t
+                   :components ((:file "bdf")
+                                (:file "font-loader")
+                                (:file "renderer")))))))
+
 (defsystem "clgfw/backend/wayland"
   :depends-on ("clgfw/core"
+               "clgfw/module/bdf"
                "alexandria"
                "wayflan"
                "posix-shm"
@@ -36,14 +47,10 @@
                "cl-xkb")
   :serial t
   :components ((:module "src"
-                :components ((:module "bdf"
-                              :components ((:file "bdf")
-                                           (:file "font-loader")
-                                           (:file "renderer")))
-                             (:file "backend-wayland")))))
+                :components ((:file "backend-wayland")))))
 
 (defsystem "clgfw/backend/x11"
-  :depends-on ("clgfw/core" "clx")
+  :depends-on ("clgfw/core" "clgfw/module/bdf" "clx")
   :components ((:module "src"
                  :components ((:file "backend-x11")))))
 

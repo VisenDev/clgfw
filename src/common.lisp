@@ -180,7 +180,7 @@
 (defgeneric backend-get-text-height           (ctx))
 (defgeneric backend-measure-text-width        (ctx text))
 (defgeneric backend-draw-text                 (ctx x y color text))
-(defgeneric backend-draw-canvas               (ctx x y canvas &optional color))
+(defgeneric backend-draw-canvas               (ctx x y canvas &optional tint))
 (defgeneric backend-create-canvas             (ctx w h))
 (defgeneric backend-destroy-canvas            (ctx canvas))
 (defgeneric backend-check-for-input           (ctx))

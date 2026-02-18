@@ -36,6 +36,9 @@
    (back-buffer :accessor back-buffer)
    (color-cache :accessor color-cache
                 :initform (make-hash-table :size 128))
+   (preferred-text-height :accessor preferred-text-height :initform 25
+                          :documentation "At what size should text be drawn")
+   (window-picture :accessor window-picture)
    ))
 
 (defmethod clgfw:backend-window-should-close-p ((ctx backend/x11))
@@ -45,7 +48,7 @@
   "Initialize the x11 window and return the created ctx"
   (setf (handler ctx) callback-handler-instance)
   
-  (with-slots (black white font display screen window gcontext colormap) ctx
+  (with-slots (black white font display screen window gcontext colormap window-picture) ctx
     (setf display (xlib:open-default-display))
     (setf screen (first (xlib:display-roots display)))
     (setf black (xlib:screen-black-pixel screen))
@@ -67,6 +70,12 @@
                                :key-press
                                :key-release
                                )))
+
+    (setf window-picture
+          (xlib:render-create-picture
+           window
+           :format (xlib:find-window-picture-format window)))
+    
     (xlib::set-wm-protocols
      window
      '("WM_DELETE_WINDOW"))
@@ -132,6 +141,9 @@ allocates the color"
 
   (print (xlib:gcontext-font (gcontext ctx))))
 
+
+;; (defmethod clgfw:backend-draw-text ((ctx backend/x11) x y color text)
+;;   (clgfw/bdf:draw-string ctx clgfw/bdf:*fonts* x y (preferred-text-height ctx) color text))
 
 (defmethod clgfw:backend-draw-text ((ctx backend/x11) x y color text)
   (with-slots (gcontext display) ctx
@@ -225,8 +237,8 @@ allocates the color"
 (defmethod clgfw:backend-create-canvas ((ctx backend/x11) w h)
   (let ((result (make-instance 'canvas/x11)))
     (with-slots (pixmap picture) result
-      (setf pixmap (xlib:create-pixmap :width w
-                                       :height h
+      (setf pixmap (xlib:create-pixmap :width (ceiling w)
+                                       :height (ceiling h)
                                        :depth 32
                                        :drawable (window ctx)))
       (setf picture
@@ -255,6 +267,20 @@ allocates the color"
     (setf (aref buffer 3) (ash (clgfw:color-a col) 8))
     (with-slots (pixmap picture) canvas
       (xlib:render-fill-rectangle picture :over buffer x y w h))))
+
+(defmethod clgfw:backend-draw-canvas ((ctx backend/x11) x y canvas &optional tint)
+  (declare (ignore tint))
+  ;;TODO handle tint
+  (xlib:render-composite
+   :over (picture canvas)
+   nil
+   (window-picture ctx)
+   0 0 0 0
+   (round x) (round) y
+   (xlib:drawable-width (pixmap canvas))
+   (xlib:drawable-height (pixmap canvas))
+   )
+  )
 
 
 ;; (defun image-text ()

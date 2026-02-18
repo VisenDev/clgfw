@@ -28,7 +28,8 @@
    (swidth :accessor swidth :initarg :swidth)
    (dwidth :accessor dwidth :initarg :dwidth)
    (bbx :accessor bbx :initarg :bbx)
-   (bitmap :accessor bitmap :initarg :bitmap)))
+   (bitmap :accessor bitmap :initarg :bitmap)
+   (canvases :accessor canvases :initform (make-hash-table))))
 
 (defclass bdf ()
   ((font :accessor font)

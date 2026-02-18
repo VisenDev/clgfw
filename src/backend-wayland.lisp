@@ -81,11 +81,6 @@
 (defmethod clgfw:backend-set-preferred-text-height ((ctx backend/wayland) text-height)
   (setf (preferred-text-height ctx) text-height))
 
-(defmethod clgfw:backend-draw-text ((ctx backend/wayland) x y color text)
-  (declare (ignore ctx x y color text))
-  ;;TODO implement
-  )
-
 (defun handle-pointer (ctx &rest event)
   (with-slots (width height mouse-x mouse-y
                buttons hover-cell) ctx

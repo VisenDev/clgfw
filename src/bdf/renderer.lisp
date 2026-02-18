@@ -81,18 +81,37 @@
   "Draws a character and returns how much many pixels were used"
   (declare (optimize (speed 3) (safety 3)))
   (let* ((ch (get-sized-character bdf character text-height)))
-    (with-slots (bitmap bbx) ch
-      (declare (type (simple-array simple-bit-vector) bitmap))
-      (with-slots (offset-x offset-y) bbx
-        (loop :with space-used = (width (bbx ch))
-              :for row :of-type simple-bit-vector :across bitmap
-              :for dy :of-type fixnum :from (floor (+ y offset-y))
-              :do
-                 (loop :for bit :of-type bit :across row
-                       :for dx :of-type fixnum :from (floor (+ x offset-x))
-                       :when (= 1 bit)
-                         :do (clgfw:backend-draw-rectangle backend dx dy 1 1 color))
-              :finally (return space-used))))))
+    (if-let (canvas (gethash backend (canvases ch)))
+
+      ;; then
+      (let ((bbx (bbx ch)))
+        (clgfw:backend-draw-canvas
+         backend
+         (+ x (offset-x bbx))
+         (+ y (offset-y bbx))
+         canvas)
+        (return-from draw-character
+          (width bbx)))
+
+      ;; else
+      (with-slots (bitmap bbx canvases) ch
+        (declare (type (simple-array simple-bit-vector) bitmap))
+        (let ((canvas (clgfw:backend-create-canvas backend
+                                           (width bbx)
+                                           (height bbx))))
+          (setf (gethash backend canvases) canvas)
+          (format t "rasterizing character: ~a~%" (startchar ch))
+          (loop :with space-used = (width (bbx ch))
+                :for row :of-type simple-bit-vector :across bitmap
+                :for dy :of-type fixnum :from (floor y)
+                :do
+                   (loop :for bit :of-type bit :across row
+                         :for dx :of-type fixnum :from (floor x)
+                         :when (= 1 bit)
+                           :do (clgfw:backend-draw-rectangle-on-canvas
+                                backend canvas
+                                dx dy 1 1 color))
+                :finally (return (draw-character backend bdf x y text-height color character))))))))
 
 (defun draw-string (backend bdf x y text-height color characters)
   (loop :for ch :across characters
