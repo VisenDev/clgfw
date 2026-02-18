@@ -20,7 +20,7 @@
   :author "Robert Wess Burnett"
   :license "Apache-2"
   :description "Common Lisp General Framework for Windowing"
-  :depends-on ("local-time" "uiop" "alexandria")
+  :depends-on ("local-time" "uiop" "alexandria" "trivial-garbage")
   :serial t
   :components ((:module "src"
                  :components ((:file "package")

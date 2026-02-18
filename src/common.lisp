@@ -219,11 +219,16 @@
     :initform (make-array 3 :element-type 'symbol :fill-pointer 0 :initial-element nil))
    (target-fps :accessor target-fps :initform 60)
    (redraw-frequency :accessor redraw-frequency :initform :on-input :type redraw-frequency-type)
+   (last-frame-timestamp :accessor last-frame-timestamp :initform (local-time:now))
+   (current-frame-timestamp :accessor current-frame-timestamp :initform (local-time:now))
+   (delta-time-seconds :accessor delta-time-seconds :initform 0)
    (input-happened-p :accessor input-happened-p :initform t)
    (draw-on-canvas? :accessor draw-on-canvas? :initform nil
                     :documentation "When non-nil, draw commands should apply to this
                                     canvas instead of the window")
    ))
+
+
 
 (defmethod callback-on-mouse-move ((handler window-state) x y)
   (unless (and (= (mouse-x handler) x)
@@ -337,7 +342,26 @@
 
 (declaim (ftype (function (window-state) t) begin-drawing))
 (defun begin-drawing (window-state)
-  (backend-begin-drawing (backend window-state)))
+  (with-slots (backend last-frame-timestamp current-frame-timestamp delta-time-seconds)
+      window-state
+    (setf last-frame-timestamp current-frame-timestamp)
+    (setf current-frame-timestamp (local-time:now))
+    (setf delta-time-seconds
+          (local-time:timestamp-difference current-frame-timestamp
+                                           last-frame-timestamp))
+    (backend-begin-drawing backend)))
+
+(defun get-seconds-passed-in-frame (window-state)
+  (with-slots (current-frame-timestamp) window-state
+    (local-time:timestamp-difference (local-time:now) current-frame-timestamp)))
+
+(defun get-target-seconds-per-frame (window-state)
+  (with-slots (target-fps) window-state
+    (/ 1 target-fps)))
+
+(defun get-remaining-seconds-in-frame (window-state)
+  (- (get-target-seconds-per-frame window-state)
+     (get-seconds-passed-in-frame window-state)))
 
 (declaim (ftype (function (window-state) t) end-drawing))
 (defun end-drawing (window-state)
@@ -354,7 +378,14 @@
   ;; time left in a frame, rather than just sleeping
 
   (ecase (redraw-frequency window-state)
-    (:target-fps (error "TODO"))
+    (:target-fps
+     (let ((remaining (get-remaining-seconds-in-frame window-state)))
+       (when (plusp remaining)
+
+         )
+       
+       )
+     )
     (:on-input
      (loop :until (input-happened-p window-state)
            :do (sleep 0.001)
