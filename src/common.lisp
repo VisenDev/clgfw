@@ -110,6 +110,69 @@
            (optimize (speed 3)))
   (= 255 (color-a color)))
 
+
+(defstruct draw-command
+  (type nil :type symbol)
+  (x 0 :type fixnum)
+  (y 0 :type fixnum)
+  (w 0 :type fixnum)
+  (h 0 :type fixnum)
+  (color (make-color) :type color)
+  (x2 0 :type fixnum)
+  (y2 0 :type fixnum)
+  (canvas nil :type t)
+  (text "<empty string>" :type t))
+
+;; (defstruct (command-draw-rectangle (:include command-draw-base))
+;;   (w 0 :type fixnum)
+;;   (h 0 :type fixnum)
+;;   (color (make-color) :type color))
+
+;; (defstruct (command-draw-line (:include command-draw-base))
+;;   (x2 0 :type fixnum)
+;;   (y2 0 :type fixnum)
+;;   (color (make-color) :type color)
+;;   (weight 2 :type fixnum))
+
+;; (defstruct (command-draw-text (:include command-draw-base))
+;;   (string "" :type string))
+
+;; (defstruct (command-draw-canvas (:include command-draw-base))
+;;   (canvas "")
+;;   )
+
+
+;;; PIXEL-BUFFER
+(deftype pixel-buffer (width height) `(simple-array color (,height ,width)))
+
+(defun pixel-buffer-set-pixel (pixel-buffer x y color)
+  (setf (aref pixel-buffer y x)
+        (color-blend (aref pixel-buffer y x)
+                     color)))
+
+(defun create-pixel-buffer (width height)
+  (make-array (list height width) :element-type 'color
+              :initial-element (make-color 0 0 0 0)))
+
+(defun pixel-buffer-width (pixel-buffer)
+  (second (array-dimensions pixel-buffer)))
+
+(defun pixel-buffer-height (pixel-buffer)
+  (first (array-dimensions pixel-buffer)))
+
+(defun pixel-buffer-draw-rectangle (pixel-buffer x y w h color)
+  (loop
+    :for dy :from (max y 0) :below (min (pixel-buffer-height pixel-buffer)
+                                        (+ y h))
+    :do
+       (loop
+         :for dx :from (max x 0) :below (min (pixel-buffer-width pixel-buffer)
+                                             (+ x h))
+         :do (pixel-buffer-set-pixel pixel-buffer x y color))))
+
+
+
+
 ;;; KEY
 (deftype key ()
   '(member
