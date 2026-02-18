@@ -13,10 +13,6 @@
     (clgfw:with-window ctx (800 600 "Hello")
       (clgfw:set-preferred-text-height ctx sz)
       (clgfw:with-canvas player-sprite (ctx 800 600)
-        (clgfw:with-drawing-on-canvas
-          
-          )
-        
         (clgfw:while-running ctx
           (clgfw:with-drawing ctx
             (let ((w (clgfw:get-window-width ctx))
@@ -28,6 +24,7 @@
               (clgfw:draw-rectangle ctx 0 0 w h clgfw:+space+)
               (clgfw:draw-rectangle ctx (floor x) (floor y) sz sz clgfw:+moon+)
               (clgfw:draw-text ctx 10 10 clgfw:+red+ (format nil "|w:~a|h:~a|" w h))
+              (clgfw:draw-text ctx 10 40 clgfw:+skyblue+ (clgfw:get-fps-string ctx))
               (clgfw:draw-text ctx 10 100 clgfw:+brown+ "Press 'q' to quit!")
               (clgfw:draw-rectangle
                ctx

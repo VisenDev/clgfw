@@ -13,7 +13,7 @@
 ;;;; limitations under the License.
 
 (uiop:define-package #:clgfw
-    (:use #:cl #:alexandria)
+  (:use #:cl #:alexandria)
   (:export #:init-window
            #:close-window
            #:window-should-keeping-running-p
@@ -35,9 +35,15 @@
            #:is-key-released
            #:get-window-width
            #:get-window-height
+
+           ;; FPS and redraw related symbols
            #:get-fps
+           #:get-fps-string
            #:get-delta-time
-           #:set-target-fps
+           #:set-redraw-frequency
+           #:draw-fps
+
+           ;; Color Related Symbols
            #:make-color
            #:color
            #:color-r
@@ -48,6 +54,8 @@
            #:color-opaque-p
            #:color-premultiply-alpha
            #:color-blend
+
+           ;; IO Related symbols
            #:char->key
            #:key->char
            #:button
@@ -93,4 +101,46 @@
            #:callback-on-key-down
            #:callback-on-key-up
            #:callback-on-window-resize
-           #:callback-all-keys-up))
+           #:callback-all-keys-up
+
+           ;; Html Color Constants
+           #:+IndianRed+ #:+LightCoral+ #:+Salmon+ #:+DarkSalmon+          
+           #:+LightSalmon+ #:+Crimson+ #:+Red+ #:+FireBrick+           
+           #:+DarkRed+ #:+Pink+ #:+LightPink+ #:+HotPink+             
+           #:+DeepPink+ #:+MediumVioletRed+ #:+PaleVioletRed+ #:+LightSalmon+         
+           #:+Coral+ #:+Tomato+ #:+OrangeRed+ #:+DarkOrange+          
+           #:+Orange+ #:+Gold+ #:+Yellow+ #:+LightYellow+         
+           #:+LemonChiffon+ #:+LightGoldenrodYellow+ #:+PapayaWhip+ #:+Moccasin+            
+           #:+PeachPuff+ #:+PaleGoldenrod+ #:+Khaki+ #:+DarkKhaki+           
+           #:+Lavender+ #:+Thistle+ #:+Plum+ #:+Violet+              
+           #:+Orchid+ #:+Fuchsia+ #:+Magenta+ #:+MediumOrchid+        
+           #:+MediumPurple+ #:+RebeccaPurple+ #:+BlueViolet+ #:+DarkViolet+          
+           #:+DarkOrchid+ #:+DarkMagenta+ #:+Purple+ #:+Indigo+              
+           #:+SlateBlue+ #:+DarkSlateBlue+ #:+MediumSlateBlue+ #:+GreenYellow+         
+           #:+Chartreuse+ #:+LawnGreen+ #:+Lime+ #:+LimeGreen+           
+           #:+PaleGreen+ #:+LightGreen+ #:+MediumSpringGreen+ #:+SpringGreen+         
+           #:+MediumSeaGreen+ #:+SeaGreen+ #:+ForestGreen+ #:+Green+               
+           #:+DarkGreen+ #:+YellowGreen+ #:+OliveDrab+ #:+Olive+               
+           #:+DarkOliveGreen+ #:+MediumAquamarine+ #:+DarkSeaGreen+ #:+LightSeaGreen+       
+           #:+DarkCyan+ #:+Teal+ #:+Aqua+ #:+Cyan+                
+           #:+LightCyan+ #:+PaleTurquoise+ #:+Aquamarine+ #:+Turquoise+           
+           #:+MediumTurquoise+ #:+DarkTurquoise+ #:+CadetBlue+ #:+SteelBlue+           
+           #:+LightSteelBlue+ #:+PowderBlue+ #:+LightBlue+ #:+SkyBlue+             
+           #:+LightSkyBlue+ #:+DeepSkyBlue+ #:+DodgerBlue+ #:+CornflowerBlue+      
+           #:+MediumSlateBlue+ #:+RoyalBlue+ #:+Blue+ #:+MediumBlue+          
+           #:+DarkBlue+ #:+Navy+ #:+MidnightBlue+ #:+Cornsilk+            
+           #:+BlanchedAlmond+ #:+Bisque+ #:+NavajoWhite+ #:+Wheat+               
+           #:+BurlyWood+ #:+Tan+ #:+RosyBrown+ #:+SandyBrown+          
+           #:+Goldenrod+ #:+DarkGoldenrod+ #:+Peru+ #:+Chocolate+           
+           #:+SaddleBrown+ #:+Sienna+ #:+Brown+ #:+Maroon+              
+           #:+White+ #:+Snow+ #:+HoneyDew+ #:+MintCream+           
+           #:+Azure+ #:+AliceBlue+ #:+GhostWhite+ #:+WhiteSmoke+          
+           #:+SeaShell+ #:+Beige+ #:+OldLace+ #:+FloralWhite+         
+           #:+Ivory+ #:+AntiqueWhite+ #:+Linen+ #:+LavenderBlush+       
+           #:+MistyRose+ #:+Gainsboro+ #:+LightGray+ #:+Silver+              
+           #:+DarkGray+ #:+Gray+ #:+DimGray+ #:+LightSlateGray+      
+           #:+SlateGray+ #:+DarkSlateGray+ #:+Black+
+           
+           ;; My custom colors
+           #:+Moon+ #:+Space+
+           ))

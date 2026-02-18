@@ -250,16 +250,16 @@
 
     (if (clgfw:color-opaque-p color)
         (loop :with xrgb = (color-to-xrbg color)
-              :for dy :from (the fixnum (floor y)) :below y-end
+              :for dy :from (the fixnum (round y)) :below y-end
               :do (loop :with dy-offset = (the fixnum (* (max 0 dy) row-pixels)) 
-                        :for dx :from (the fixnum (max 0 (floor x))) :below x-end
+                        :for dx :from (the fixnum (max 0 (round x))) :below x-end
                         :do
                            (setf (cffi:mem-aref pool-data :uint32
                                                 (+ dx dy-offset))
                                  xrgb)))
-        (loop :for dy :from (the fixnum (floor y)) :below y-end
+        (loop :for dy :from (the fixnum (round y)) :below y-end
               :do (loop :with dy-offset = (the fixnum (* (max 0 dy) row-pixels)) 
-                        :for dx :from (the fixnum (max 0 (floor x))) :below x-end
+                        :for dx :from (the fixnum (max 0 (round x))) :below x-end
                         :for base-color = (cffi:mem-aref pool-data :uint32
                                                          (+ dx dy-offset))
                         :for output-color = (clgfw:color-blend base-color color)

@@ -218,6 +218,8 @@
     :accessor released-mouse-buttons
     :initform (make-array 3 :element-type 'symbol :fill-pointer 0 :initial-element nil))
    (target-fps :accessor target-fps :initform 60)
+   (fps-history :accessor fps-history :initform (make-array 60 :adjustable t
+                                                               :fill-pointer 0))
    (redraw-frequency :accessor redraw-frequency :initform :on-input :type redraw-frequency-type)
    (last-frame-timestamp :accessor last-frame-timestamp :initform (local-time:now))
    (current-frame-timestamp :accessor current-frame-timestamp :initform (local-time:now))
@@ -225,8 +227,7 @@
    (input-happened-p :accessor input-happened-p :initform t)
    (draw-on-canvas? :accessor draw-on-canvas? :initform nil
                     :documentation "When non-nil, draw commands should apply to this
-                                    canvas instead of the window")
-   ))
+                                    canvas instead of the window")))
 
 
 
@@ -283,7 +284,7 @@
         (window (make-instance 'window-state)))
     (dolist (backend-info prioritized-backends)
       (let* ((instance (make-instance (getf backend-info :class-name))))
-        (when-let (backend (backend-init-window instance width height title window))
+        (when-let (backend (ignore-errors (backend-init-window instance width height title window)))
           (setf (backend window) backend)
           (return-from init-window window)))))
   (error "No appropriate backend found :("))
@@ -344,12 +345,19 @@
 (defun begin-drawing (window-state)
   (with-slots (backend last-frame-timestamp current-frame-timestamp delta-time-seconds)
       window-state
+    
     (setf last-frame-timestamp current-frame-timestamp)
     (setf current-frame-timestamp (local-time:now))
     (setf delta-time-seconds
           (local-time:timestamp-difference current-frame-timestamp
                                            last-frame-timestamp))
     (backend-begin-drawing backend)))
+
+(defun get-fps (window-state)
+  (ignore-errors (/ 1 (delta-time-seconds window-state))))
+
+(defun get-fps-string (window-state)
+  (format nil "~a FPS" (floor (get-fps window-state))))
 
 (defun get-seconds-passed-in-frame (window-state)
   (with-slots (current-frame-timestamp) window-state
@@ -373,19 +381,14 @@
   (setf (old-window-width window-state) (window-width window-state))
   (setf (old-window-height window-state) (window-height window-state))
 
-  ;; TODO add fps management here:
-  ;; Ideally, we should schedule a garbage collection if there is enough
-  ;; time left in a frame, rather than just sleeping
-
   (ecase (redraw-frequency window-state)
     (:target-fps
      (let ((remaining (get-remaining-seconds-in-frame window-state)))
+       (when (> remaining 0.01)
+         (trivial-garbage:gc)
+         (setf remaining (- (get-remaining-seconds-in-frame window-state) 0.001)))
        (when (plusp remaining)
-
-         )
-       
-       )
-     )
+         (sleep remaining))))
     (:on-input
      (loop :until (input-happened-p window-state)
            :do (sleep 0.001)
@@ -413,6 +416,16 @@
     (if draw-on-canvas?
         (backend-draw-text-on-canvas backend draw-on-canvas? x y color text)
         (backend-draw-text backend x y color text))))
+
+(defun draw-fps (window-state x y &optional (color (make-color 200 200 200)))
+  (draw-text window-state x y color (get-fps-string window-state)))
+
+;; (defun draw-fps-graph (window-state x y &key
+;;                          (history-length 60)
+;;                          (line-width 2))
+
+;;   (error "TODO")
+;;   )
 
 (declaim (ftype (function (window-state number number t &optional color) t) draw-canvas))
 (defun draw-canvas (window-state x y canvas &optional tint)
