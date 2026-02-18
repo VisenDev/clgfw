@@ -17,7 +17,7 @@
   (:export #:backend/x11))
 (in-package #:clgfw/backend/x11)
 
-(clgfw:register-backend 'backend/x11 clgfw:+priority-secondary+ t)
+(clgfw:register-backend 'backend/x11 clgfw:+priority-secondary+)
 
 (defclass backend/x11 ()
   ((window-should-keep-running  :accessor window-should-keep-running :initform t)
@@ -140,7 +140,7 @@ allocates the color"
 
 
 (defmethod clgfw:backend-begin-drawing ((ctx backend/x11))
-  (declare (ignore ctx)))
+  (clgfw:backend-check-for-input ctx))
 
 (defun convert-keycode (ctx code)
   "Converts an X11 keycode to a list of clgfw keys"
@@ -163,56 +163,56 @@ allocates the color"
 
   (multiple-value-bind (x y) (xlib:pointer-position (window ctx))
     (clgfw::callback-on-mouse-move (handler ctx) x y))
-  (when (xlib:event-listen (display ctx))
-    (xlib:event-case ((display ctx))
-      ;; (:resize-request (width height)
-      ;;                  (format t "Window resized to ~a/~a~%" width height)
-      ;;                  (setf (xlib:drawable-height (window ctx)) height)
-      ;;                  (setf (xlib:drawable-width (window ctx)) width))
-      (:key-press (code)
-                  (when-let (keys (convert-keycode ctx code))
-                    (dolist (key keys)
-                      (clgfw:callback-on-key-down (handler ctx) key)))
-                  t)
-      (:key-release (code)
-                    (when-let (keys (convert-keycode ctx code))
-                      (dolist (key keys)
-                        (clgfw:callback-on-key-up (handler ctx) key)))
-                    t)
-      (:button-press (code)
-                     (clgfw:callback-on-mouse-down
-                      (handler ctx)
-                      (ecase code
-                        (1 :left)
-                        (2 :middle)
-                        (3 :right)))
-                     t)
-      (:button-release (code)
-                       (clgfw:callback-on-mouse-up
-                        (handler ctx)
-                        (ecase code
-                          (1 :left)
-                          (2 :middle)
-                          (3 :right)))
-                       t
-                       )
-      (:client-message (type data)
-                       ;; TYPE is an atom
-                       ;; DATA is a vector of 32-bit values
-                       (when (and (eq type :wm_protocols)
-                                  (eq (aref data 0) (wm-delete-atom ctx)))
-                         (setf (window-should-keep-running ctx) nil)
-                         (return-from clgfw:backend-check-for-input)
-                         )
-                       t)
-      (:destroy-notify ()
-                       (setf (window-should-keep-running ctx) nil)
-                       (return-from clgfw:backend-check-for-input))
-      (t () t))))
+  (loop :while (xlib:event-listen (display ctx))
+        :do
+           (xlib:event-case ((display ctx))
+             ;; (:resize-request (width height)
+             ;;                  (format t "Window resized to ~a/~a~%" width height)
+             ;;                  (setf (xlib:drawable-height (window ctx)) height)
+             ;;                  (setf (xlib:drawable-width (window ctx)) width))
+             (:key-press (code)
+                         (when-let (keys (convert-keycode ctx code))
+                           (dolist (key keys)
+                             (clgfw:callback-on-key-down (handler ctx) key)))
+                         t)
+             (:key-release (code)
+                           (when-let (keys (convert-keycode ctx code))
+                             (dolist (key keys)
+                               (clgfw:callback-on-key-up (handler ctx) key)))
+                           t)
+             (:button-press (code)
+                            (clgfw:callback-on-mouse-down
+                             (handler ctx)
+                             (ecase code
+                               (1 :left)
+                               (2 :middle)
+                               (3 :right)))
+                            t)
+             (:button-release (code)
+                              (clgfw:callback-on-mouse-up
+                               (handler ctx)
+                               (ecase code
+                                 (1 :left)
+                                 (2 :middle)
+                                 (3 :right)))
+                              t
+                              )
+             (:client-message (type data)
+                              ;; TYPE is an atom
+                              ;; DATA is a vector of 32-bit values
+                              (when (and (eq type :wm_protocols)
+                                         (eq (aref data 0) (wm-delete-atom ctx)))
+                                (setf (window-should-keep-running ctx) nil)
+                                (return-from clgfw:backend-check-for-input)
+                                )
+                              t)
+             (:destroy-notify ()
+                              (setf (window-should-keep-running ctx) nil)
+                              (return-from clgfw:backend-check-for-input))
+             (t () t))))
 
 (defmethod clgfw:backend-end-drawing ((ctx backend/x11))
-  (xlib:display-force-output (display ctx))
-  (clgfw:backend-check-for-input ctx))
+  (xlib:display-force-output (display ctx)))
 
 (defmethod clgfw:backend-close-window ((ctx backend/x11))
   (xlib:close-display (display ctx) :abort nil))

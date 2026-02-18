@@ -356,6 +356,10 @@
 (defun get-fps (window-state)
   (ignore-errors (/ 1 (delta-time-seconds window-state))))
 
+(defun get-delta-time (window-state)
+  "Returns delta time in seconds"
+  (delta-time-seconds window-state))
+
 (defun get-fps-string (window-state)
   (format nil "~a FPS" (floor (get-fps window-state))))
 
