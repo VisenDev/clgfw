@@ -324,7 +324,6 @@ allocates the color"
    (xlib:drawable-width (pixmap canvas))
    (xlib:drawable-height (pixmap canvas))))
 
-
 ;; (defun image-text ()
 
 ;;   (with-window ctx (800 600 "image")

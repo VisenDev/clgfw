@@ -105,11 +105,25 @@
   (declare (type color color))
   (= 0 (color-a color)))
 
+(declaim (inline color-opaque-p))
 (defun color-opaque-p (color)
   (declare (type color color)
            (optimize (speed 3)))
   (= 255 (color-a color)))
 
+;;; XRGB
+(deftype xrgb () `(unsigned-byte 32))
+
+(declaim (ftype (function (color) xrgb) color->xrgb))
+(defun color->xrgb (color)
+  (declare (optimize (speed 3)))
+  (ash color -8))
+
+(declaim (ftype (function (xrgb) color) xrgb->color))
+(defun xrgb->color (xrgb)
+  (declare (optimize (speed 3)))
+  (+ (ash xrgb 8)
+     #xff))
 
 ;;; KEY
 (deftype key ()

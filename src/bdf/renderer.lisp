@@ -97,8 +97,8 @@
       ;; else
       (with-slots (bitmap bbx canvases) ch
         (let ((canvas (clgfw:backend-create-canvas backend 
-                                                   (* 10 (width bbx) )
-                                                   (* 10 (height bbx))
+                                                   (* 2 (width bbx)) 
+                                                   (* 2 (height bbx))
                                                    )))
           (format t "rasterizing character: ~a~%" (startchar ch))
           (loop :with space-used = (width (bbx ch))

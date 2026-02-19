@@ -30,10 +30,10 @@
               
               (clgfw:draw-rectangle ctx 0 0 w h clgfw:+space+)
               (clgfw:draw-rectangle ctx (floor x) (floor y) sz sz clgfw:+moon+)
-              (clgfw:draw-text ctx 10 10 clgfw:+white+
-                               (format nil "Width: ~a px,   Height: ~a px" w h))
+              ;; (clgfw:draw-text ctx 10 10 clgfw:+white+
+              ;;                  (format nil "Width: ~a px,   Height: ~a px" w h))
               (clgfw:draw-text ctx 10 40 clgfw:+skyblue+ (clgfw:get-fps-string ctx))
-              (clgfw:draw-text ctx 10 70 clgfw:+red+ "Press 'q' to quit!")
+              ;; (clgfw:draw-text ctx 10 70 clgfw:+red+ "Press 'q' to quit!")
               (clgfw:draw-rectangle ctx
                                     (clgfw:get-mouse-x ctx)
                                     (clgfw:get-mouse-y ctx)

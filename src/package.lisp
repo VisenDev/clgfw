@@ -54,6 +54,9 @@
            #:color-opaque-p
            #:color-premultiply-alpha
            #:color-blend
+           #:xrgb
+           #:color->xrgb
+           #:xrgb->color
 
            ;; IO Related symbols
            #:char->key

@@ -14,7 +14,11 @@
 
 
 (defpackage #:clgfw/backend/wayland
-  (:use #:cl #:wayflan #:wayflan-client #:wayflan-client.xdg-shell)
+  (:use #:cl
+        #:wayflan
+        #:wayflan-client
+        #:wayflan-client.xdg-shell
+        #:clgfw/pixbuf)
   (:export #:backend/wayland))
 (in-package #:clgfw/backend/wayland)
 
@@ -211,58 +215,104 @@
     (setf (front-buffer ctx) bb)
     (setf (back-buffer ctx) fb)))
 
-(defun color-to-xrbg (color)
-  (declare (type clgfw:color color))
-  (let* ((result #xff)
-         (result (ash result 8))
-         (result (+ result (clgfw:color-r color)))
-         (result (ash result 8))
-         (result (+ result (clgfw:color-g color)))
-         (result (ash result 8))
-         (result (+ result (clgfw:color-b color)))
-         )
-    result))
+;; (defun color->xrgb (color)
+;;   (declare (type clgfw:color color))
+;;   (let* ((result #xff)
+;;          (result (ash result 8))
+;;          (result (+ result (clgfw:color-r color)))
+;;          (result (ash result 8))
+;;          (result (+ result (clgfw:color-g color)))
+;;          (result (ash result 8))
+;;          (result (+ result (clgfw:color-b color)))
+;;          )
+;;     result))
 
-(defun xrgb-to-color (xrgb)
-  (declare (type (unsigned-byte 32) xrgb))
-  (let ((r (ldb (byte 8 16) xrgb))
-        (g (ldb (byte 8 8) xrgb))
-        (b (ldb (byte 8 0) xrgb)))
-    (clgfw:make-color r g b)))
+;; (defun xrgb->color (xrgb)
+;;   (declare (type (unsigned-byte 32) xrgb))
+;;   (let ((r (ldb (byte 8 16) xrgb))
+;;         (g (ldb (byte 8 8) xrgb))
+;;         (b (ldb (byte 8 0) xrgb)))
+;;     (clgfw:make-color r g b)))
+
+(defun coordinates->offset (x y width)
+  (declare (optimize (speed 3))
+           (type fixnum x y width))
+  (the fixnum (+ x (the fixnum (* y width)))))
+
+(declaim (ftype (function (t fixnum fixnum fixnum fixnum clgfw:color))))
+(defun draw-pixel (pool-data x y ctx-width ctx-height color)
+  (declare (optimize (speed 3) (safety 1) (debug 0) (space 0))
+           (type fixnum x y ctx-width ctx-height))
+  (unless (and (< x ctx-width)
+               (< y ctx-height))
+    (return-from draw-pixel))
+  (when (clgfw:color-invisible-p color)
+    (return-from draw-pixel))
+
+  (let* ((offset (coordinates->offset x y ctx-width))
+         (final-color (if (clgfw:color-opaque-p color) color
+                          (clgfw:color-blend
+                           color
+                           (clgfw:xrgb->color
+                            (cffi:mem-aref pool-data :uint32 offset)))))
+         (xrgb (clgfw:color->xrgb final-color)))
+    (setf (cffi:mem-aref pool-data :uint32 offset) xrgb)))
 
 (defmethod clgfw:backend-draw-rectangle ((ctx backend/wayland) x y w h color)
-  (declare (optimize (speed 3) (safety 1) (debug 0) (space 0)))
-  (when (or (zerop (width ctx))
-            (zerop (height ctx)))
-    (return-from clgfw:backend-draw-rectangle))
-
+  (declare (optimize (speed 3)))
   (ensure-buffer-memory-allocated ctx)
-  (let* ((pool-data (pool-data (back-buffer ctx)))
-         (stride (the fixnum (* (width ctx) 4))) ; bytes per row
-         (row-pixels (the fixnum (/ stride 4)))
-         (x-end (the fixnum (floor (min (+ x w) (width ctx)))))
-         (y-end (the fixnum (floor (min (+ y h) (height ctx))))))
+  (loop
+    :with width :of-type fixnum = (floor (width ctx))
+    :with height :of-type fixnum = (floor (height ctx))
+    :with pool-data = (pool-data (back-buffer ctx))
+    :with start-x :of-type fixnum = (coerce (max (round x) 0) 'fixnum)
+    :with end-x :of-type fixnum = (coerce (min
+                                           (+ (round x) (round w))
+                                           (1- (round width)))
+                                          'fixnum)
+    :with start-y :of-type fixnum = (coerce (max (round y) 0) 'fixnum)
+    :with end-y :of-type fixnum = (coerce (min
+                                           (+ (round y) (round w))
+                                           (1- (round height)))
+                                          'fixnum)
+    :for dx :from start-x :below end-x
+    :do (loop
+          :for dy :of-type fixnum :from start-y :below end-y
+          :do (draw-pixel pool-data dx dy width height color))))
 
-    (if (clgfw:color-opaque-p color)
-        (loop :with xrgb = (color-to-xrbg color)
-              :for dy :from (the fixnum (round y)) :below y-end
-              :do (loop :with dy-offset = (the fixnum (* (max 0 dy) row-pixels)) 
-                        :for dx :from (the fixnum (max 0 (round x))) :below x-end
-                        :do
-                           (setf (cffi:mem-aref pool-data :uint32
-                                                (+ dx dy-offset))
-                                 xrgb)))
-        (loop :for dy :from (the fixnum (round y)) :below y-end
-              :do (loop :with dy-offset = (the fixnum (* (max 0 dy) row-pixels)) 
-                        :for dx :from (the fixnum (max 0 (round x))) :below x-end
-                        :for base-color = (cffi:mem-aref pool-data :uint32
-                                                         (+ dx dy-offset))
-                        :for output-color = (clgfw:color-blend base-color color)
-                        :for xrgb = (color-to-xrbg output-color)
-                        :do
-                           (setf (cffi:mem-aref pool-data :uint32
-                                                (+ dx dy-offset))
-                                 xrgb))))))
+;; (defmethod clgfw:backend-draw-rectangle ((ctx backend/wayland) x y w h color)
+;;   (declare (optimize (speed 3) (safety 1) (debug 0) (space 0)))
+;;   (when (or (zerop (width ctx))
+;;             (zerop (height ctx)))
+;;     (return-from clgfw:backend-draw-rectangle))
+
+;;   (ensure-buffer-memory-allocated ctx)
+;;   (let* ((pool-data (pool-data (back-buffer ctx)))
+;;          (stride (the fixnum (* (width ctx) 4))) ; bytes per row
+;;          (row-pixels (the fixnum (/ stride 4)))
+;;          (x-end (the fixnum (floor (min (+ x w) (width ctx)))))
+;;          (y-end (the fixnum (floor (min (+ y h) (height ctx))))))
+
+;;     (if (clgfw:color-opaque-p color)
+;;         (loop :with xrgb = (color-to-xrbg color)
+;;               :for dy :from (the fixnum (round y)) :below y-end
+;;               :do (loop :with dy-offset = (the fixnum (* (max 0 dy) row-pixels)) 
+;;                         :for dx :from (the fixnum (max 0 (round x))) :below x-end
+;;                         :do
+;;                            (setf (cffi:mem-aref pool-data :uint32
+;;                                                 (+ dx dy-offset))
+;;                                  xrgb)))
+;;         (loop :for dy :from (the fixnum (round y)) :below y-end
+;;               :do (loop :with dy-offset = (the fixnum (* (max 0 dy) row-pixels)) 
+;;                         :for dx :from (the fixnum (max 0 (round x))) :below x-end
+;;                         :for base-color = (cffi:mem-aref pool-data :uint32
+;;                                                          (+ dx dy-offset))
+;;                         :for output-color = (clgfw:color-blend base-color color)
+;;                         :for xrgb = (color-to-xrbg output-color)
+;;                         :do
+;;                            (setf (cffi:mem-aref pool-data :uint32
+;;                                                 (+ dx dy-offset))
+;;                                  xrgb))))))
 
 (defun handle-frame-callback (ctx callback &rest event)
   (event-ecase event
@@ -563,16 +613,28 @@
   (clgfw/bdf:draw-string ctx clgfw/bdf:*fonts* x y (preferred-text-height ctx) color text))
 
 (defmethod clgfw:backend-create-canvas ((ctx backend/wayland) w h)
-  (make-array (list h w)
-              :element-type 'clgfw:color
-              :initial-element (clgfw:make-color 0 0 0 0)))
+  (create-pixbuf w h))
 
 (defmethod clgfw:backend-destroy-canvas ((ctx backend/wayland) canvas)
   (declare (ignore ctx canvas)))
 
-
-;; TODO: create update sprite/ as a generic canvas backend
 (defmethod clgfw:backend-draw-rectangle-on-canvas ((ctx backend/wayland) canvas x y w h color)
-  
+  (pixbuf-draw-rectangle canvas x y w h color))
 
-  )
+(defmethod clgfw:backend-draw-canvas ((ctx backend/wayland) x y canvas &optional tint)
+  (declare (optimize (speed 3)))
+  (ensure-buffer-memory-allocated ctx)
+  (let ((width (width ctx))
+        (height (height ctx))
+        (pool-data (pool-data (back-buffer ctx)))
+        (my-x (round x))
+        (my-y (round y)))
+    (declare (type fixnum my-x my-y))
+    (pixbuf-do-pixels (canvas dx dy pixel)
+      (draw-pixel
+       pool-data
+       (the fixnum (+ my-x dx))
+       (the fixnum (+ my-y dy))
+       width height
+       pixel ;; (if tint (clgfw:color-blend pixel tint) pixel)
+       ))))
