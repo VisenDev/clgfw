@@ -572,4 +572,7 @@
 
 
 ;; TODO: create update sprite/ as a generic canvas backend
-;; (defmethod clgfw:backend-canvas-draw-rectangle )
+(defmethod clgfw:backend-draw-rectangle-on-canvas ((ctx backend/wayland) canvas x y w h color)
+  
+
+  )
