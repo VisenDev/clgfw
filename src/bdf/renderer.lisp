@@ -48,10 +48,10 @@
                                                   (floor (* scale (length (aref bitmap 0))))
                                                   target-text-height)
                    :bbx (make-instance 'bounding-box
-                                       :offset-x (* (offset-x bbx) scale)
-                                       :offset-y (* (offset-y bbx) scale)
-                                       :width (* (width bbx) scale)
-                                       :height (* (height bbx) scale))
+                                       :offset-x (ceiling (* (offset-x bbx) scale))
+                                       :offset-y (ceiling (* (offset-y bbx) scale))
+                                       :width    (ceiling (* (width bbx) scale)   )
+                                       :height   (ceiling (* (height bbx) scale)) )
                    :encoding (encoding ch)
                    :startchar (startchar ch)
                    :dwidth (dwidth ch)
@@ -79,7 +79,7 @@
 
 (defun draw-character (backend bdf x y text-height color character)
   "Draws a character and returns how much many pixels were used"
-  (declare (optimize (speed 3) (safety 3)))
+  (declare (optimize (debug 3) (safety 3)))
   (let* ((ch (get-sized-character bdf character text-height)))
     (if-let (canvas (gethash backend (canvases ch)))
 
@@ -89,29 +89,31 @@
          backend
          (+ x (offset-x bbx))
          (+ y (offset-y bbx))
-         canvas)
+         canvas
+         color)
         (return-from draw-character
           (width bbx)))
 
       ;; else
       (with-slots (bitmap bbx canvases) ch
-        (declare (type (simple-array simple-bit-vector) bitmap))
-        (let ((canvas (clgfw:backend-create-canvas backend
-                                           (width bbx)
-                                           (height bbx))))
-          (setf (gethash backend canvases) canvas)
+        (let ((canvas (clgfw:backend-create-canvas backend 
+                                                   (* 10 (width bbx) )
+                                                   (* 10 (height bbx))
+                                                   )))
           (format t "rasterizing character: ~a~%" (startchar ch))
           (loop :with space-used = (width (bbx ch))
                 :for row :of-type simple-bit-vector :across bitmap
-                :for dy :of-type fixnum :from (floor y)
+                :for dy :of-type fixnum :from 0
                 :do
                    (loop :for bit :of-type bit :across row
-                         :for dx :of-type fixnum :from (floor x)
+                         :for dx :of-type fixnum :from 0
                          :when (= 1 bit)
                            :do (clgfw:backend-draw-rectangle-on-canvas
                                 backend canvas
-                                dx dy 1 1 color))
-                :finally (return (draw-character backend bdf x y text-height color character))))))))
+                                dx dy 1 1 clgfw:+white+))
+                :finally
+                   (setf (gethash backend canvases) canvas)
+                   (return (draw-character backend bdf x y text-height color character))))))))
 
 (defun draw-string (backend bdf x y text-height color characters)
   (loop :for ch :across characters

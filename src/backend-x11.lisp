@@ -17,7 +17,7 @@
   (:export #:backend/x11))
 (in-package #:clgfw/backend/x11)
 
-(clgfw:register-backend 'backend/x11 clgfw:+priority-secondary+)
+(clgfw:register-backend 'backend/x11 clgfw:+priority-secondary+ t)
 
 (defclass backend/x11 ()
   ((window-should-keep-running  :accessor window-should-keep-running :initform t)
@@ -38,11 +38,65 @@
                 :initform (make-hash-table :size 128))
    (preferred-text-height :accessor preferred-text-height :initform 25
                           :documentation "At what size should text be drawn")
+   (back-buffer-canvas :accessor back-buffer-canvas)
    (window-picture :accessor window-picture)
    ))
 
 (defmethod clgfw:backend-window-should-close-p ((ctx backend/x11))
   (not (window-should-keep-running ctx)))
+
+(defclass canvas/x11 ()
+  ((pixmap :accessor pixmap)
+   (picture :accessor picture)))
+
+(defun create-canvas (ctx w h drawable)
+    (let ((result (make-instance 'canvas/x11)))
+      (with-slots (pixmap picture) result
+        (setf pixmap (xlib:create-pixmap :width (ceiling w)
+                                         :height (ceiling h)
+                                         :depth 32
+                                         :drawable drawable))
+
+
+        (setf picture
+              (xlib:render-create-picture
+               pixmap
+               :format (xlib:find-standard-picture-format
+                        (display ctx)
+                        :argb32)))
+        (xlib:render-fill-rectangle
+         picture
+         :src
+         #(0 0 0 0)
+         0 0
+         (ceiling w)
+         (ceiling h))
+        )
+
+      (return-from create-canvas result)))
+
+(defmethod clgfw:backend-create-canvas ((ctx backend/x11) w h)
+  (create-canvas ctx w h (pixmap (back-buffer-canvas ctx))))
+
+(defmethod clgfw:backend-destroy-canvas ((ctx backend/x11) (canvas canvas/x11))
+  (xlib:render-free-picture (picture canvas))
+  (xlib:free-pixmap (pixmap canvas))
+  (setf (pixmap canvas) nil)
+  (setf (picture canvas) nil))
+
+(defmethod clgfw:backend-draw-rectangle-on-canvas ((ctx backend/x11) (canvas canvas/x11)
+                                                   x y w h color)
+
+  (let ((buffer (make-array 4 :element-type '(unsigned-byte 16) :initial-element 0))
+        (col (clgfw:color-premultiply-alpha color)))
+    (declare (dynamic-extent buffer)
+             (optimize (speed 3)))
+    (setf (aref buffer 0) (ash (clgfw:color-r col) 8))
+    (setf (aref buffer 1) (ash (clgfw:color-g col) 8))
+    (setf (aref buffer 2) (ash (clgfw:color-b col) 8))
+    (setf (aref buffer 3) (ash (clgfw:color-a col) 8))
+    (with-slots (pixmap picture) canvas
+      (xlib:render-fill-rectangle picture :over buffer x y w h))))
 
 (defmethod clgfw:backend-init-window ((ctx backend/x11) width height title callback-handler-instance)
   "Initialize the x11 window and return the created ctx"
@@ -75,6 +129,8 @@
           (xlib:render-create-picture
            window
            :format (xlib:find-window-picture-format window)))
+
+    (setf (back-buffer-canvas ctx) (create-canvas ctx width height window))
     
     (xlib::set-wm-protocols
      window
@@ -112,11 +168,29 @@ allocates the color"
                            :blue (the float (/ (clgfw:color-b color) 256f0)))))
   (convert-to-x11-color ctx color))
 
+(defun back-buffer-ensure-correct-size (ctx)
+  (with-slots (window back-buffer-canvas) ctx
+    (with-slots (pixmap picture) back-buffer-canvas
+      (when
+          (or (> (xlib:drawable-width window) (xlib:drawable-width pixmap))
+              (> (xlib:drawable-height window) (xlib:drawable-height pixmap)))
+        (clgfw:backend-destroy-canvas ctx back-buffer-canvas)
+        (setf back-buffer-canvas
+              (create-canvas ctx
+                             (xlib:drawable-width window)
+                             (xlib:drawable-height window)
+                             window))))))
+
 (defmethod clgfw:backend-draw-rectangle ((ctx backend/x11) x y width height color)
   (when (clgfw:color-invisible-p color)
     (return-from clgfw:backend-draw-rectangle))
-  (setf (xlib:gcontext-foreground (gcontext ctx)) (convert-to-x11-color ctx color))
-  (xlib:draw-rectangle (window ctx) (gcontext ctx) x y width height t))
+  (back-buffer-ensure-correct-size ctx)
+  (clgfw:backend-draw-rectangle-on-canvas ctx (back-buffer-canvas ctx)
+                                          x y width height color)
+  ;; ()
+  ;; (setf (xlib:gcontext-foreground (gcontext ctx)) (convert-to-x11-color ctx color))
+  ;; (xlib:draw-rectangle (window ctx) (gcontext ctx) x y width height t)
+  )
 
 
 (defun find-closest-xserver-font (display text-height)
@@ -142,13 +216,13 @@ allocates the color"
   (print (xlib:gcontext-font (gcontext ctx))))
 
 
-;; (defmethod clgfw:backend-draw-text ((ctx backend/x11) x y color text)
-;;   (clgfw/bdf:draw-string ctx clgfw/bdf:*fonts* x y (preferred-text-height ctx) color text))
-
 (defmethod clgfw:backend-draw-text ((ctx backend/x11) x y color text)
-  (with-slots (gcontext display) ctx
-    (setf (xlib:gcontext-foreground gcontext) (convert-to-x11-color ctx color))
-    (xlib:draw-glyphs (window ctx) (gcontext ctx) x (+ y 15) text)))
+  (clgfw/bdf:draw-string ctx clgfw/bdf:*fonts* x y (preferred-text-height ctx) color text))
+
+;; (defmethod clgfw:backend-draw-text ((ctx backend/x11) x y color text)
+;;   (with-slots (gcontext display) ctx
+;;     (setf (xlib:gcontext-foreground gcontext) (convert-to-x11-color ctx color))
+;;     (xlib:draw-glyphs (window ctx) (gcontext ctx) x (+ y 15) text)))
 
 
 (defmethod clgfw:backend-begin-drawing ((ctx backend/x11))
@@ -224,49 +298,19 @@ allocates the color"
              (t () t))))
 
 (defmethod clgfw:backend-end-drawing ((ctx backend/x11))
+  (let ((canvas (back-buffer-canvas ctx)))
+    (xlib:render-composite
+     :over (picture canvas) 
+     nil
+     (window-picture ctx)
+     0 0 0 0
+     0 0
+     (xlib:drawable-width (pixmap canvas))
+     (xlib:drawable-height (pixmap canvas))))
   (xlib:display-force-output (display ctx)))
 
 (defmethod clgfw:backend-close-window ((ctx backend/x11))
-  (xlib:close-display (display ctx) :abort nil))
-
-;;; CANVAS
-(defclass canvas/x11 ()
-  ((pixmap :accessor pixmap)
-   (picture :accessor picture)))
-
-(defmethod clgfw:backend-create-canvas ((ctx backend/x11) w h)
-  (let ((result (make-instance 'canvas/x11)))
-    (with-slots (pixmap picture) result
-      (setf pixmap (xlib:create-pixmap :width (ceiling w)
-                                       :height (ceiling h)
-                                       :depth 32
-                                       :drawable (window ctx)))
-      (setf picture
-            (xlib:render-create-picture
-             pixmap
-             :format (xlib:find-standard-picture-format
-                      (display ctx)
-                      :argb32))))
-    (return-from clgfw:backend-create-canvas result)))
-
-(defmethod clgfw:backend-destroy-canvas ((ctx backend/x11) (canvas canvas/x11))
-  (xlib:free-pixmap (pixmap canvas))
-  (setf (pixmap canvas) nil)
-  (setf (picture canvas) nil))
-
-(defmethod clgfw:backend-draw-rectangle-on-canvas ((ctx backend/x11) (canvas canvas/x11)
-                                                   x y w h color)
-
-  (let ((buffer (make-array 4 :element-type 'fixnum :initial-element 0))
-        (col (clgfw:color-premultiply-alpha color)))
-    (declare (dynamic-extent buffer)
-             (optimize (speed 3)))
-    (setf (aref buffer 0) (ash (clgfw:color-r col) 8))
-    (setf (aref buffer 1) (ash (clgfw:color-g col) 8))
-    (setf (aref buffer 2) (ash (clgfw:color-b col) 8))
-    (setf (aref buffer 3) (ash (clgfw:color-a col) 8))
-    (with-slots (pixmap picture) canvas
-      (xlib:render-fill-rectangle picture :over buffer x y w h))))
+  (ignore-errors (xlib:close-display (display ctx) :abort nil)))
 
 (defmethod clgfw:backend-draw-canvas ((ctx backend/x11) x y canvas &optional tint)
   (declare (ignore tint))
@@ -274,13 +318,11 @@ allocates the color"
   (xlib:render-composite
    :over (picture canvas)
    nil
-   (window-picture ctx)
+   (picture (back-buffer-canvas ctx))
    0 0 0 0
-   (round x) (round) y
+   (round x) (round y)
    (xlib:drawable-width (pixmap canvas))
-   (xlib:drawable-height (pixmap canvas))
-   )
-  )
+   (xlib:drawable-height (pixmap canvas))))
 
 
 ;; (defun image-text ()

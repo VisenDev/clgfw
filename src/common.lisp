@@ -474,7 +474,7 @@
 (defun draw-rectangle (window-state x y w h color)
   (with-slots (backend draw-on-canvas?) window-state
     (if draw-on-canvas?
-        (backend-draw-rectangle-on-canvas window-state draw-on-canvas? x y w h color)
+        (backend-draw-rectangle-on-canvas backend draw-on-canvas? x y w h color)
         (backend-draw-rectangle backend x y w h color))))
 
 (declaim (ftype (function (window-state number number color string) t) draw-text))
