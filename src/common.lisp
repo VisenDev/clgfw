@@ -12,6 +12,7 @@
 ;;;; See the License for the specific language governing permissions and
 ;;;; limitations under the License.
 
+#+sbcl (setq sb-ext:*block-compile-default* t)
 
 (in-package #:clgfw)
 
@@ -535,10 +536,6 @@
 (defmacro while-running (state &body body)
   `(loop :while (window-should-keep-running-p ,state)
          :do ,@body))
-
-
-
-
 
 (defun key->char (key)
   "Returns the corresponding character if possible or nil otherwise"

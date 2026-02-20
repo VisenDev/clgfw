@@ -16,6 +16,7 @@
 ;;;; See the License for the specific language governing permissions and
 ;;;; limitations under the License.
 
+#+sbcl (setq sb-ext:*block-compile-default* t)
 
 (in-package #:clgfw)
 

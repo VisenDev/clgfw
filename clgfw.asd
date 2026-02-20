@@ -47,7 +47,8 @@
                "cl-xkb")
   :serial t
   :components ((:module "src"
-                :components ((:file "backend-wayland")))))
+                :components ((:file "pixbuf")
+                             (:file "backend-wayland")))))
 
 (defsystem "clgfw/backend/x11"
   :depends-on ("clgfw/core" "clgfw/module/bdf" "clx")

@@ -12,8 +12,10 @@
 ;;;; See the License for the specific language governing permissions and
 ;;;; limitations under the License.
 
+#+sbcl (setq sb-ext:*block-compile-default* t)
+
 (uiop:define-package #:clgfw
-  (:use #:cl #:alexandria)
+    (:use #:cl #:alexandria)
   (:export #:init-window
            #:close-window
            #:window-should-keeping-running-p

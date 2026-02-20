@@ -12,6 +12,7 @@
 ;;;; See the License for the specific language governing permissions and
 ;;;; limitations under the License.
 
+#+sbcl (setq sb-ext:*block-compile-default* t)
 
 (defpackage #:clgfw/backend/wayland
   (:use #:cl
@@ -240,22 +241,22 @@
   (the fixnum (+ x (the fixnum (* y width)))))
 
 (declaim (ftype (function (t fixnum fixnum fixnum fixnum clgfw:color))))
-(defun draw-pixel (pool-data x y ctx-width ctx-height color)
+(defun draw-pixel (pool-data x y ctx-width ctx-height &key color xrgb)
   (declare (optimize (speed 3) (safety 1) (debug 0) (space 0))
            (type fixnum x y ctx-width ctx-height))
   (unless (and (< x ctx-width)
                (< y ctx-height))
     (return-from draw-pixel))
-  (when (clgfw:color-invisible-p color)
-    (return-from draw-pixel))
 
-  (let* ((offset (coordinates->offset x y ctx-width))
-         (final-color (if (clgfw:color-opaque-p color) color
-                          (clgfw:color-blend
-                           color
-                           (clgfw:xrgb->color
-                            (cffi:mem-aref pool-data :uint32 offset)))))
-         (xrgb (clgfw:color->xrgb final-color)))
+  (let ((offset (coordinates->offset x y ctx-width)))
+    (unless xrgb
+      (when (clgfw:color-invisible-p color)
+        (return-from draw-pixel))
+      (let* ((base-xrgb (cffi:mem-aref pool-data :uint32 offset))
+             (base-color (clgfw:xrgb->color base-xrgb))
+             (final-color (if (clgfw:color-opaque-p color) color
+                              (clgfw:color-blend base-color color))))
+        (setf xrgb (clgfw:color->xrgb final-color))))
     (setf (cffi:mem-aref pool-data :uint32 offset) xrgb)))
 
 (defmethod clgfw:backend-draw-rectangle ((ctx backend/wayland) x y w h color)
@@ -275,10 +276,15 @@
                                            (+ (round y) (round w))
                                            (1- (round height)))
                                           'fixnum)
+    :with opaque = (clgfw:color-opaque-p color)
+    :with xrgb = (clgfw:color->xrgb color)
     :for dx :from start-x :below end-x
     :do (loop
           :for dy :of-type fixnum :from start-y :below end-y
-          :do (draw-pixel pool-data dx dy width height color))))
+          :do (if opaque
+                  (draw-pixel pool-data dx dy width height :xrgb xrgb)
+                  (draw-pixel pool-data dx dy width height :color color))
+          )))
 
 ;; (defmethod clgfw:backend-draw-rectangle ((ctx backend/wayland) x y w h color)
 ;;   (declare (optimize (speed 3) (safety 1) (debug 0) (space 0)))
@@ -636,5 +642,7 @@
        (the fixnum (+ my-x dx))
        (the fixnum (+ my-y dy))
        width height
-       pixel ;; (if tint (clgfw:color-blend pixel tint) pixel)
+       :color (if (and tint (not (clgfw:color-invisible-p pixel)))
+                  (clgfw:color-blend pixel tint)
+                  pixel)
        ))))
