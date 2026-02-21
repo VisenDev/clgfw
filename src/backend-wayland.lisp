@@ -627,7 +627,7 @@
 (defmethod clgfw:backend-draw-rectangle-on-canvas ((ctx backend/wayland) canvas x y w h color)
   (pixbuf-draw-rectangle canvas x y w h color))
 
-(defmethod clgfw:backend-draw-canvas ((ctx backend/wayland) x y canvas &optional tint)
+(defmethod clgfw:backend-draw-canvas ((ctx backend/wayland) (x real) (y real) canvas &optional tint)
   (declare (optimize (speed 3)))
   (ensure-buffer-memory-allocated ctx)
   (let ((width (width ctx))

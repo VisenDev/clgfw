@@ -63,7 +63,7 @@
 
 ;;; COLOR CONSTANTS
 (defmacro define-color (name r g b)
-  `(defconstant ,name (make-color ,r ,g ,b)))
+  `(defconstant ,name (clgfw:make-color ,r ,g ,b)))
 
 ;;; HTML 5 COLORS
 (define-color +IndianRed+             205 92  92)
