@@ -18,12 +18,12 @@
 
 (defun pixbuf-set (pixbuf x y color)
   (setf (aref pixbuf y x)
-        (clgfw:color-blend (aref pixbuf y x)
+        (clgfw/color:color-blend (aref pixbuf y x)
                      color)))
 
 (defun create-pixbuf (width height)
-  (make-array (list height width) :element-type 'clgfw:color
-              :initial-element (clgfw:make-color 0 0 0 0)))
+  (make-array (list height width) :element-type 'clgfw/color:color
+              :initial-element (clgfw/color:make-color 0 0 0 0)))
 
 (defun pixbuf-width (pixbuf)
   (second (array-dimensions pixbuf)))
@@ -45,7 +45,7 @@
     :for dy :from (max y 0) :below (clamp-to-height pixbuf (+ y h))
     :do (loop
           :for dx :from (max x 0) :below (clamp-to-width pixbuf (+ x w))
-          :do (pixbuf-set pixbuf x y color))))
+          :do (pixbuf-set pixbuf dx dy color))))
 
 (defun pixbuf-draw-pixbuf (&key dst dst-x dst-y src (src-x 0) (src-y 0) width height)
   (loop :for src-dy :from src-y :below (clamp-to-height src (+ src-y height))
@@ -66,5 +66,5 @@
                :for ,x-varname :of-type fixnum :from 0 :below ,width
                :for ,color-varname = (pixbuf-get ,my-pixbuf ,x-varname ,y-varname)
                :do (let ()
-                     (declare (type clgfw:color ,color-varname))
+                     (declare (type clgfw/color:color ,color-varname))
                      ,@body))))))

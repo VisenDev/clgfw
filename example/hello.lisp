@@ -17,8 +17,10 @@
 
       (clgfw:with-canvas test (ctx 50 50)
         (clgfw:with-drawing-on-canvas (ctx test)
-          (clgfw:draw-rectangle ctx 0 0 5 50 clgfw:+aliceblue+)
-          (clgfw:draw-rectangle ctx 45 0 5 50 clgfw:+aliceblue+))
+          (clgfw:draw-rectangle ctx 0 0 40 50 clgfw/color:+black+)
+          (clgfw:draw-rectangle ctx 0 0 5 50 clgfw/color:+aliceblue+)
+          (clgfw:draw-rectangle ctx 45 0 5 50 clgfw/color:+aliceblue+))
+        
         
         (clgfw:while-running ctx
           (clgfw:with-drawing ctx
@@ -28,17 +30,17 @@
               (when (clgfw:is-key-pressed ctx :q)
                 (return-from main))
               
-              (clgfw:draw-rectangle ctx 0 0 w h clgfw:+space+)
-              (clgfw:draw-rectangle ctx (floor x) (floor y) sz sz clgfw:+moon+)
-              ;; (clgfw:draw-text ctx 10 10 clgfw:+white+
-              ;;                  (format nil "Width: ~a px,   Height: ~a px" w h))
-              (clgfw:draw-text ctx 10 40 clgfw:+skyblue+ (clgfw:get-fps-string ctx))
-              ;; (clgfw:draw-text ctx 10 70 clgfw:+red+ "Press 'q' to quit!")
+              (clgfw:draw-rectangle ctx 0 0 w h clgfw/color:+space+)
+              (clgfw:draw-rectangle ctx (floor x) (floor y) sz sz clgfw/color:+moon+)
+              (clgfw:draw-text ctx 10 10 clgfw/color:+white+
+                               (format nil "Width: ~a px,   Height: ~a px" w h))
+              (clgfw:draw-text ctx 10 40 clgfw/color:+skyblue+ (clgfw:get-fps-string ctx))
+              (clgfw:draw-text ctx 10 70 clgfw/color:+red+ "Press 'q' to quit!")
               (clgfw:draw-rectangle ctx
                                     (clgfw:get-mouse-x ctx)
                                     (clgfw:get-mouse-y ctx)
                                     sz sz
-                                    clgfw:+green+)
+                                    (clgfw/color:make-color 20 200 20 128))
 
               (clgfw:draw-canvas ctx 100 100 test)
 

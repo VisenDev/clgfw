@@ -12,8 +12,8 @@
 ;;;; See the License for the specific language governing permissions and
 ;;;; limitations under the License.
 
-(defpackage #:clgfw/backend/curses
-  (:use #:cl #:alexandria)
+(uiop:define-package #:clgfw/backend/curses
+  (:use #:cl #:alexandria #:clgfw/color)
   (:export #:backend/curses))
 (in-package #:clgfw/backend/curses)
 
@@ -57,9 +57,9 @@
   (flet ((scale (v)
            (min 5 (floor (* v 6) 256))))
     (+ 16
-       (* 36 (scale (clgfw:color-r color)))
-       (* 6  (scale (clgfw:color-g color)))
-       (scale (clgfw:color-b color)))))
+       (* 36 (scale (color-r color)))
+       (* 6  (scale (color-g color)))
+       (scale (color-b color)))))
 
 ;; (defun print-to-tui (text)
 ;;   "Prints text (or escape sequences) to the actual terminal running your lisp"

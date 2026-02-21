@@ -110,7 +110,7 @@
                          :when (= 1 bit)
                            :do (clgfw:backend-draw-rectangle-on-canvas
                                 backend canvas
-                                dx dy 1 1 clgfw:+white+))
+                                dx dy 1 1 clgfw/color:+white+))
                 :finally
                    (setf (gethash backend canvases) canvas)
                    (return (draw-character backend bdf x y text-height color character))))))))

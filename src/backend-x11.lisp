@@ -88,13 +88,13 @@
                                                    x y w h color)
 
   (let ((buffer (make-array 4 :element-type '(unsigned-byte 16) :initial-element 0))
-        (col (clgfw:color-premultiply-alpha color)))
+        (col (clgfw/color:color-premultiply-alpha color)))
     (declare (dynamic-extent buffer)
              (optimize (speed 3)))
-    (setf (aref buffer 0) (ash (clgfw:color-r col) 8))
-    (setf (aref buffer 1) (ash (clgfw:color-g col) 8))
-    (setf (aref buffer 2) (ash (clgfw:color-b col) 8))
-    (setf (aref buffer 3) (ash (clgfw:color-a col) 8))
+    (setf (aref buffer 0) (ash (clgfw/color:color-r col) 8))
+    (setf (aref buffer 1) (ash (clgfw/color:color-g col) 8))
+    (setf (aref buffer 2) (ash (clgfw/color:color-b col) 8))
+    (setf (aref buffer 3) (ash (clgfw/color:color-a col) 8))
     (with-slots (pixmap picture) canvas
       (xlib:render-fill-rectangle picture :over buffer x y w h))))
 
@@ -160,12 +160,13 @@ allocates the color"
   (when-let (x11-color (gethash color (color-cache ctx)))
     (return-from convert-to-x11-color x11-color))
   (format t "Allocating missing xlib color ~x :(~%" color)
-  (setf (gethash color (color-cache ctx))
-        (xlib:alloc-color (colormap ctx)
-                          (xlib:make-color 
-                           :red (the float (/ (clgfw:color-r color) 256f0))  
-                           :green (the float (/ (clgfw:color-g color) 256f0))
-                           :blue (the float (/ (clgfw:color-b color) 256f0)))))
+  (let ((norm (clgfw/color:color->normalized-color color)))
+    (setf (gethash color (color-cache ctx))
+          (xlib:alloc-color (colormap ctx)
+                            (xlib:make-color 
+                             :red (clgfw/color:norm-color-r norm)  
+                             :green (clgfw/color:norm-color-g norm)
+                             :blue (clgfw/color:norm-color-b norm)))))
   (convert-to-x11-color ctx color))
 
 (defun back-buffer-ensure-correct-size (ctx)
@@ -182,7 +183,7 @@ allocates the color"
                              window))))))
 
 (defmethod clgfw:backend-draw-rectangle ((ctx backend/x11) x y width height color)
-  (when (clgfw:color-invisible-p color)
+  (when (clgfw/color:color-invisible-p color)
     (return-from clgfw:backend-draw-rectangle))
   (back-buffer-ensure-correct-size ctx)
   (clgfw:backend-draw-rectangle-on-canvas ctx (back-buffer-canvas ctx)
