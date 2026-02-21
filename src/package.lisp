@@ -36,6 +36,48 @@
            #:get-window-width
            #:get-window-height
 
+           ;; Color Related Datatypes
+           #:u8
+           #:normalized-float
+
+           ;; RGBA
+           #:make-color
+           #:color
+           #:color-r
+           #:color-g
+           #:color-b
+           #:color-a
+           #:color-invisible-p
+           #:color-opaque-p
+           #:color-premultiply-alpha
+           #:color-blend
+           #:color-tint
+           #:color->normalized-color
+           #:color->luminance
+           #:color->xrgb
+
+           ;; XRGB
+           #:xrgb
+           #:xrgb->color
+
+           ;; NORMALIZED-COLORS
+           #:normalized-color
+           #:normalized-color->color
+           #:normalized-color->luminance
+           #:norm-color-r
+           #:norm-color-g
+           #:norm-color-b
+           #:norm-color-a
+
+           ;; LUMINANCE
+           #:luminance
+           #:luminance->normalized-color
+           #:luminance->color
+           #:+luminance-red+
+           #:+luminance-green+
+           #:+luminance-blue+
+           
+
            ;; FPS and redraw related symbols
            #:get-fps
            #:get-fps-string

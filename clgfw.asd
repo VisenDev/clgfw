@@ -20,12 +20,15 @@
   :author "Robert Wess Burnett"
   :license "Apache-2"
   :description "Common Lisp General Framework for Windowing"
-  :depends-on ("local-time" "uiop" "alexandria" "trivial-garbage")
+  :depends-on ("local-time"  ; Used for portable nano-second timestamps
+               "uiop"        ; Used for define-package which fixes some problems with defpackage
+               "alexandria") ; Used for utility macros like when-let, etc...
   :serial t
   :components ((:module "src"
-                 :components ((:file "package")
-                              (:file "common")
-                              (:file "colors")))))
+                :components ((:file "package")
+                             (:file "color")
+                             (:file "color-constants")
+                             (:file "common")))))
 
 (defsystem "clgfw/module/bdf"
   :depends-on ("clgfw/core")

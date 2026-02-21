@@ -8,8 +8,8 @@
   (let ((x 10)
         (y 10)
         (sz 30)
-        (delta-x 40)
-        (delta-y 40))
+        (delta-x 60)
+        (delta-y 60))
     (clgfw:with-window ctx (800 600 "Hello")
       
       (clgfw:set-preferred-text-height ctx sz)
@@ -31,6 +31,8 @@
                 (return-from main))
               
               (clgfw:draw-rectangle ctx 0 0 w h clgfw/color:+space+)
+              
+              (clgfw:draw-canvas ctx 100 100 test)
               (clgfw:draw-rectangle ctx (floor x) (floor y) sz sz clgfw/color:+moon+)
               (clgfw:draw-text ctx 10 10 clgfw/color:+white+
                                (format nil "Width: ~a px,   Height: ~a px" w h))
@@ -40,9 +42,8 @@
                                     (clgfw:get-mouse-x ctx)
                                     (clgfw:get-mouse-y ctx)
                                     sz sz
-                                    (clgfw/color:make-color 20 200 20 128))
+                                    (clgfw:make-color 20 200 20 128))
 
-              (clgfw:draw-canvas ctx 100 100 test)
 
               (incf x (* delta-x (clgfw:get-delta-time ctx)))
               (incf y (* delta-y (clgfw:get-delta-time ctx)))

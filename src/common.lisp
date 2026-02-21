@@ -301,9 +301,9 @@
   (ecase (redraw-frequency window-state)
     (:target-fps
      (let ((remaining (get-remaining-seconds-in-frame window-state)))
-       (when (> remaining 0.01)
-         (trivial-garbage:gc)
-         (setf remaining (- (get-remaining-seconds-in-frame window-state) 0.001)))
+       ;; (when (> remaining 0.01)
+       ;;   ;; (trivial-garbage:gc)
+       ;;   (setf remaining (- (get-remaining-seconds-in-frame window-state) 0.001)))
        (when (plusp remaining)
          (sleep remaining))))
     (:on-input
