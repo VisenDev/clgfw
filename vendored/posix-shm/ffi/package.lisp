@@ -6,6 +6,7 @@
 
 (defpackage #:xyz.shunter.posix-shm.ffi
   (:nicknames #:posix-shm/ffi)
+  (:use)
   (:import-from #:cl
                 #:defpackage
                 #:in-package)

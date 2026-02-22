@@ -242,12 +242,13 @@ in the circular buffer and return the number of iovecs used."
 ;; (defwrapper "CMSG_FIRSTHDR" (:pointer (:struct cmsghdr))
 ;;   (msghdr (:pointer (:struct msghdr))))
 
-(declaim (inline cmsg-align cmsg-firsthdr cmsg-nxthdr
-                 cmsg-space cmsg-len cmsg-data))
-(defun cmsg-align (length)
-  (declare (type fixnum length))
-  (logand (+ length (load-time-value (1- (cffi:foreign-type-size :long))))
-          (load-time-value (lognot (1- (cffi:foreign-type-size :long))))))
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (declaim (inline cmsg-align cmsg-firsthdr cmsg-nxthdr
+                   cmsg-space cmsg-len cmsg-data))
+  (defun cmsg-align (length)
+    (declare (type fixnum length))
+    (logand (+ length (load-time-value (1- (cffi:foreign-type-size :long))))
+            (load-time-value (lognot (1- (cffi:foreign-type-size :long)))))))
 
 (defun cmsg-firsthdr (msghdr)
   (cffi:with-foreign-slots ((msg-controllen msg-control)

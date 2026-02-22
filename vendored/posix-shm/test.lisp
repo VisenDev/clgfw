@@ -200,15 +200,21 @@
           :do (is = (* i 10)
                   (cffi:mem-aref ptr :int i))))
 
+  ;;; Note, the memory fault related tests are disabled
+  ;;; in ecl because the memory faults seems to cause
+  ;;; errors that cannot be easily continued from
+
   ;; Memory fault on reading with no read protection
   (shm:with-open-shm-and-mmap* (shm ptr (:direction :io)
-                              (+int-size+ :prot ()))
-    (fail (cffi:mem-aref ptr :int)))
+                                (+int-size+ :prot ()))
+    (skip-on '(or :ecl) "Memory fault test"
+        (fail (cffi:mem-aref ptr :int))))
 
   ;; Memory fault on writing with no write protection
   (shm:with-open-shm-and-mmap* (shm ptr (:direction :io)
-                              (+int-size+ :prot ()))
-    (fail (cffi:mem-aref ptr :int)))
+                                (+int-size+ :prot ()))
+    (skip-on '(or :ecl) "Memory fault test"
+        (fail (cffi:mem-aref ptr :int))))
 
   ;; Two ptr's mmapped from the same shm object should share values
   (shm:with-open-shm* (shm :direction :io)

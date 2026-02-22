@@ -31,7 +31,7 @@
   (oflag open-flags)
   (mode mode))
 
-(defcfun "ftruncate" :int
+(defcfun ("ftruncate" ftruncate) :int
   (fd :int)
   (length off))
 
@@ -50,7 +50,7 @@
 (defcfun "shm_unlink" :int
   (name :string))
 
-(defcfun "close" :int
+(defcfun ("close" close) :int
   (fd :int))
 
 (defcfun "fchown" :int

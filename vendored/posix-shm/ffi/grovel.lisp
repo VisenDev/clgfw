@@ -64,17 +64,17 @@
   (st-blocks "st_blocks" :type blkcnt)
 
   #-darwin
-  (st-atim "st_atim" :type timespec)
+  (st-atim "st_atim" :type (:struct timespec))
   #+darwin
-  (st-atim "st_atimespec" :type timespec)
+  (st-atim "st_atimespec" :type (:struct timespec))
   #-darwin
-  (st-mtim "st_mtim" :type timespec)
+  (st-mtim "st_mtim" :type (:struct timespec))
   #+darwin
-  (st-atim "st_mtimespec" :type timespec)
+  (st-atim "st_mtimespec" :type (:struct timespec))
   #-darwin
-  (st-ctim "st_ctim" :type timespec)
+  (st-ctim "st_ctim" :type (:struct timespec))
   #+darwin
-  (st-atim "st_ctimespec" :type timespec))
+  (st-atim "st_ctimespec" :type (:struct timespec)))
 
 (constantenum c-error
   ((:eacces "EACCES")

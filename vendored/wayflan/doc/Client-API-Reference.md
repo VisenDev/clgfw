@@ -335,3 +335,19 @@ __load-op__ like a normal source file component.
 *In-package* is required, and defines the package wherein all protocol code
 lives. If *export* is __true__, then all interned symbols are exported from the
 package.
+
+**Example:**
+
+```lisp
+(defsystem "my-system"
+  ;; version, author, license, and others...
+
+  ;; use defsystem-depends-on, because we need to use an ASDF component it registers
+  :defsystem-depends-on (#:wayflan-client)
+  :components ((:file "package") ;; defines the package "my-system"
+               ;; "this expects the file "xdg-decoration-unstable-v1.xml" in the source directory.
+               ;; All stubs are generated in the declared package.
+               (:wayflan-client-impl "xdg-decoration-unstable-v1"
+                                     :in-package "my-system"))
+  ...)
+```

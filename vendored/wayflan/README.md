@@ -16,10 +16,8 @@ the Wayland spec, to keep compatibility between the two libraries.
 Wayflan is not a compositor nor a GUI toolkit. Its purpose is to parse Wayland
 protocol XML documents and exchange Wayland messages between other processes.
 
-*Wayflan is an ongoing project. Things may change to make Wayflan the best
-client for Common Lisp projects, such as iterating on a better API. If you use
-Wayflan in any projects, let me know! I'd love to give a heads up and help
-transition projects to any breaking changes I make along the way.*
+*If you use Wayflan in any projects, let me know! I'd love to give a heads up
+and help transition projects to any breaking changes I make along the way.*
 
 ## Features
 
@@ -33,11 +31,14 @@ transition projects to any breaking changes I make along the way.*
 
 ## Road map
 
-Wayflan is currently only a single-threaded communication library for Wayland
-clients, but intends to be a full-duplex multi-threadable library for both
-Clients and Compositors. The Wayflan project
-[tracker](https://todo.sr.ht/~shunter/wayflan) lists all tickets to improve
-Wayflan and other systems for the Freedesktop stack.
+Wayflan is currently in maintenance mode. While I had intentions for more
+features, this ultimately existed as a (completely workable) proof-of-concept
+that demonstrates a closer-to-lisp reimplementation of Wayflan, as well as
+convenient code generation from Wayland's protocol files.
+
+I've found other people still find use in it, and so I'm still accepting any
+bug reports and patch requests for this project. Thank you for checking out
+Wayflan!
 
 ## Documentation
 
