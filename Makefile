@@ -4,6 +4,9 @@ sbcl:
 ecl:
 	ecl --load scripts/build-hello.lisp
 
+clisp:
+	clisp scripts/build-hello.lisp
+
 clean:
 	if [ -e hello ]; then trash hello; fi
 	if [ -e a.out ]; then trash a.out; fi

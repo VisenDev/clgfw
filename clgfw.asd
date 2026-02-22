@@ -20,9 +20,7 @@
   :author "Robert Wess Burnett"
   :license "Apache-2"
   :description "Common Lisp General Framework for Windowing"
-  :depends-on ("local-time"  ; Used for portable nano-second timestamps
-               "uiop"        ; Used for define-package which fixes some problems with defpackage
-               "alexandria") ; Used for utility macros like when-let, etc...
+  :depends-on ("uiop" "alexandria")
   :serial t
   :components ((:module "src"
                 :components ((:file "package")
@@ -79,12 +77,14 @@
     :description "Common Lisp General Framework for Windowing + Platform Appropriate Backends"
     :depends-on ("clgfw/core"
                  (:feature :abcl "clgfw/backend/jvm")
-                 (:feature (:or :bsd :linux :unix :macos :macosx :darwin) "clgfw/backend/curses")
+                 (:feature (:and (:or :bsd :linux :unix :macos :macosx :darwin)
+                                 (:not :ecl) (:not :clisp))
+                           "clgfw/backend/curses")
                  (:feature (:or :bsd :linux :unix :macos :macosx :darwin) "clgfw/backend/x11")
-                 (:feature :linux "clgfw/backend/wayland")))
+                 (:feature (:and :linux (:not :ecl) (:not :clisp)) "clgfw/backend/wayland")))
 
 (defsystem "clgfw/example/hello"
-  :depends-on ("clgfw")
+  :depends-on ("clgfw" "uiop")
   :license "Apache-2.0"
   :description "Basic example"
   :serial t

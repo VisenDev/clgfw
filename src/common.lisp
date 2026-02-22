@@ -22,6 +22,19 @@
   "Coerces a truthy or falsesy value to a boolean"
   (not (not value)))
 
+;;; TIMESTAMPS
+(declaim (ftype (function () integer) get-timestamp))
+(defun get-timestamp ()
+  (get-internal-real-time))
+
+(declaim (ftype (function (integer integer) integer) timestamp-difference))
+(defun timestamp-difference (start end)
+  (- end start))
+
+(defun timestamp-difference-seconds (start end)
+  (/ (timestamp-difference start end)
+     internal-time-units-per-second))
+
 
 ;;; KEY
 (deftype key ()
@@ -134,8 +147,8 @@
    (fps-history :accessor fps-history :initform (make-array 60 :adjustable t
                                                                :fill-pointer 0))
    (redraw-frequency :accessor redraw-frequency :initform :on-input :type redraw-frequency-type)
-   (last-frame-timestamp :accessor last-frame-timestamp :initform (local-time:now))
-   (current-frame-timestamp :accessor current-frame-timestamp :initform (local-time:now))
+   (last-frame-timestamp :accessor last-frame-timestamp :initform (get-timestamp))
+   (current-frame-timestamp :accessor current-frame-timestamp :initform (get-timestamp))
    (delta-time-seconds :accessor delta-time-seconds :initform 0)
    (input-happened-p :accessor input-happened-p :initform t)
    (draw-on-canvas? :accessor draw-on-canvas? :initform nil
@@ -260,14 +273,17 @@
       window-state
     
     (setf last-frame-timestamp current-frame-timestamp)
-    (setf current-frame-timestamp (local-time:now))
+    (setf current-frame-timestamp (get-timestamp))
     (setf delta-time-seconds
-          (local-time:timestamp-difference current-frame-timestamp
-                                           last-frame-timestamp))
+          (timestamp-difference-seconds 
+           last-frame-timestamp
+           current-frame-timestamp))
     (backend-begin-drawing backend)))
 
 (defun get-fps (window-state)
-  (ignore-errors (/ 1 (delta-time-seconds window-state))))
+  (or
+   (ignore-errors (/ 1 (delta-time-seconds window-state)))
+   0))
 
 (defun get-delta-time (window-state)
   "Returns delta time in seconds"
@@ -278,7 +294,7 @@
 
 (defun get-seconds-passed-in-frame (window-state)
   (with-slots (current-frame-timestamp) window-state
-    (local-time:timestamp-difference (local-time:now) current-frame-timestamp)))
+    (timestamp-difference-seconds current-frame-timestamp (get-timestamp))))
 
 (defun get-target-seconds-per-frame (window-state)
   (with-slots (target-fps) window-state
