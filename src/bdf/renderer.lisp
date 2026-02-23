@@ -16,36 +16,31 @@
 
 (defun warp-nearest-neighbor (bitmap width height)
   ;; (declare (type (simple-array simple-bit-vector *) bitmap))
-  (let ((result (make-array height :element-type `(simple-bit-vector ,width)
-                                   :initial-contents
-                                   (loop :repeat height
-                                         :collect (make-array width
-                                                              :element-type 'bit
-                                                              :initial-element 0)))))
-    (loop :with src-height = (length bitmap)
-          :with src-width = (length (aref bitmap 0))
-          :with scale-x = (/ src-width width)
-          :with scale-y = (/ src-height height)
-          :for row :across result
-          :for y :from 0
-          :for src-y = (min (1- src-height) (floor (* y scale-y)))
-          :do
-             (loop :for bit :across row
-                   :for x :from 0
-                   :for src-x = (min (1- src-width) (floor (* x scale-x)))
-                   :for nearest :of-type bit = (bit (aref bitmap src-y) src-x)
-                   :do (setf (bit (aref result y) x) nearest)))
-    (return-from warp-nearest-neighbor result)
-    )
-  )
+  (let ((result (make-array (list height width) :element-type 'bit)))
+    (loop
+      :with src-height = (array-dimension bitmap 0)
+      :with src-width = (array-dimension bitmap 1)
+      :with scale-x = (/ src-width width)
+      :with scale-y = (/ src-height height)
+      :for y :from 0 :below height
+      :for src-y = (min (1- src-height) (floor (* y scale-y)))
+      :do
+         (loop
+           :for x :from 0 :below width
+           :for src-x = (min (1- src-width) (floor (* x scale-x)))
+           :for nearest :of-type bit = (aref bitmap src-y src-x)
+           :do (setf (aref result y x) nearest)))
+    (return-from warp-nearest-neighbor result)))
 
 (defun resize-character (bdf ch target-text-height)
   (let ((scale (/ target-text-height (point-size bdf)))
         (bbx (bbx ch))
         (bitmap (bitmap ch)))
     (make-instance 'bdf-char
+
+                   ;; TODO re-implement warp nearest neighbor resizing
                    :bitmap (warp-nearest-neighbor (bitmap ch)
-                                                  (floor (* scale (length (aref bitmap 0))))
+                                                  (floor (* scale (array-dimension bitmap 1)))
                                                   target-text-height)
                    :bbx (make-instance 'bounding-box
                                        :offset-x (ceiling (* (offset-x bbx) scale))
@@ -97,17 +92,21 @@
       ;; else
       (with-slots (bitmap bbx canvases) ch
         (let ((canvas (clgfw:backend-create-canvas backend 
-                                                   (* 2 (width bbx)) 
-                                                   (* 2 (height bbx))
+                                                   ;; (* 2)
+                                                   (round (width bbx)) 
+                                                   ;; (* 2)
+                                                   (round (height bbx))
                                                    )))
+          ;; (inspect canvas)
+          ;; (inspect bbx)
+          ;; (inspect ch)
           (format t "rasterizing character: ~a~%" (startchar ch))
           (loop :with space-used = (width (bbx ch))
-                :for row :of-type simple-bit-vector :across bitmap
-                :for dy :of-type fixnum :from 0
+                ;; :for row :of-type simple-bit-vector :across bitmap
+                :for dy :of-type fixnum :from 0 :below (array-dimension bitmap 0)
                 :do
-                   (loop :for bit :of-type bit :across row
-                         :for dx :of-type fixnum :from 0
-                         :when (= 1 bit)
+                   (loop :for dx :of-type fixnum :from 0 :below (array-dimension bitmap 1)
+                         :when (= 1 (aref bitmap dy dx ))
                            :do (clgfw:backend-draw-rectangle-on-canvas
                                 backend canvas
                                 dx dy 1 1 clgfw/color:+white+))

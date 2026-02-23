@@ -63,11 +63,24 @@
         :finally (setf (properties bdf) props)
         ))
 
-(declaim (ftype (function (integer &optional integer) simple-bit-vector) int-to-bitvec))
-(defun int-to-bitvec (int &optional (min-width 0))
-  (declare (type integer int))
-  (read-from-string
-   (format nil (format nil "#*~~~d,'0b" min-width) int)))
+;; (declaim (ftype (function (integer &optional integer) simple-bit-vector) int-to-bitvec))
+;; (defun int-to-bitvec (int &optional (min-width 0))
+;;   (declare (type integer int))
+;;   (read-from-string
+;;    (format nil (format nil "#*~~~d,'0b" min-width) int)))
+
+(declaim (ftype (function (integer integer) simple-bit-vector) int-to-bitvec))
+(defun int-to-bitvec (int length)
+  (declare (optimize (debug 3)))
+  (loop :with result = (make-array length :element-type 'bit)
+        :while (> int 0)
+        :for i :downfrom (1- length)
+        :do ;; (format t "int = ~a~%" int)
+            ;; (break)
+            (setf (aref result i)
+                  (logand int 1))
+            (setf int (ash int -1))
+        :finally (return result)))
 
 (defun parse-chars (bdf fp count allow-non-ascii-characters)
   
@@ -91,28 +104,36 @@
                                                          :offset-x x
                                                          :offset-y y)))
         :do
-        (expect fp "BITMAP")
-        (let ((*read-base* 16)
-              (bitmap (make-array (point-size bdf)
-                                    :element-type 'simple-array
-                                    :fill-pointer 0)))
-          (loop :repeat bitmap-rows
-                :do (vector-push
-                     (int-to-bitvec (read fp) (point-size bdf))
-                     bitmap))
-          (expect fp "ENDCHAR")
-          (when (or allow-non-ascii-characters
-                  (< encoding 127))
-            (setf (gethash (make-bdf-char-lookup-key :character (code-char encoding)
-                                                     :point-size (point-size bdf))
-                           (chars bdf))
-                  (make-instance 'bdf-char
-                                 :startchar (symbol-name char)
-                                 :encoding encoding
-                                 :swidth swidth
-                                 :dwidth dwidth
-                                 :bbx bbx
-                                 :bitmap bitmap))))))
+           (expect fp "BITMAP")
+           (let ((*read-base* 16)
+                 (bitmap (make-array (list (height bbx) (width bbx)) :element-type 'bit))
+                 ;; (bitmap (make-array (point-size bdf)
+                 ;;                       :element-type 'simple-array
+                 ;;                       :fill-pointer 0))
+                 )
+             (loop :for y :from 0 :below (height bbx)
+                   :for row = (int-to-bitvec (read fp) (width bbx))
+                   :do (loop :for x :from 0 :below (width bbx)
+                             :do (setf (aref bitmap y x)
+                                       (bit row x)))
+                       ;; :do
+                       ;; (vector-push
+                       ;;  (int-to-bitvec (read fp) (point-size bdf))
+                       ;;  bitmap)
+                   )
+             (expect fp "ENDCHAR")
+             (when (or allow-non-ascii-characters
+                       (< encoding 127))
+               (setf (gethash (make-bdf-char-lookup-key :character (code-char encoding)
+                                                        :point-size (point-size bdf))
+                              (chars bdf))
+                     (make-instance 'bdf-char
+                                    :startchar (symbol-name char)
+                                    :encoding encoding
+                                    :swidth swidth
+                                    :dwidth dwidth
+                                    :bbx bbx
+                                    :bitmap bitmap))))))
 
 (defun parse (bdf fp allow-non-ascii-characters)
   (expect fp "STARTFONT")

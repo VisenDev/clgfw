@@ -3,7 +3,7 @@
 
 (in-package #:clgfw/bdf)
 
-(eval-when (:compile-toplevel :load-toplevel)
+(eval-when (:compile-toplevel :load-toplevel :execute)
   (defparameter *fonts*
     (load-bdf
      (asdf:system-relative-pathname
