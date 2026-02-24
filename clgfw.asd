@@ -39,18 +39,26 @@
                                 (:file "renderer")))))))
 
 (defsystem "clgfw/backend/wayland"
+  :defsystem-depends-on ("wayflan-client")
   :depends-on ("clgfw/core"
                "clgfw/module/bdf"
                "alexandria"
                "wayflan"
+               "wayflan-client"
                "posix-shm"
                "input-event-codes"
-               "cl-xkb"
-               )
+               "cl-xkb")
   :serial t
-  :components ((:module "src"
-                :components ((:file "pixbuf")
-                             (:file "backend-wayland")))))
+  :components
+  ((:module "src"
+    :components
+    ((:module "wayland-protocols"
+      :components ((:file "package")
+                   (:wayflan-client-impl "xdg-decoration-unstable-v1"
+                    :in-package "xdg-decoration-unstable-v1"
+                    :export t)))
+     (:file "pixbuf")
+     (:file "backend-wayland")))))
 
 (defsystem "clgfw/backend/x11"
   :depends-on ("clgfw/core" "clgfw/module/bdf" "clx")

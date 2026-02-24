@@ -49,12 +49,15 @@
    wl-seat
 
    ;; Objects
+   (zxdg-decoration-manager-v1 :accessor zxdg-decoration-manager-v1)
+   (xdg-decoration :accessor xdg-decoration)
    wl-surface
    xdg-surface
    xdg-toplevel
    (wl-pointer :initform nil)
    (wl-keyboard :initform nil)
    (pool :initform nil)
+
    
    shm
    (backing-pool-data :accessor backing-pool-data :initform nil)
@@ -524,7 +527,7 @@
                   (setf wl-shm (wl-registry.bind
                                 registry name 'wl-shm 1)))
                  (wl-seat
-                  (format t "Found seat~%")
+                  (format t "found seat~%")
                   (setf wl-seat (wl-registry.bind
                                  wl-registry name 'wl-seat 5))
                   (push (alexandria:curry 'handle-seat ctx)
@@ -540,7 +543,18 @@
                   (push (evelambda
                           (:ping (serial)
                                  (xdg-wm-base.pong xdg-wm-base serial)))
-                        (wl-proxy-hooks xdg-wm-base))))))))
+                        (wl-proxy-hooks xdg-wm-base)))
+                 (xdg-decoration-unstable-v1:zxdg-decoration-manager-v1
+                  (format t "found zxdg-decoration-manager-v1~%")
+                  (setf (zxdg-decoration-manager-v1 ctx)
+                        (wl-registry.bind
+                         registry
+                         name
+                         'xdg-decoration-unstable-v1:zxdg-decoration-manager-v1
+                         1))
+
+
+                  ))))))
 
 (defmethod clgfw:backend-close-window ((ctx backend/wayland))
   (ignore-errors
@@ -579,6 +593,17 @@
           xdg-surface (xdg-wm-base.get-xdg-surface
                        xdg-wm-base wl-surface)
           xdg-toplevel (xdg-surface.get-toplevel xdg-surface))
+
+    ;; Server side decorations
+    (setf
+     (xdg-decoration ctx)
+     (xdg-decoration-unstable-v1:zxdg-decoration-manager-v1.get-toplevel-decoration
+      (zxdg-decoration-manager-v1 ctx)
+      xdg-toplevel))
+    (xdg-decoration-unstable-v1:zxdg-toplevel-decoration-v1.set-mode
+     (xdg-decoration ctx)
+     :server-side)
+    
     (push (evlambda
             (:close ()
                     (setf (window-should-close-p ctx) t)))
