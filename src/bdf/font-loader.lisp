@@ -8,7 +8,7 @@
     (load-bdf
      (asdf:system-relative-pathname
       "clgfw"
-      "src/bdf/fonts/terminus/ter-u32n.bdf")))
+      "src/bdf/fonts/terminus/ter-u12n.bdf")))
   ;; (defparameter *fonts*
   ;;   (loop
   ;;     :with dirs = (uiop:subdirectories (asdf:system-relative-pathname "clgfw" "bdf/fonts/"))

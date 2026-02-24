@@ -9,7 +9,14 @@
   (:use #:cl #:alexandria)
   (:export #:load-bdf
            #:draw-string
-           #:*fonts*))
+           #:*fonts*
+           #:get-sized-character
+           #:bbx
+           #:bitmap
+           #:width
+           #:height
+           #:offset-x
+           #:offset-y))
 (in-package #:clgfw/bdf)
 
 (defclass bounding-box ()
@@ -69,17 +76,17 @@
 ;;   (read-from-string
 ;;    (format nil (format nil "#*~~~d,'0b" min-width) int)))
 
-(declaim (ftype (function (integer integer) simple-bit-vector) int-to-bitvec))
-(defun int-to-bitvec (int length)
+;; (declaim (ftype (function (integer) simple-bit-vector) int-to-bitvec))
+(defun int-to-bitvec (int)
   (declare (optimize (debug 3)))
-  (loop :with result = (make-array length :element-type 'bit)
-        :while (> int 0)
-        :for i :downfrom (1- length)
+  (loop :with result = (make-array 1 :element-type 'bit :adjustable t :fill-pointer 0)
+        :with remaining = int
+        :while (> remaining 0)
         :do ;; (format t "int = ~a~%" int)
             ;; (break)
-            (setf (aref result i)
-                  (logand int 1))
-            (setf int (ash int -1))
+            ;; (setf (aref result) i)
+            (vector-push-extend (logand remaining 1) result)
+            (setf remaining (ash remaining -1))
         :finally (return result)))
 
 (defun parse-chars (bdf fp count allow-non-ascii-characters)
@@ -106,16 +113,22 @@
         :do
            (expect fp "BITMAP")
            (let ((*read-base* 16)
-                 (bitmap (make-array (list (height bbx) (width bbx)) :element-type 'bit))
+                 (rows (make-array (height bbx)
+                                   :initial-contents))
+                 ;; (bitmap (make-array (list (height bbx) (* 2 (width bbx))) :element-type 'bit))
                  ;; (bitmap (make-array (point-size bdf)
                  ;;                       :element-type 'simple-array
                  ;;                       :fill-pointer 0))
                  )
              (loop :for y :from 0 :below (height bbx)
-                   :for row = (int-to-bitvec (read fp) (width bbx))
-                   :do (loop :for x :from 0 :below (width bbx)
-                             :do (setf (aref bitmap y x)
-                                       (bit row x)))
+                   :for row = (make-array 1 :adjustable t :fill-pointer 0)
+                   :do (loop :for ch = (read-byte fp)
+                             :until (= ch (char-code #\Newline))
+                             :do (vector-push-extend ))
+                       ;; :for row = (readchar fp) (width bbx)
+                       ;; :do (loop :for x :from 0 :below (width bbx)
+                       ;;           :do (setf (aref bitmap y x)
+                       ;;                     (bit row x)))
                        ;; :do
                        ;; (vector-push
                        ;;  (int-to-bitvec (read fp) (point-size bdf))

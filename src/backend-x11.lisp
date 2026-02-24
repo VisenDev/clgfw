@@ -17,7 +17,7 @@
   (:export #:backend/x11))
 (in-package #:clgfw/backend/x11)
 
-(clgfw:register-backend 'backend/x11 clgfw:+priority-secondary+)
+(clgfw:register-backend 'backend/x11 clgfw:+priority-secondary+ t)
 
 (defclass backend/x11 ()
   ((window-should-keep-running  :accessor window-should-keep-running :initform t)
@@ -40,6 +40,13 @@
                           :documentation "At what size should text be drawn")
    (back-buffer-canvas :accessor back-buffer-canvas)
    (window-picture :accessor window-picture)
+   (glyph-set :accessor glyph-set)
+   (glyph-cache :accessor glyph-cache
+                :initform (make-hash-table)
+                :documentation "A hashmap containing all characters
+                                which have been rendered to a glyph 
+                                already")
+   (scratch-canvas :accessor scratch-canvas)
    ))
 
 (defmethod clgfw:backend-window-should-close-p ((ctx backend/x11))
@@ -49,31 +56,37 @@
   ((pixmap :accessor pixmap)
    (picture :accessor picture)))
 
+(defun canvas-width (canvas)
+  (xlib:drawable-width (pixmap canvas)))
+
+(defun canvas-height (canvas)
+  (xlib:drawable-height (pixmap canvas)))
+
 (defun create-canvas (ctx w h drawable)
-    (let ((result (make-instance 'canvas/x11)))
-      (with-slots (pixmap picture) result
-        (setf pixmap (xlib:create-pixmap :width (ceiling w)
-                                         :height (ceiling h)
-                                         :depth 32
-                                         :drawable drawable))
+  (let ((result (make-instance 'canvas/x11)))
+    (with-slots (pixmap picture) result
+      (setf pixmap (xlib:create-pixmap :width (ceiling w)
+                                       :height (ceiling h)
+                                       :depth 32
+                                       :drawable drawable))
 
 
-        (setf picture
-              (xlib:render-create-picture
-               pixmap
-               :format (xlib:find-standard-picture-format
-                        (display ctx)
-                        :argb32)))
-        (xlib:render-fill-rectangle
-         picture
-         :src
-         #(0 0 0 0)
-         0 0
-         (ceiling w)
-         (ceiling h))
-        )
+      (setf picture
+            (xlib:render-create-picture
+             pixmap
+             :format (xlib:find-standard-picture-format
+                      (display ctx)
+                      :argb32)))
+      (xlib:render-fill-rectangle
+       picture
+       :src
+       #(0 0 0 0)
+       0 0
+       (ceiling w)
+       (ceiling h))
+      )
 
-      (return-from create-canvas result)))
+    (return-from create-canvas result)))
 
 (defmethod clgfw:backend-create-canvas ((ctx backend/x11) w h)
   (create-canvas ctx w h (pixmap (back-buffer-canvas ctx))))
@@ -102,7 +115,9 @@
   "Initialize the x11 window and return the created ctx"
   (setf (handler ctx) callback-handler-instance)
   
-  (with-slots (black white font display screen window gcontext colormap window-picture) ctx
+  (with-slots (black white font display screen window gcontext colormap
+               window-picture glyph-set)
+      ctx
     (setf display (xlib:open-default-display))
     (setf screen (first (xlib:display-roots display)))
     (setf black (xlib:screen-black-pixel screen))
@@ -129,8 +144,11 @@
           (xlib:render-create-picture
            window
            :format (xlib:find-window-picture-format window)))
+    (setf glyph-set (xlib:render-create-glyph-set
+                     (xlib:find-standard-picture-format display :a8)))
 
     (setf (back-buffer-canvas ctx) (create-canvas ctx width height window))
+    (setf (scratch-canvas ctx) (create-canvas ctx width height window))
     
     (xlib::set-wm-protocols
      window
@@ -139,8 +157,7 @@
      window
      :name title
      :width width
-     :height height
-     )
+     :height height)
     (setf gcontext (xlib:create-gcontext
                     :drawable window
                     :background black
@@ -216,9 +233,55 @@ allocates the color"
 
   (print (xlib:gcontext-font (gcontext ctx))))
 
+(defun bitmap->card8-array (bitmap)
+  (loop
+    :with height = (array-dimension bitmap 0)
+    :with width = (array-dimension bitmap 1)
+    :with result = (make-array (list height width) :element-type 'xlib:card8)
+    :for y :from 0 :below height
+    :do (loop :for x :from 0 :below width
+                  :do (setf (aref result y x)
+                            (if (= 1 (aref bitmap y x))
+                                255
+                                0)))
+    :finally (return result)))
+
+(defun ensure-glyphs (ctx text)
+  (loop
+    :with set = (glyph-set ctx)
+    :with table = (glyph-cache ctx)
+    :with height = (preferred-text-height ctx)
+    :for ch :across text
+    :unless (gethash ch table)
+      :do
+         (let* ((bdf-char (clgfw/bdf:get-sized-character
+                          clgfw/bdf:*FONTS*
+                          ch height))
+                (bbx (clgfw/bdf:bbx bdf-char)))
+           (xlib:render-add-glyph set (char-code ch)
+                                  :x-origin (clgfw/bdf:offset-x bbx)
+                                  :y-origin (clgfw/bdf:offset-y bbx)
+                                  :x-advance (clgfw/bdf:width bbx)
+                                  :y-advance 0
+                                  :data (bitmap->card8-array
+                                         (clgfw/bdf:bitmap bdf-char)))
+           (setf (gethash ch table) t))))
 
 (defmethod clgfw:backend-draw-text ((ctx backend/x11) x y color text)
-  (clgfw/bdf:draw-string ctx clgfw/bdf:*fonts* x y (preferred-text-height ctx) color text))
+  (ensure-glyphs ctx text)
+  ;; (setf (xlib:gcontext-foreground (gcontext ctx)) (convert-to-x11-color ctx color))
+  ;; (xlib:draw-rectangle (pixmap (scratch-canvas ctx)) (gcontext ctx) 0 0 (xlib:drawable-width (pixmap (scratch-canvas ctx)))
+  ;;                      (xlib:drawable-height (pixmap (scratch-canvas ctx))))
+
+  (let ((canvas (scratch-canvas ctx)))
+    (clgfw:backend-draw-rectangle-on-canvas ctx canvas 0 0 (canvas-width canvas) (canvas-height canvas) color)
+    (xlib:render-composite-glyphs (picture (back-buffer-canvas ctx))
+                                  (glyph-set ctx)
+                                  (picture canvas)
+                                  (round x) (round y)
+                                  text))
+  ;; (clgfw/bdf:draw-string ctx clgfw/bdf:*fonts* x y (preferred-text-height ctx) color text)
+  )
 
 ;; (defmethod clgfw:backend-draw-text ((ctx backend/x11) x y color text)
 ;;   (with-slots (gcontext display) ctx
