@@ -72,17 +72,17 @@
 ;; TODO: win32 backending using ftw
 
 (defsystem "clgfw"
-    :version "0.0.1"
-    :author "Robert Wess Burnett"
-    :license "Apache-2"
-    :description "Common Lisp General Framework for Windowing + Platform Appropriate Backends"
-    :depends-on ("clgfw/core"
-                 (:feature :abcl "clgfw/backend/jvm")
-                 (:feature (:and (:or :bsd :linux :unix :macos :macosx :darwin)
-                                 (:not :ecl) (:not :clisp))
-                           "clgfw/backend/curses")
-                 (:feature (:or :bsd :linux :unix :macos :macosx :darwin) "clgfw/backend/x11")
-                 (:feature (:and :linux (:not :ecl) (:not :clisp)) "clgfw/backend/wayland")))
+  :version "0.0.1"
+  :author "Robert Wess Burnett"
+  :license "Apache-2"
+  :description "Common Lisp General Framework for Windowing + Platform Appropriate Backends"
+  :defsystem-depends-on ("trivial-features")
+  :depends-on ("clgfw/core"
+               (:feature :abcl "clgfw/backend/jvm")
+               (:feature (:and (:or :bsd :linux :unix :darwin))
+                         "clgfw/backend/curses")
+               (:feature (:or :bsd :linux :unix :darwin) "clgfw/backend/x11")
+               (:feature (:and :linux (:not :ecl) (:not :clisp)) "clgfw/backend/wayland")))
 
 (defsystem "clgfw/example/hello"
   :depends-on ("clgfw" "uiop")
@@ -92,6 +92,5 @@
   :components ((:module "example" 
                 :components ((:file "hello"))))
   :build-operation program-op
-  :build-pathname "hello"                 ;; shell name
-  :entry-point "clgfw/example/hello:main" ;; thunk
-  )
+  :build-pathname "hello"
+  :entry-point "clgfw/example/hello:main")
