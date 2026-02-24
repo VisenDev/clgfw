@@ -77,17 +77,45 @@
 ;;    (format nil (format nil "#*~~~d,'0b" min-width) int)))
 
 ;; (declaim (ftype (function (integer) simple-bit-vector) int-to-bitvec))
-(defun int-to-bitvec (int)
+;; (defun int-to-bitvec (int)
+;;   (declare (optimize (debug 3)))
+;;   (loop :with result = (make-array 1 :element-type 'bit :adjustable t :fill-pointer 0)
+;;         :with remaining = int
+;;         :while (> remaining 0)
+;;         :do ;; (format t "int = ~a~%" int)
+;;             ;; (break)
+;;             ;; (setf (aref result) i)
+;;             (vector-push-extend (logand remaining 1) result)
+;;             (setf remaining (ash remaining -1))
+;;         :finally (return result)))
+
+(defun int->bitvec (int length)
+  (read-from-string
+   (format nil (format nil "#*~~~d,'0b" length) int)))
+
+(defun parse-hex-row (fp width)
+  (let* ((cl:*read-base* 16))
+    (int->bitvec (read fp) width)))
+
+(defun array-of-bit-array->2d-bit-array (rows height width)
+  (let* ((result (make-array (list height width) :element-type 'bit)))
+    (loop :for my-row :across rows
+          :for y :from 0
+          :do (loop :for x :from 0 :below width
+                    :do (setf (aref result y x)
+                              (bit my-row x))))
+    result))
+
+(defun parse-bitmap (fp bbx)
   (declare (optimize (debug 3)))
-  (loop :with result = (make-array 1 :element-type 'bit :adjustable t :fill-pointer 0)
-        :with remaining = int
-        :while (> remaining 0)
-        :do ;; (format t "int = ~a~%" int)
-            ;; (break)
-            ;; (setf (aref result) i)
-            (vector-push-extend (logand remaining 1) result)
-            (setf remaining (ash remaining -1))
-        :finally (return result)))
+  (loop
+    :with result = (make-array 0 :adjustable t :fill-pointer 0)
+    :repeat (height bbx)
+    :do (vector-push-extend (parse-hex-row fp (width bbx)) result)
+    :finally (return (array-of-bit-array->2d-bit-array
+                      result
+                      (height bbx)
+                      (width bbx)))))
 
 (defun parse-chars (bdf fp count allow-non-ascii-characters)
   
@@ -112,28 +140,29 @@
                                                          :offset-y y)))
         :do
            (expect fp "BITMAP")
-           (let ((*read-base* 16)
-                 (rows (make-array (height bbx)
-                                   :initial-contents))
-                 ;; (bitmap (make-array (list (height bbx) (* 2 (width bbx))) :element-type 'bit))
-                 ;; (bitmap (make-array (point-size bdf)
-                 ;;                       :element-type 'simple-array
-                 ;;                       :fill-pointer 0))
-                 )
-             (loop :for y :from 0 :below (height bbx)
-                   :for row = (make-array 1 :adjustable t :fill-pointer 0)
-                   :do (loop :for ch = (read-byte fp)
-                             :until (= ch (char-code #\Newline))
-                             :do (vector-push-extend ))
-                       ;; :for row = (readchar fp) (width bbx)
-                       ;; :do (loop :for x :from 0 :below (width bbx)
-                       ;;           :do (setf (aref bitmap y x)
-                       ;;                     (bit row x)))
-                       ;; :do
-                       ;; (vector-push
-                       ;;  (int-to-bitvec (read fp) (point-size bdf))
-                       ;;  bitmap)
-                   )
+           ;; (let ((*read-base* 16)
+           ;;       (rows (make-array (height bbx)
+           ;;                         :initial-contents))
+           ;;       ;; (bitmap (make-array (list (height bbx) (* 2 (width bbx))) :element-type 'bit))
+           ;;       ;; (bitmap (make-array (point-size bdf)
+           ;;       ;;                       :element-type 'simple-array
+           ;;       ;;                       :fill-pointer 0))
+           ;;       )
+           ;;   (loop :for y :from 0 :below (height bbx)
+           ;;         :for row = (make-array 1 :adjustable t :fill-pointer 0)
+           ;;         :do (loop :for ch = (read-byte fp)
+           ;;                   :until (= ch (char-code #\Newline))
+           ;;                   :do (vector-push-extend ))
+           ;;             ;; :for row = (readchar fp) (width bbx)
+           ;;             ;; :do (loop :for x :from 0 :below (width bbx)
+           ;;             ;;           :do (setf (aref bitmap y x)
+           ;;             ;;                     (bit row x)))
+           ;;             ;; :do
+           ;;             ;; (vector-push
+           ;;             ;;  (int-to-bitvec (read fp) (point-size bdf))
+           ;;             ;;  bitmap)
+           ;;         ))
+           (let ((bitmap (parse-bitmap fp bbx)))
              (expect fp "ENDCHAR")
              (when (or allow-non-ascii-characters
                        (< encoding 127))

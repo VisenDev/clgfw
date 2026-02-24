@@ -33,24 +33,29 @@
     (return-from warp-nearest-neighbor result)))
 
 (defun resize-character (bdf ch target-text-height)
-  (let ((scale (/ target-text-height (point-size bdf)))
-        (bbx (bbx ch))
-        (bitmap (bitmap ch)))
-    (make-instance 'bdf-char
+  ch
+  ;; (return-from resize-character ch)
+  ;; (if (= target-text-height (height bdf))
+  ;;     ch
+  ;;     (let ((scale (/ target-text-height (point-size bdf)))
+  ;;           (bbx (bbx ch))
+  ;;           (bitmap (bitmap ch)))
+  ;;       (make-instance 'bdf-char
 
-                   ;; TODO re-implement warp nearest neighbor resizing
-                   :bitmap (warp-nearest-neighbor (bitmap ch)
-                                                  (floor (* scale (array-dimension bitmap 1)))
-                                                  target-text-height)
-                   :bbx (make-instance 'bounding-box
-                                       :offset-x (ceiling (* (offset-x bbx) scale))
-                                       :offset-y (ceiling (* (offset-y bbx) scale))
-                                       :width    (ceiling (* (width bbx) scale)   )
-                                       :height   (ceiling (* (height bbx) scale)) )
-                   :encoding (encoding ch)
-                   :startchar (startchar ch)
-                   :dwidth (dwidth ch)
-                   :swidth (swidth ch))))
+  ;;                      ;; TODO re-implement warp nearest neighbor resizing
+  ;;                      :bitmap (warp-nearest-neighbor (bitmap ch)
+  ;;                                                     (floor (* scale (array-dimension bitmap 1)))
+  ;;                                                     target-text-height)
+  ;;                      :bbx (make-instance 'bounding-box
+  ;;                                          :offset-x (ceiling (* (offset-x bbx) scale))
+  ;;                                          :offset-y (ceiling (* (offset-y bbx) scale))
+  ;;                                          :width    (ceiling (* (width bbx) scale)   )
+  ;;                                          :height   (ceiling (* (height bbx) scale)) )
+  ;;                      :encoding (encoding ch)
+  ;;                      :startchar (startchar ch)
+  ;;                      :dwidth (dwidth ch)
+  ;;                      :swidth (swidth ch))))
+  )
 
 (declaim (ftype (function (bdf character number) bdf-char) get-sized-character))
 (defun get-sized-character (bdf lisp-character target-text-height)

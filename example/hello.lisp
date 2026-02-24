@@ -7,7 +7,7 @@
   "Example main function"
   (let ((x 10)
         (y 10)
-        (sz 30)
+        (sz 32)
         (delta-x 60)
         (delta-y 60))
     (clgfw:with-window ctx (800 600 "Hello")
