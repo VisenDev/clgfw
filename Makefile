@@ -1,5 +1,5 @@
 sbcl:
-	sbcl --script scripts/build-hello.lisp
+	sbcl --load scripts/build-hello.lisp
 
 ecl:
 	ecl --load scripts/build-hello.lisp

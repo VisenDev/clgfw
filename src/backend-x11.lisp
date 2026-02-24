@@ -231,7 +231,8 @@ allocates the color"
                (setf (xlib:gcontext-font (gcontext ctx))
                      (first (xlib:list-font-names (display ctx) "*"))))
 
-  (print (xlib:gcontext-font (gcontext ctx))))
+  ;; (print (xlib:gcontext-font (gcontext ctx)))
+  )
 
 (defun bitmap->card8-array (bitmap)
   (loop

@@ -45,7 +45,8 @@
                "wayflan"
                "posix-shm"
                "input-event-codes"
-               "cl-xkb")
+               "cl-xkb"
+               )
   :serial t
   :components ((:module "src"
                 :components ((:file "pixbuf")
