@@ -20,7 +20,7 @@
   :author "Robert Wess Burnett"
   :license "Apache-2"
   :description "Common Lisp General Framework for Windowing"
-  :depends-on ("uiop" "alexandria")
+  :depends-on ()
   :serial t
   :components ((:module "src"
                 :components ((:file "package")
@@ -75,6 +75,11 @@
   :components ((:module "src"
                  :components ((:file "backend-curses")))))
 
+(defsystem "clgfw/backend/web"
+  :depends-on ("clgfw/core")
+  :components ((:module "src"
+                 :components ((:file "backend-curses")))))
+
 ;; TODO: CLOG backend??
 ;; TODO: JSCL backend??
 ;; TODO: win32 backending using ftw
@@ -87,6 +92,7 @@
   :defsystem-depends-on ("trivial-features")
   :depends-on ("clgfw/core"
                (:feature :abcl "clgfw/backend/jvm")
+               (:feature :jscl "clgfw/backend/web")
                (:feature (:and (:or :bsd :linux :unix :darwin))
                          "clgfw/backend/curses")
                (:feature (:or :bsd :linux :unix :darwin) "clgfw/backend/x11")

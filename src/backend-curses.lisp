@@ -12,7 +12,7 @@
 ;;;; See the License for the specific language governing permissions and
 ;;;; limitations under the License.
 
-(uiop:define-package #:clgfw/backend/curses
+(defpackage #:clgfw/backend/curses
   (:use #:cl #:alexandria #:clgfw)
   (:export #:backend/curses))
 (in-package #:clgfw/backend/curses)

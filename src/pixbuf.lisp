@@ -1,7 +1,5 @@
 (defpackage #:clgfw/pixbuf
   (:use #:cl)
-  (:import-from #:alexandria
-                #:with-gensyms)
   (:export #:pixbuf
            #:pixbuf-set
            #:create-pixbuf
@@ -56,7 +54,7 @@
                                     (pixbuf-get src src-x src-y)))))
 
 (defmacro pixbuf-do-pixels ((pixbuf x-varname y-varname color-varname) &body body)
-  (with-gensyms (my-pixbuf width height)
+  (let ((my-pixbuf (gensym)) (width (gensym)) (height (gensym)))
     `(let ((,my-pixbuf ,pixbuf))
        (loop
          :with ,height = (pixbuf-height ,my-pixbuf)
