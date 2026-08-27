@@ -75,13 +75,15 @@
   :components ((:module "src"
                  :components ((:file "backend-curses")))))
 
+;;; NOTE: the web backend using jscl can only be loaded
+;;; by running `jscl scripts/jscl-build.lisp`
+#+nil
 (defsystem "clgfw/backend/web"
   :depends-on ("clgfw/core")
   :components ((:module "src"
-                 :components ((:file "backend-curses")))))
+                :components ((:file "backend-web")))))
 
 ;; TODO: CLOG backend??
-;; TODO: JSCL backend??
 ;; TODO: win32 backending using ftw
 
 (defsystem "clgfw"
@@ -92,7 +94,7 @@
   :defsystem-depends-on ("trivial-features")
   :depends-on ("clgfw/core"
                (:feature :abcl "clgfw/backend/jvm")
-               (:feature :jscl "clgfw/backend/web")
+               #+nil(:feature :jscl "clgfw/backend/web")
                (:feature (:and (:or :bsd :linux :unix :darwin))
                          "clgfw/backend/curses")
                (:feature (:or :bsd :linux :unix :darwin) "clgfw/backend/x11")
