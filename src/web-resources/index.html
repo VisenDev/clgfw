@@ -1,7 +1,13 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <script src="jscl.js"></script>
-    <script src="clgfw.js"></script>
   </head>
+  <body></body>
+  <!--
+      NOTE: i originally had these scripts in the <head> tag, but that made
+      them run before document.body was defined, causing an error when we
+      try to append a canvas to document.body
+  -->
+  <script src="jscl.js"></script>
+  <script src="clgfw.js"></script>
 </html>

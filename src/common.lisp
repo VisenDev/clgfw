@@ -185,13 +185,13 @@
   (setf (gethash mouse-button (slot-value handler 'mouse-button-states)) nil))
 
 (defmethod callback-on-key-down ((handler window-state) key)
-  (declare (type key key))
+  #-jscl(declare (type key key))
   (setf (slot-value handler 'input-happened-p) t)
   (vector-push key (slot-value handler 'pressed-keys))
   (setf (gethash key (slot-value handler 'keyboard-state)) t))
 
 (defmethod callback-on-key-up  ((handler window-state) key)
-  (declare (type key key))
+  #-jscl(declare (type key key))
   (setf (slot-value handler 'input-happened-p) t)
   (vector-push key (slot-value handler 'released-keys))
   (setf (gethash key (slot-value handler 'keyboard-state)) nil))
@@ -213,21 +213,31 @@
 ;;; ==== PUBLIC INTERFACE ====
 (defun init-window (width height title)
   "Attempts to initialize a window on your platform"
-  (let ((prioritized-backends (sort (maphash (lambda (key value)
-                                               value)
-                                             *backends*)
+  (let ((prioritized-backends (sort (let ((backends nil))
+                                      (maphash (lambda (key value)
+                                                 (push value backends))
+                                               *backends*)
+                                      backends)
                                     (lambda (lhs rhs)
                                       (>
                                        (getf lhs :priority)
                                        (getf rhs :priority)))))
         (window (make-instance 'window-state)))
+    ;; (error "Backends: ~a" prioritized-backends)
+    ;; (#j:console:log (jscl/ffi:jsstring
+    ;;                  (format nil "Backends: ~a" prioritized-backends)))
     (dolist (backend-info prioritized-backends)
       (let* ((instance (make-instance (getf backend-info :class-name))))
         (let ((backend (handler-case
                            (backend-init-window instance width height title window)
-                          (error (e)
-                            (format t "Error initializing using ~a~%~a~%" instance e)
-                            nil))))
+                         ;; NOTE: Don't handle the error on jscl because the format
+                         ;; output doesn't get printed to the console so we will
+                         ;; have no feedback on what the actual error was
+                         #-jscl
+                         (error (e)
+                           (format t "Error initializing using ~a~%~a~%" instance e)
+                           nil)
+                         )))
           (when backend
             (setf (slot-value window 'backend) backend)
             (return-from init-window window))))))
@@ -331,25 +341,25 @@
                released-mouse-buttons old-window-width old-window-height
                window-width window-height redraw-frequency backend
                input-happened-p)
-      window-state)
-  (backend-end-drawing backend)
-  (setf (fill-pointer pressed-keys) 0)
-  (setf (fill-pointer released-keys) 0)
-  (setf (fill-pointer pressed-mouse-buttons) 0)
-  (setf (fill-pointer released-mouse-buttons) 0)
-  (setf old-window-width window-width)
-  (setf old-window-height window-height)
+      window-state
+    (backend-end-drawing backend)
+    (setf (fill-pointer pressed-keys) 0)
+    (setf (fill-pointer released-keys) 0)
+    (setf (fill-pointer pressed-mouse-buttons) 0)
+    (setf (fill-pointer released-mouse-buttons) 0)
+    (setf old-window-width window-width)
+    (setf old-window-height window-height)
 
-  (ecase redraw-frequency
-    (:target-fps
-     (let ((remaining (get-remaining-seconds-in-frame window-state)))
-       (when (plusp remaining)
-         #-jscl(sleep remaining))))
-    (:on-input
-     (loop :until input-happened-p
-           :do #-jscl(sleep 0.001)
-               (backend-check-for-input backend)
-           :finally (setf input-happened-p nil)))))
+    (ecase redraw-frequency
+      (:target-fps
+       (let ((remaining (get-remaining-seconds-in-frame window-state)))
+         (when (plusp remaining)
+           #-jscl(sleep remaining))))
+      (:on-input
+       (loop :until input-happened-p
+             :do #-jscl(sleep 0.001)
+                 (backend-check-for-input backend)
+             :finally (setf input-happened-p nil))))))
 
 (declaim (ftype (function (window-state) boolean) window-should-close-p]))
 (defun window-should-close-p (window-state)
@@ -463,21 +473,49 @@
      (assert (not frames-per-second))
      (setf (slot-value window-state 'redraw-frequency) :on-input))))
 
+;;;; NOTE: because of the browser's syncronous event loop
+;;;; we need to special case with-drawing and while-running.
+;;;; Otherwise we end up with an infinite loop that never
+;;;; lets the browser render stuff and process events.
+
+
+#-jscl
 (defmacro with-window (name (width height title) &body body)
   `(let ((,name (init-window ,width ,height ,title)))
      (unwind-protect
           (progn ,@body)
        (close-window ,name))))
 
+#+jscl
+(defmacro with-window (name (width height title) &body body)
+  `(let ((,name (init-window ,width ,height ,title)))
+     (progn ,@body))))
+
+#-jscl
 (defmacro with-drawing (state &body body)
   `(progn
      (begin-drawing ,state)
      (unwind-protect (progn ,@body)
        (end-drawing ,state))))
 
+#+jscl
+(defmacro with-drawing (state &body body)
+  `(progn ,@body))
+
+#-jscl
 (defmacro while-running (state &body body)
   `(loop :while (window-should-keep-running-p ,state)
          :do ,@body))
+
+#+jscl
+(defmacro while-running (state &body body)
+  (let ((callback (gensym)))
+    `(labels ((,callback (timestamp)
+                ,@body
+                (if (window-should-keep-running-p ,state)
+                    (#j:window:requestAnimationFrame #',callback)
+                    (close-window ,state))))
+       (#j:window:requestAnimationFrame #',callback))))
 
 (defun key->char (key)
   "Returns the corresponding character if possible or nil otherwise"

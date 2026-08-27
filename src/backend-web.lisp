@@ -175,6 +175,7 @@
     :reader backend-window-should-close-p :initform nil)
    (text-height :reader text-height :initform 12)
    (callback-handler :reader callback-handler)))
+
 (register-backend 'backend/web +priority-native+)
 
 ;;TODO support this
@@ -233,12 +234,12 @@
   ((jscl/ffi:oget (slot-value ctx 'canvas-node) "remove")))
 
 (defmethod backend-begin-drawing ((ctx backend/web))
-  ;; no op for the moment
-  )
+  (error "Calling begin-drawing directly is not supported on the
+           web backend. Use with-drawing instead."))
+
 (defmethod backend-end-drawing ((ctx backend/web))
-  ;; no op for the moment
-  ;; TODO: handle fps using requestAnimationFrame
-  )
+  (error "Calling end-drawing directly is not supported on the
+           web backend. Use with-drawing instead."))
 
 (defun color->jsstring (color)
   (jscl/ffi:jsstring (format nil "rgba(~a, ~a, ~a, ~a)" 
@@ -273,13 +274,48 @@
   ((jscl/ffi:oget (canvas-ctx ctx) "beginPath"))
   ((jscl/ffi:oget (canvas-ctx ctx) "fillText") (jscl/ffi:jsstring text) x y))
 
-;;;; TODO: canvas apis
-;; (defgeneric backend-draw-canvas               (ctx x y canvas &optional tint))
-;; (defgeneric backend-create-canvas             (ctx w h))
-;; (defgeneric backend-destroy-canvas            (ctx canvas))
-;; (defgeneric backend-check-for-input           (ctx))
-;; (defgeneric backend-draw-rectangle-on-canvas  (ctx canvas x y w h color))
-;; (defgeneric backend-draw-text-on-canvas       (ctx canvas x y color text))
-;; (defgeneric backend-draw-canvas-on-canvas     (ctx canvas x y w h &optional tint))
+(defmethod backend-draw-canvas ((ctx backend/web) x y canvas &optional tint)
+  (let ((draw-ctx ((jscl/ffi:oget canvas "getContext") #j"2d")))
+    ;; TODO delete above variable
+
+    ;; TODO handle tint
+    ((jscl/ffi:oget (slot-value ctx 'canvas-ctx) "drawImage") canvas x y)))
+
+(defmethod backend-create-canvas ((ctx backend/web) w h)
+  (let* ((new-canvas-node (#j:document:createElement #j"canvas")))
+
+    ;; todo store a reference to this canvas in our backend somewhere
+    (setf (jscl/ffi:oget new-canvas-node "width") w)
+    (setf (jscl/ffi:oget new-canvas-node "height") h)
+    (setf (jscl/ffi:oget new-canvas-node "style" "display") #j"none")
+    (#j:document:body:append new-canvas-node)
+    new-canvas-node))
+
+(defmethod backend-destroy-canvas ((ctx backend/web) canvas)
+  ((jscl/ffi:oget canvas "remove")))
+
+(defmethod backend-check-for-input ((ctx backend/web))
+  (slot-value ctx 'input-happened-p))
+
+(defmethod backend-draw-rectangle-on-canvas ((ctx backend/web) canvas x y w h color)
+  (let ((draw-ctx ((jscl/ffi:oget canvas "getContext") #j"2d")))
+    (setf (jscl/ffi:oget draw-ctx "fillStyle")
+          (color->jsstring color))
+    ((jscl/ffi:oget draw-ctx "beginPath"))
+    ((jscl/ffi:oget draw-ctx "rect") x y w h)
+    ((jscl/ffi:oget draw-ctx "fill"))))
+
+(defmethod backend-draw-text-on-canvas ((ctx backend/web) canvas x y color text)
+  (let ((draw-ctx ((jscl/ffi:oget canvas "getContext") #j"2d")))
+    ;; TODO set text height
+    (setf (jscl/ffi:oget draw-ctx "fillStyle") (color->jsstring color))
+    ((jscl/ffi:oget draw-ctx "beginPath"))
+    ((jscl/ffi:oget draw-ctx "fillText") (jscl/ffi:jsstring text) x y)))
+
+(defmethod backend-draw-canvas-on-canvas
+    ((ctx backend/web) canvas x y w h &optional tint)
+  
+  ;; TODO: verify that this function prototype is correct
+  )
 
 

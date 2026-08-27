@@ -9,6 +9,10 @@ clisp:
 
 clgfw.js:
 	jscl scripts/jscl-build.lisp
+	mkdir -p build
+	mv clgfw.js build
+	cp src/web-resources/* build
+	cd build && php -S localhost:8000
 
 clean:
 	if [ -e hello ]; then trash hello; fi
