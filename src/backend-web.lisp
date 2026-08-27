@@ -169,12 +169,12 @@
 
 
 (defclass backend/web ()
-  ((canvas-node :accessor canvas-node)
-   (canvas-ctx :accessor canvas-ctx)
+  ((canvas-node :reader canvas-node)
+   (canvas-ctx :reader canvas-ctx)
    (backend-window-should-close-p
-    :accessor backend-window-should-close-p :initform nil)
-   (text-height :accessor text-height :initform 12)
-   (callback-handler :accessor callback-handler)))
+    :reader backend-window-should-close-p :initform nil)
+   (text-height :reader text-height :initform 12)
+   (callback-handler :reader callback-handler)))
 (register-backend 'backend/web +priority-native+)
 
 ;;TODO support this
@@ -182,17 +182,18 @@
 
 (defmethod backend-init-window ((ctx backend/web) width height
                                 title callback-handler-instance)
-  (setf (callback-handler ctx) callback-handler-instance)
+  (setf (slot-value ctx 'callback-handler)
+        callback-handler-instance)
   
   (let* ((canvas-node (#j:document:createElement #j"canvas")))
 
     (#j:document:body:append canvas-node)
     (setf (jscl/ffi:oget canvas-node "width") width)
     (setf (jscl/ffi:oget canvas-node "height") height)
-    (setf (canvas-ctx ctx)
+    (setf (slot-value ctx 'canvas-ctx)
           ((jscl/ffi:oget canvas-node "getContext")
            (jscl/ffi:jsstring "2d")))
-    (setf (canvas-node ctx) canvas-node)
+    (setf (slot-value ctx 'canvas-node) canvas-node)
     
     (setf #j:document:title (jscl/ffi:jsstring title)))
 
@@ -229,7 +230,7 @@
   ctx)
 
 (defmethod backend-close-window ((ctx backend/web))
-  ((jscl/ffi:oget (canvas-node ctx) "remove")))
+  ((jscl/ffi:oget (slot-value ctx 'canvas-node) "remove")))
 
 (defmethod backend-begin-drawing ((ctx backend/web))
   ;; no op for the moment
@@ -247,17 +248,18 @@
                              (color-a color))))
 
 (defmethod backend-draw-rectangle ((ctx backend/web) x y w h color)
-  (setf (jscl/ffi:oget (canvas-ctx ctx) "fillStyle")
-        (color->jsstring color))
-  ((jscl/ffi:oget (canvas-ctx ctx) "beginPath"))
-  ((jscl/ffi:oget (canvas-ctx ctx) "rect") x y w h)
-  ((jscl/ffi:oget (canvas-ctx ctx) "fill")))
+  (with-slots (canvas-ctx) ctx
+    (setf (jscl/ffi:oget canvas-ctx "fillStyle")
+          (color->jsstring color))
+    ((jscl/ffi:oget canvas-ctx "beginPath"))
+    ((jscl/ffi:oget canvas-ctx "rect") x y w h)
+    ((jscl/ffi:oget canvas-ctx "fill"))))
 
 (defmethod backend-set-preferred-text-height ((ctx backend/web) text-height)
-  (setf (text-height ctx) text-height))
+  (setf (slot-value ctx 'text-height) text-height))
 
 (defmethod backend-get-text-height ((ctx backend/web))
-  (text-height ctx))
+  (slot-value ctx 'text-height))
 
 (defmethod backend-measure-text-width ((ctx backend/web) text)
   (jscl/ffi:oget ((jscl/ffi:oget (canvas-ctx ctx) "measureText") text)
@@ -266,7 +268,7 @@
 (defmethod backend-draw-text ((ctx backend/web) x y color text)
 
   ;; TODO set text height
-  (setf (jscl/ffi:oget (canvas-ctx ctx) "fillStyle")
+  (setf (jscl/ffi:oget (slot-value ctx 'canvas-ctx) "fillStyle")
         (color->jsstring color))
   ((jscl/ffi:oget (canvas-ctx ctx) "beginPath"))
   ((jscl/ffi:oget (canvas-ctx ctx) "fillText") (jscl/ffi:jsstring text) x y))
@@ -279,4 +281,5 @@
 ;; (defgeneric backend-draw-rectangle-on-canvas  (ctx canvas x y w h color))
 ;; (defgeneric backend-draw-text-on-canvas       (ctx canvas x y color text))
 ;; (defgeneric backend-draw-canvas-on-canvas     (ctx canvas x y w h &optional tint))
+
 

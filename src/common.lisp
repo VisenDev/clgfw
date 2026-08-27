@@ -118,7 +118,8 @@
 
 (defclass window-state ()
   ((backend :accessor backend)
-   (keyboard-state :accessor keyboard-state :initform (make-hash-table :test 'eq :size 256))
+   (keyboard-state :accessor keyboard-state :initform
+                   (make-hash-table :test 'eq :size 256))
    (window-width :accessor window-width :initform 0)
    (window-height :accessor window-height :initform 0)
    (old-window-width :accessor old-window-width :initform 0
@@ -131,24 +132,30 @@
                         :accessor mouse-button-states)
    (pressed-keys
     :accessor pressed-keys
-    :initform (make-array 256 :element-type 'symbol :fill-pointer 0 :initial-element nil)
+    :initform (make-array 256 :element-type 'symbol
+                              :fill-pointer 0 :initial-element nil)
     :documentation "A vector of all the keys which have been pressed this frame")
    (released-keys
     :accessor released-keys
-    :initform (make-array 256 :element-type 'symbol :fill-pointer 0 :initial-element nil)
+    :initform (make-array 256 :element-type 'symbol
+                              :fill-pointer 0 :initial-element nil)
     :documentation "A vector of all the keys which have been released this frame")
    (pressed-mouse-buttons
     :accessor pressed-mouse-buttons
-    :initform (make-array 3 :element-type 'symbol :fill-pointer 0 :initial-element nil))
+    :initform (make-array 3 :element-type 'symbol
+                            :fill-pointer 0 :initial-element nil))
    (released-mouse-buttons
     :accessor released-mouse-buttons
-    :initform (make-array 3 :element-type 'symbol :fill-pointer 0 :initial-element nil))
+    :initform (make-array 3 :element-type 'symbol
+                            :fill-pointer 0 :initial-element nil))
    (target-fps :accessor target-fps :initform 60)
    (fps-history :accessor fps-history :initform (make-array 60 :adjustable t
                                                                :fill-pointer 0))
-   (redraw-frequency :accessor redraw-frequency :initform :on-input :type redraw-frequency-type)
+   (redraw-frequency :accessor redraw-frequency
+                     :initform :on-input :type redraw-frequency-type)
    (last-frame-timestamp :accessor last-frame-timestamp :initform (get-timestamp))
-   (current-frame-timestamp :accessor current-frame-timestamp :initform (get-timestamp))
+   (current-frame-timestamp :accessor current-frame-timestamp
+                            :initform (get-timestamp))
    (delta-time-seconds :accessor delta-time-seconds :initform 0)
    (input-happened-p :accessor input-happened-p :initform t)
    (draw-on-canvas? :accessor draw-on-canvas? :initform nil
@@ -158,46 +165,50 @@
 
 
 (defmethod callback-on-mouse-move ((handler window-state) x y)
-  (unless (and (= (mouse-x handler) x)
-               (= (mouse-y handler) y))
-    (setf (input-happened-p handler) t)
-    (setf (mouse-x handler) x)
-    (setf (mouse-y handler) y)))
+  (with-slots (mouse-x mouse-y input-happened-p) handler
+      (unless (and (= mouse-x x)
+                   (= mouse-y y))
+        (setf input-happened-p t)
+        (setf mouse-x x)
+        (setf mouse-y y))))
 
 (defmethod callback-on-mouse-down ((handler window-state) mouse-button)
-  (setf (input-happened-p handler) t)
-  (vector-push mouse-button (pressed-mouse-buttons handler))
-  (setf (gethash mouse-button (mouse-button-states handler)) t))
+  (with-slots
+        (input-happened-p pressed-mouse-buttons mouse-button-states) handler
+      (setf input-happened-p t)
+    (vector-push mouse-button pressed-mouse-buttons)
+    (setf (gethash mouse-button mouse-button-states) t)))
 
 (defmethod callback-on-mouse-up ((handler window-state) mouse-button)
-  (setf (input-happened-p handler) t)
-  (vector-push mouse-button (released-mouse-buttons handler))
-  (setf (gethash mouse-button (mouse-button-states handler)) nil))
+  (setf (slot-value handler 'input-happened-p) t)
+  (vector-push mouse-button (slot-value handler 'released-mouse-buttons))
+  (setf (gethash mouse-button (slot-value handler 'mouse-button-states)) nil))
 
 (defmethod callback-on-key-down ((handler window-state) key)
   (declare (type key key))
-  (setf (input-happened-p handler) t)
-  (vector-push key (pressed-keys handler))
-  (setf (gethash key (keyboard-state handler)) t))
+  (setf (slot-value handler 'input-happened-p) t)
+  (vector-push key (slot-value handler 'pressed-keys))
+  (setf (gethash key (slot-value handler 'keyboard-state)) t))
 
 (defmethod callback-on-key-up  ((handler window-state) key)
   (declare (type key key))
-  (setf (input-happened-p handler) t)
-  (vector-push key (released-keys handler))
-  (setf (gethash key (keyboard-state handler)) nil))
+  (setf (slot-value handler 'input-happened-p) t)
+  (vector-push key (slot-value handler 'released-keys))
+  (setf (gethash key (slot-value handler 'keyboard-state)) nil))
 
 (defmethod callback-all-keys-up ((handler window-state))
-  (setf (input-happened-p handler) t)
-  (loop :for key :across (pressed-keys handler)
+  (setf (slot-value handler 'input-happened-p) t)
+  (loop :for key :across (slot-value handler 'pressed-keys)
         :do (callback-on-key-up handler key)
-        :finally (setf (fill-pointer (pressed-keys handler)) 0)))
+        :finally (setf (fill-pointer (slot-value handler 'pressed-keys)) 0)))
 
 (defmethod callback-on-window-resize ((handler window-state) width height)
-  (unless (and (= (window-width handler) width)
-               (= (window-height handler) height))
-    (setf (input-happened-p handler) t)
-    (setf (window-width handler) width)
-    (setf (window-height handler) height)))
+  (with-slots (widow-width window-height input-happened-p) handler
+    (unless (and (= window-width width)
+                 (= window-height height))
+      (setf input-happened-p t)
+      (setf window-width width)
+      (setf window-height height))))
 
 ;;; ==== PUBLIC INTERFACE ====
 (defun init-window (width height title)
@@ -212,70 +223,74 @@
         (window (make-instance 'window-state)))
     (dolist (backend-info prioritized-backends)
       (let* ((instance (make-instance (getf backend-info :class-name))))
-        (let ((backend (handler-case (backend-init-window instance width height title window)
+        (let ((backend (handler-case
+                           (backend-init-window instance width height title window)
                           (error (e)
                             (format t "Error initializing using ~a~%~a~%" instance e)
                             nil))))
           (when backend
-            (setf (backend window) backend)
+            (setf (slot-value window 'backend) backend)
             (return-from init-window window))))))
   (error "No appropriate backend found :("))
 
 (declaim (ftype (function (window-state) t) close-window))
 (defun close-window (window-state)
-  (backend-close-window (backend window-state)))
+  (backend-close-window (slot-value window-state 'backend)))
 
 (declaim (ftype (function (window-state) fixnum) get-mouse-x))
 (defun get-mouse-x (window-state)
-  (mouse-x window-state))
+  (slot-value window-state 'mouse-x))
 
 (declaim (ftype (function (window-state) fixnum) get-mouse-y))
 (defun get-mouse-y (window-state)
-  (mouse-y window-state))
+  (slot-value window-state 'mouse-y))
 
 (declaim (ftype (function (window-state) fixnum) get-window-width))
 (defun get-window-width (window-state)
-  (window-width window-state))
+  (slot-value window-state 'window-width))
 
 (declaim (ftype (function (window-state) fixnum) get-window-height))
 (defun get-window-height (window-state)
-  (window-height window-state))
+  (slot-value window-state 'window-height))
 
 (declaim (ftype (function (window-state mouse-button) boolean) is-mouse-button-down))
 (defun is-mouse-button-down (window-state button)
-  (gethash button (mouse-button-states window-state)))
+  (gethash button (slot-value window-state 'mouse-button-states)))
 
 (declaim (ftype (function (window-state mouse-button) boolean) is-mouse-button-up))
 (defun is-mouse-button-up (window-state button)
-  (not (gethash button (mouse-button-states window-state))))
+  (not (gethash button (slot-value window-state 'mouse-button-states))))
 
-(declaim (ftype (function (window-state mouse-button) boolean) is-mouse-button-pressed))
+(declaim (ftype (function (window-state mouse-button) boolean)
+                is-mouse-button-pressed))
 (defun is-mouse-button-pressed (window-state button)
-  (make-boolean (find button (pressed-mouse-buttons window-state))))
+  (make-boolean (find button (slot-value window-state 'pressed-mouse-buttons))))
 
-(declaim (ftype (function (window-state mouse-button) boolean) is-mouse-button-released))
+(declaim (ftype (function (window-state mouse-button) boolean)
+                is-mouse-button-released))
 (defun is-mouse-button-released (window-state button)
-  (make-boolean (find button (released-mouse-buttons window-state))))
+  (make-boolean (find button (slot-value window-state 'released-mouse-buttons))))
 
 (declaim (ftype (function (window-state key) boolean) is-key-down))
 (defun is-key-down (window-state key)
-  (make-boolean (gethash key (keyboard-state window-state) nil)))
+  (make-boolean (gethash key (slot-value window-state 'keyboard-state) nil)))
 
 (declaim (ftype (function (window-state key) boolean) is-key-up))
 (defun is-key-up (window-state key)
-  (make-boolean (not (gethash key (keyboard-state window-state) nil))))
+  (make-boolean (not (gethash key (slot-value window-state 'keyboard-state) nil))))
 
 (declaim (ftype (function (window-state key) boolean) is-key-pressed))
 (defun is-key-pressed (window-state key)
-  (make-boolean (find key (pressed-keys window-state))))
+  (make-boolean (find key (slot-value window-state 'pressed-keys))))
 
 (declaim (ftype (function (window-state key) boolean) is-key-released))
 (defun is-key-released (window-state key)
-  (make-boolean (find key (released-keys window-state))))
+  (make-boolean (find key (slot-value window-state 'released-keys))))
 
 (declaim (ftype (function (window-state) t) begin-drawing))
 (defun begin-drawing (window-state)
-  (with-slots (backend last-frame-timestamp current-frame-timestamp delta-time-seconds)
+  (with-slots (backend last-frame-timestamp current-frame-timestamp
+               delta-time-seconds)
       window-state
     
     (setf last-frame-timestamp current-frame-timestamp)
@@ -312,35 +327,37 @@
 
 (declaim (ftype (function (window-state) t) end-drawing))
 (defun end-drawing (window-state)
-  (backend-end-drawing (backend window-state))
-  (setf (fill-pointer (pressed-keys window-state)) 0)
-  (setf (fill-pointer (released-keys window-state)) 0)
-  (setf (fill-pointer (pressed-mouse-buttons window-state)) 0)
-  (setf (fill-pointer (released-mouse-buttons window-state)) 0)
-  (setf (old-window-width window-state) (window-width window-state))
-  (setf (old-window-height window-state) (window-height window-state))
+  (with-slots (pressed-keys released-keys pressed-mouse-buttons
+               released-mouse-buttons old-window-width old-window-height
+               window-width window-height redraw-frequency backend
+               input-happened-p)
+      window-state)
+  (backend-end-drawing backend)
+  (setf (fill-pointer pressed-keys) 0)
+  (setf (fill-pointer released-keys) 0)
+  (setf (fill-pointer pressed-mouse-buttons) 0)
+  (setf (fill-pointer released-mouse-buttons) 0)
+  (setf old-window-width window-width)
+  (setf old-window-height window-height)
 
-  (ecase (redraw-frequency window-state)
+  (ecase redraw-frequency
     (:target-fps
      (let ((remaining (get-remaining-seconds-in-frame window-state)))
-       ;; (when (> remaining 0.01)
-       ;;   ;; (trivial-garbage:gc)
-       ;;   (setf remaining (- (get-remaining-seconds-in-frame window-state) 0.001)))
        (when (plusp remaining)
-         (sleep remaining))))
+         #-jscl(sleep remaining))))
     (:on-input
-     (loop :until (input-happened-p window-state)
-           :do (sleep 0.001)
-               (backend-check-for-input (backend window-state))
-           :finally (setf (input-happened-p window-state) nil)))))
+     (loop :until input-happened-p
+           :do #-jscl(sleep 0.001)
+               (backend-check-for-input backend)
+           :finally (setf input-happened-p nil)))))
 
 (declaim (ftype (function (window-state) boolean) window-should-close-p]))
 (defun window-should-close-p (window-state)
-  (backend-window-should-close-p (backend window-state)))
+  (backend-window-should-close-p (slot-value window-state 'backend)))
 
 (declaim (ftype (function (window-state) boolean) window-should-keep-running-p))
 (defun window-should-keep-running-p (window-state)
-  (not (backend-window-should-close-p (backend window-state))))
+  (not (backend-window-should-close-p (slot-value window-state 'backend))))
 
 (declaim (ftype (function (window-state number number number number color) t) draw-rectangle))
 (defun draw-rectangle (window-state x y w h color)
@@ -366,7 +383,8 @@
 ;;   (error "TODO")
 ;;   )
 
-(declaim (ftype (function (window-state number number t &optional color) t) draw-canvas))
+(declaim (ftype (function (window-state number number t &optional color) t)
+                draw-canvas))
 (defun draw-canvas (window-state x y canvas &optional tint)
   (with-slots (backend draw-on-canvas?) window-state
     (if draw-on-canvas?
@@ -377,11 +395,13 @@
 ;;; CANVAS
 (declaim (ftype (function (window-state number number) t)))
 (defun create-canvas (window-state width height)
-  (backend-create-canvas (backend window-state) (floor width) (floor height)))
+  (backend-create-canvas (slot-value window-state 'backend)
+                         (floor width) (floor height)))
 
 (declaim (ftype (function (window-state t) t) destroy-canvas))
 (defun destroy-canvas (window-state canvas)
-  (backend-destroy-canvas (backend window-state) canvas))
+  (backend-destroy-canvas (slot-value window-state 'backend)
+                          canvas))
 
 (defmacro with-canvas (varname (window-state width height) &body body)
   `(let ((,varname (create-canvas ,window-state ,width ,height)))
@@ -425,20 +445,23 @@
   "Requests that the backend draws text at the given text-height. Might not always work because
    certain backends (ie clx) cannot draw arbitrary text sizes. Always use the text measuring
    functions to check the real size that text will be rendered at."
-  (backend-set-preferred-text-height (backend window-state) (round text-height)))
+  (backend-set-preferred-text-height (slot-value window-state 'backend)
+                                     (round text-height)))
 
 
 ;;; REDRAW AND FPS
-(declaim (ftype (function (window-state redraw-frequency-type &optional number) t) set-redraw-frequency))
-(defun set-redraw-frequency (window-state redraw-frequency-type &optional frames-per-second)
+(declaim (ftype (function (window-state redraw-frequency-type &optional number) t)
+                set-redraw-frequency))
+(defun set-redraw-frequency (window-state redraw-frequency-type
+                             &optional frames-per-second)
   (ecase redraw-frequency-type
     (:target-fps
      (assert frames-per-second () "expected target frames-per-second")
-     (setf (target-fps window-state) frames-per-second)
-     (setf (redraw-frequency window-state) :target-fps))
+     (setf (slot-value window-state 'target-fps) frames-per-second)
+     (setf (slot-value window-state 'redraw-frequency) :target-fps))
     (:on-input
      (assert (not frames-per-second))
-     (setf (redraw-frequency window-state) :on-input))))
+     (setf (slot-value window-state 'redraw-frequency) :on-input))))
 
 (defmacro with-window (name (width height title) &body body)
   `(let ((,name (init-window ,width ,height ,title)))
