@@ -12,8 +12,8 @@
 ;;;; See the License for the specific language governing permissions and
 ;;;; limitations under the License.
 
-(uiop:define-package #:clgfw
-  (:use #:cl #:alexandria)
+(defpackage #:clgfw
+  (:use #:cl)
   (:export #:init-window
            #:close-window
            #:window-should-keeping-running-p

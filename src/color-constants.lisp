@@ -16,7 +16,7 @@
 ;;;; See the License for the specific language governing permissions and
 ;;;; limitations under the License.
 
-(uiop:define-package #:clgfw/color
+(defpackage #:clgfw/color
     (:use #:cl)
   (:export ;; Html Color Constants
            #:+IndianRed+ #:+LightCoral+ #:+Salmon+ #:+DarkSalmon+          
