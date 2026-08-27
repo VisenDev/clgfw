@@ -18,6 +18,11 @@
 #-jscl
 (error "The Web windowing backend requires JSCL")
 
+
+;;;; TODO
+;;;; JSCL compile-application doesn't support accessors, so we
+;;;; either need to replace classes with structs or use slot-value
+
 (defparameter *key-mapping-data*
   '((:quote           "Quote")
     (:comma           "Comma")
@@ -156,7 +161,7 @@
 (defparameter *js-key->lisp-key*
   (let ((tbl (make-hash-table :test 'equal)))
     (loop :for (lisp js) :in *key-mapping-data*
-          :do (setf (gethash js tbl) cl))
+          :do (setf (gethash js tbl) lisp))
     tbl))
 
 (defun js-key->lisp-key (jsstring)
@@ -167,7 +172,7 @@
   ((canvas-node :accessor canvas-node)
    (canvas-ctx :accessor canvas-ctx)
    (backend-window-should-close-p
-    :accessor backend-window-should-close-p :initform nil)'
+    :accessor backend-window-should-close-p :initform nil)
    (text-height :accessor text-height :initform 12)
    (callback-handler :accessor callback-handler)))
 (register-backend 'backend/web +priority-native+)
@@ -185,10 +190,11 @@
     (setf (jscl/ffi:oget canvas-node "width") width)
     (setf (jscl/ffi:oget canvas-node "height") height)
     (setf (canvas-ctx ctx)
-          ((jscl/ffi:oget canvas-node "getContext") "2d"))
+          ((jscl/ffi:oget canvas-node "getContext")
+           (jscl/ffi:jsstring "2d")))
     (setf (canvas-node ctx) canvas-node)
     
-    (setf #j:document:title () (jscl/ffi:jsstring title)))
+    (setf #j:document:title (jscl/ffi:jsstring title)))
 
   ;; register event handlers
   (flet ((on-mouse-move (e)
@@ -214,11 +220,11 @@
            (callback-on-key-up callback-handler-instance
                                (js-key->lisp-key (jscl/ffi:oget e "code")))))
 
-    (#j:document:addEventListener "mousemove" #'on-mouse-move)
-    (#j:document:addEventListener "mousedown" #'on-mouse-down)
-    (#j:document:addEventListener "mouseup" #'on-mouse-up)
-    (#j:document:addEventListener "keydown" #'on-key-down)
-    (#j:document:addEventListener "keyup" #'on-key-up))
+    (#j:document:addEventListener #j"mousemove" #'on-mouse-move)
+    (#j:document:addEventListener #j"mousedown" #'on-mouse-down)
+    (#j:document:addEventListener #j"mouseup" #'on-mouse-up)
+    (#j:document:addEventListener #j"keydown" #'on-key-down)
+    (#j:document:addEventListener #j"keyup" #'on-key-up))
 
   ctx)
 
@@ -248,9 +254,9 @@
   ((jscl/ffi:oget (canvas-ctx ctx) "fill")))
 
 (defmethod backend-set-preferred-text-height ((ctx backend/web) text-height)
-  (setf (text-height context) text-height))
+  (setf (text-height ctx) text-height))
 
-(defgeneric backend-get-text-height ((ctx backend/web))
+(defmethod backend-get-text-height ((ctx backend/web))
   (text-height ctx))
 
 (defmethod backend-measure-text-width ((ctx backend/web) text)
@@ -258,6 +264,8 @@
                  "width"))
 
 (defmethod backend-draw-text ((ctx backend/web) x y color text)
+
+  ;; TODO set text height
   (setf (jscl/ffi:oget (canvas-ctx ctx) "fillStyle")
         (color->jsstring color))
   ((jscl/ffi:oget (canvas-ctx ctx) "beginPath"))

@@ -202,7 +202,9 @@
 ;;; ==== PUBLIC INTERFACE ====
 (defun init-window (width height title)
   "Attempts to initialize a window on your platform"
-  (let ((prioritized-backends (sort (hash-table-values *backends*)
+  (let ((prioritized-backends (sort (maphash (lambda (key value)
+                                               value)
+                                             *backends*)
                                     (lambda (lhs rhs)
                                       (>
                                        (getf lhs :priority)
