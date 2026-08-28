@@ -18,11 +18,6 @@
 #-jscl
 (error "The Web windowing backend requires JSCL")
 
-
-;;;; TODO
-;;;; JSCL compile-application doesn't support accessors, so we
-;;;; either need to replace classes with structs or use slot-value
-
 (defparameter *key-mapping-data*
   '((:quote           "Quote")
     (:comma           "Comma")
@@ -151,13 +146,6 @@
     (:keypad-enter    "NumpadEnter")
     (:keypad-equal    "NumpadEqual")))
 
-;; (defparameter *lisp-key->js-key*
-;;   (let ((tbl (make-hash-table :test 'eq)))
-;;     (loop :for (lisp js) :in *key-mapping-data*
-;;           :do (setf (gethash lisp tbl) (jscl/ffi:jsstring) js)
-;;           )
-;;     ))
-
 (defparameter *js-key->lisp-key*
   (let ((tbl (make-hash-table :test 'equal)))
     (loop :for (lisp js) :in *key-mapping-data*
@@ -173,7 +161,7 @@
    (canvas-ctx :reader canvas-ctx)
    (backend-window-should-close-p
     :reader backend-window-should-close-p :initform nil)
-   (text-height :reader text-height :initform 12)
+   (text-height :reader text-height :initform 10)
    (callback-handler :reader callback-handler)))
 
 (register-backend 'backend/web +priority-native+)
@@ -191,6 +179,10 @@
     (#j:document:body:append canvas-node)
     (setf (jscl/ffi:oget canvas-node "width") width)
     (setf (jscl/ffi:oget canvas-node "height") height)
+
+    ;; Add canvas border
+    (setf (jscl/ffi:oget canvas-node "style")  #j"border: 2px solid darkgray;")
+    
     (setf (slot-value ctx 'canvas-ctx)
           ((jscl/ffi:oget canvas-node "getContext")
            (jscl/ffi:jsstring "2d")))
@@ -227,6 +219,9 @@
     (#j:document:addEventListener #j"mouseup" #'on-mouse-up)
     (#j:document:addEventListener #j"keydown" #'on-key-down)
     (#j:document:addEventListener #j"keyup" #'on-key-up))
+
+  ;; Notify of canvas size
+  (callback-on-window-resize callback-handler-instance width height)
 
   ctx)
 
@@ -267,24 +262,24 @@
                  "width"))
 
 (defmethod backend-draw-text ((ctx backend/web) x y color text)
-
-  ;; TODO set text height
   (setf (jscl/ffi:oget (slot-value ctx 'canvas-ctx) "fillStyle")
         (color->jsstring color))
+  (setf (jscl/ffi:oget (slot-value ctx 'canvas-ctx) "font")
+        (jscl/ffi:jsstring (format nil "~apx sans-serif"
+                                   (slot-value ctx 'text-height))))
   ((jscl/ffi:oget (canvas-ctx ctx) "beginPath"))
-  ((jscl/ffi:oget (canvas-ctx ctx) "fillText") (jscl/ffi:jsstring text) x y))
+  ((jscl/ffi:oget (canvas-ctx ctx) "fillText") (jscl/ffi:jsstring text)
+   x (+ y (slot-value ctx 'text-height))))
 
 (defmethod backend-draw-canvas ((ctx backend/web) x y canvas &optional tint)
-  (let ((draw-ctx ((jscl/ffi:oget canvas "getContext") #j"2d")))
-    ;; TODO delete above variable
-
-    ;; TODO handle tint
-    ((jscl/ffi:oget (slot-value ctx 'canvas-ctx) "drawImage") canvas x y)))
+  ;; TODO handle tint
+  ((jscl/ffi:oget (slot-value ctx 'canvas-ctx) "drawImage") canvas x y))
 
 (defmethod backend-create-canvas ((ctx backend/web) w h)
   (let* ((new-canvas-node (#j:document:createElement #j"canvas")))
 
-    ;; todo store a reference to this canvas in our backend somewhere
+    ;; todo store a reference to this canvas in our backend somewhere so we
+    ;; can delete it later if we need
     (setf (jscl/ffi:oget new-canvas-node "width") w)
     (setf (jscl/ffi:oget new-canvas-node "height") h)
     (setf (jscl/ffi:oget new-canvas-node "style" "display") #j"none")
@@ -308,14 +303,21 @@
 (defmethod backend-draw-text-on-canvas ((ctx backend/web) canvas x y color text)
   (let ((draw-ctx ((jscl/ffi:oget canvas "getContext") #j"2d")))
     ;; TODO set text height
+    (setf (jscl/ffi:oget draw-ctx "font")
+          (jscl/ffi:jsstring (format nil "~apx sans-serif"
+                                     (slot-value ctx 'text-height))))
     (setf (jscl/ffi:oget draw-ctx "fillStyle") (color->jsstring color))
     ((jscl/ffi:oget draw-ctx "beginPath"))
-    ((jscl/ffi:oget draw-ctx "fillText") (jscl/ffi:jsstring text) x y)))
+    ((jscl/ffi:oget draw-ctx "fillText") (jscl/ffi:jsstring text)
+     x (+ y (slot-value ctx 'text-height)))))
 
-(defmethod backend-draw-canvas-on-canvas
-    ((ctx backend/web) canvas x y w h &optional tint)
-  
-  ;; TODO: verify that this function prototype is correct
+
+(defmethod backend-draw-canvas-on-canvas ((ctx backend/web) dst src
+                                          dst-x dst-y
+                                          src-x src-y
+                                          src-w src-h &optional tint)
+  (error "todo")
+  ;; TODO
   )
 
 

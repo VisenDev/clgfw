@@ -112,7 +112,10 @@
 (defgeneric backend-check-for-input           (ctx))
 (defgeneric backend-draw-rectangle-on-canvas  (ctx canvas x y w h color))
 (defgeneric backend-draw-text-on-canvas       (ctx canvas x y color text))
-(defgeneric backend-draw-canvas-on-canvas     (ctx canvas x y w h &optional tint))
+(defgeneric backend-draw-canvas-on-canvas     (ctx dst src
+                                               dst-x dst-y
+                                               src-x src-y
+                                               src-w src-h &optional tint))
 
 (deftype redraw-frequency-type () `(member :target-fps :on-input))
 
@@ -203,7 +206,7 @@
         :finally (setf (fill-pointer (slot-value handler 'pressed-keys)) 0)))
 
 (defmethod callback-on-window-resize ((handler window-state) width height)
-  (with-slots (widow-width window-height input-happened-p) handler
+  (with-slots (window-width window-height input-happened-p) handler
     (unless (and (= window-width width)
                  (= window-height height))
       (setf input-happened-p t)
@@ -297,8 +300,8 @@
 (defun is-key-released (window-state key)
   (make-boolean (find key (slot-value window-state 'released-keys))))
 
-(declaim (ftype (function (window-state) t) begin-drawing))
-(defun begin-drawing (window-state)
+(declaim (ftype (function (window-state) t) %record-timestamp))
+(defun %record-timestamp (window-state)
   (with-slots (backend last-frame-timestamp current-frame-timestamp
                delta-time-seconds)
       window-state
@@ -308,8 +311,12 @@
     (setf delta-time-seconds
           (timestamp-difference-seconds 
            last-frame-timestamp
-           current-frame-timestamp))
-    (backend-begin-drawing backend)))
+           current-frame-timestamp))))
+
+(declaim (ftype (function (window-state) t) begin-drawing))
+(defun begin-drawing (window-state)
+  (%record-timestamp window-state)
+  (backend-begin-drawing (slot-value window-state 'backend)))
 
 (defun get-fps (window-state)
   (or
@@ -489,7 +496,7 @@
 #+jscl
 (defmacro with-window (name (width height title) &body body)
   `(let ((,name (init-window ,width ,height ,title)))
-     (progn ,@body))))
+     (progn ,@body)))
 
 #-jscl
 (defmacro with-drawing (state &body body)
@@ -511,7 +518,9 @@
 (defmacro while-running (state &body body)
   (let ((callback (gensym)))
     `(labels ((,callback (timestamp)
-                ,@body
+                (%record-timestamp ,state)
+                (progn
+                  ,@body)
                 (if (window-should-keep-running-p ,state)
                     (#j:window:requestAnimationFrame #',callback)
                     (close-window ,state))))
