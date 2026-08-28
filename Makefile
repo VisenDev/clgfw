@@ -5,7 +5,7 @@ ecl:
 	ecl --load scripts/build-hello.lisp
 
 clisp:
-	clisp scripts/build-hello.lisp
+	clisp -i ~/quicklisp/setup.lisp scripts/build-hello.lisp
 
 clgfw.js:
 	jscl scripts/jscl-build.lisp

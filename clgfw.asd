@@ -77,7 +77,6 @@
 
 ;;; NOTE: the web backend using jscl can only be loaded
 ;;; by running `jscl scripts/jscl-build.lisp`
-#+nil
 (defsystem "clgfw/backend/web"
   :depends-on ("clgfw/core")
   :components ((:module "src"

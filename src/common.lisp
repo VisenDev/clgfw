@@ -14,6 +14,11 @@
 
 #+sbcl (setq sb-ext:*block-compile-default* t)
 
+
+;;;; TODO: refactor the api so that the jscl
+;;;; specific code that had to be added here can be
+;;;; moved to backend-web.lisp
+
 (in-package #:clgfw)
 
 ;;; ==== BOOLEAN ====
@@ -112,11 +117,7 @@
 (defgeneric backend-check-for-input           (ctx))
 (defgeneric backend-draw-rectangle-on-canvas  (ctx canvas x y w h color))
 (defgeneric backend-draw-text-on-canvas       (ctx canvas x y color text))
-(defgeneric backend-draw-canvas-on-canvas     (ctx dst src
-                                               dst-x dst-y
-                                               src-x src-y
-                                               src-w src-h &optional tint))
-
+(defgeneric backend-draw-canvas-on-canvas     (ctx dst dst-x dst-y src &optional tint))
 (deftype redraw-frequency-type () `(member :target-fps :on-input))
 
 (defclass window-state ()
