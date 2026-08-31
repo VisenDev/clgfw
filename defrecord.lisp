@@ -1,42 +1,71 @@
-(eval-when (:compile-toplevel)
-  (defun type->meta (type)
-    (ecase type
-      (bool '(8 :bool))
-      (char '(8 :char))
-      
-      (u8  '( 8 :uint))
-      (u16 '(16 :uint))
-      (u32 '(32 :uint))
-      (u64 '(64 :uint))
 
-      (i8  '( 8 :int))
-      (i16 '(16 :int))
-      (i32 '(32 :int))
-      (i64 '(64 :int))
-      
-      (f32 '(32 :fixed-point))
-      (f64 '(64 :fixed-point))))
+
+(eval-when (:compile-toplevel)
+  (defclass field-metadata ()
+    (name type size category accessor offset))
+  
   (defun symbolicate (&rest things)
     (intern (string-upcase
              (apply #'concatenate 'string
-                    (mapcar (lambda (thing) (format nil "~a" thing)) things))))))
+                    (mapcar (lambda (thing) (format nil "~a" thing)) things)))))
+  
+  (defun fields->metadata (record-name fields)
+    (loop
+      :with total-offset = 0
+      :for (fname ftype) :in fields
+      :for i :from 0
+      :for current-offset = total-offset
+      :collect
+      (let ((meta (make-instance 'field-metadata)))
+        (with-slots (name type size category accessor offset) meta
+          (setf name fname)
+          (setf type ftype)
+          (setf offset current-offset)
+          (setf accessor (symbolicate record-name '- fname))
+          (ecase ftype
+            (bool (setf size 8 category :bool))
+            (char (setf size 8 category :char))
+            (u8  (setf size  8 category :uint))
+            (u16 (setf size 16 category :uint))
+            (u32 (setf size 32 category :uint))
+            (u64 (setf size 64 category :uint))
+
+            (i8  (setf size  8 category :int))
+            (i16 (setf size 16 category :int))
+            (i32 (setf size 32 category :int))
+            (i64 (setf size 64 category :int))
+            
+            (f32 (setf size 32 category :fixed-point))
+            (f64 (setf size 64 category :fixed-point)))
+          (incf total-offset size))
+        meta))))
 
 (defmacro defrecord (name &body fields)
   "An experiment in compound value types for common lisp using bigints"
-  (let* ((field-names (mapcar #'first fields))
-         (field-types (mapcar #'second fields))
-         (field-metas (mapcar #'type->meta field-types))
-         (field-sizes (mapcar #'first field-metas))
-         (field-categoties (mapcar #'second field-metas))
-         (total-size-bytes (/ 8 (reduce #'+ field-sizes)))
-         (field-accessors (mapcar (lambda (field-name)
-                                   (symbolicate name '- field-name))
-                                 field-names))
-         (offset 0)
-         (field-offsets (mapcar (lambda (field-size)
-                                  (let ((field-begin offset))
-                                    (incf offset field-size)
-                                    field-begin)))))
+  (let* ((field-metadatas (fields->metadata name fields))
+         (readers nil)
+         (writers nil))
+    (mapcar
+     (lambda (meta)
+       (with-slots (name type size category accessor offset) meta
+         (push `(define-setf-expander foo (object &environment env)
+                  (multiple-value-bind (temps vals stores store-form access-form)
+                      (get-setf-expansion `(ldb (byte 1 0) ,object) env)
+                    (values temps
+                            vals
+                            stores
+                            `(let ((,(first stores)
+                                     (if ,(first stores) 1 0)))
+                               ,store-form)
+                            access-form)))
+               writers)
+         (push `(defun ,(nth i field-accessors) (,name)
+                   (let ((value (ldb (byte ,size ,offset ) ,name)))
+                     ,(ecase category
+                        (:bool '(if (= value 0) nil t))
+                        (:))))
+               writers)))
+     field-metadatas)
     `(progn
        (deftype ,name () '(unsigned-byte ,total-size-bytes))
        ,@(loop :for _ :in fields
@@ -49,9 +78,7 @@
                                 ,name)))
                      ,(ecase )))
                  
-                 (define-setf-expander ,(symbolicate name '- fname)
-                     (,name &environment env)
-                   (get-setf-expansion `(ldb (byte ,,bits ,,offset) ,,name) env))))
+                 ))
        (defun ,(symbolicate 'make- name) ,(mapcar #'second fields)
          (let ((result 0))
            ,@(loop :for (type fname) :in fields
