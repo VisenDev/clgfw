@@ -24,6 +24,8 @@
   :serial t
   :components ((:module "src"
                 :components ((:file "package")
+                             (:file "timestamp")
+                             (:file "key")
                              (:file "color")
                              (:file "color-constants")
                              (:file "common")))))
