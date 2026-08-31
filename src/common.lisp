@@ -62,6 +62,9 @@
 ;; (defgeneric backend-window-should-close-p     (ctx))
 ;; (defgeneric backend-begin-drawing             (ctx))
 ;; (defgeneric backend-end-drawing               (ctx))
+
+(defgeneric backend-begin-scissor (ctx x y w h))
+(defgeneric backend-end-scissor (ctx))
 (defgeneric backend-draw-rectangle            (ctx x y w h color
                                                &key angle-degrees))
 (defgeneric backend-set-preferred-text-height (ctx text-height))
