@@ -1,49 +1,65 @@
 (eval-when (:compile-toplevel)
-  (defun type->size (type)
+  (defun type->meta (type)
     (ecase type
-      (char 1)
-      (int 4)
-      (short 4)
-      (long 8)))
+      (bool '(8 :bool))
+      (char '(8 :char))
+      
+      (u8  '( 8 :uint))
+      (u16 '(16 :uint))
+      (u32 '(32 :uint))
+      (u64 '(64 :uint))
+
+      (i8  '( 8 :int))
+      (i16 '(16 :int))
+      (i32 '(32 :int))
+      (i64 '(64 :int))
+      
+      (f32 '(32 :fixed-point))
+      (f64 '(64 :fixed-point))))
   (defun symbolicate (&rest things)
     (intern (string-upcase
              (apply #'concatenate 'string
                     (mapcar (lambda (thing) (format nil "~a" thing)) things))))))
 
-(defmacro define-color-byte-accessor (name offset)
-  `(progn
-     (declaim (ftype (function (color) fixnum) ,name))
-     (defun ,name (color)
-       (declare (type color color)
-                (optimize (speed 3) (safety 3) (debug 3)))
-       (the fixnum (ldb (byte 8 ,offset) color)))
-     (define-setf-expander ,name (color &environment env)
-       (get-setf-expansion `(ldb (byte 8 ,,offset) ,color) env))))
-
 (defmacro defrecord (name &body fields)
   "An experiment in compound value types for common lisp using bigints"
-  (let ((total-size (loop :for (type name) :in fields
-                          :sum (type->size type))))
+  (let* ((field-names (mapcar #'first fields))
+         (field-types (mapcar #'second fields))
+         (field-metas (mapcar #'type->meta field-types))
+         (field-sizes (mapcar #'first field-metas))
+         (field-categoties (mapcar #'second field-metas))
+         (total-size-bytes (/ 8 (reduce #'+ field-sizes)))
+         (field-accessors (mapcar (lambda (field-name)
+                                   (symbolicate name '- field-name))
+                                 field-names))
+         (offset 0)
+         (field-offsets (mapcar (lambda (field-size)
+                                  (let ((field-begin offset))
+                                    (incf offset field-size)
+                                    field-begin)))))
     `(progn
-       (deftype ,name () '(unsigned-byte ,total-size))
-       ,@(loop :with total-offset = 0
-               :for (type fname) :in fields
-               :for offset = total-offset
-               :for bits = (* 8 (type->size type))
-               :for _ = (incf total-offset bits)
+       (deftype ,name () '(unsigned-byte ,total-size-bytes))
+       ,@(loop :for _ :in fields
+               :for i :from 0
                :appending
-               `((defun ,(symbolicate name '- fname) (,name)
-                      (ldb (byte ,bits ,offset) ,name))
-                  (define-setf-expander ,(symbolicate name '- fname)
-                      (,name &environment env)
-                    (get-setf-expansion `(ldb (byte ,,bits ,,offset) ,,name) env))))
+               
+               `((defun ,(nth i field-accessors) (,name)
+                   (let ((value
+                           (ldb (byte ,(nth i field-sizes) ,(nth i field-sizes))
+                                ,name)))
+                     ,(ecase )))
+                 
+                 (define-setf-expander ,(symbolicate name '- fname)
+                     (,name &environment env)
+                   (get-setf-expansion `(ldb (byte ,,bits ,,offset) ,,name) env))))
        (defun ,(symbolicate 'make- name) ,(mapcar #'second fields)
-              (let ((result 0))
-                ,@(loop :for (type fname) :in fields
-                         :for accessor = (symbolicate name '- fname)
-                         :collect `(setf (,accessor result) ,fname))
-                result))
-       (defun ,(symbolicate 'print- name) (,name &optional (stream *standard-output*))
+         (let ((result 0))
+           ,@(loop :for (type fname) :in fields
+                   :for accessor = (symbolicate name '- fname)
+                   :collect `(setf (,accessor result) ,fname))
+           result))
+       (defun ,(symbolicate 'print- name)
+           (,name &optional (stream *standard-output*))
          (print-unreadable-object (,name stream)
            (format stream "~a" ',name)
            ,@(loop :for (type fname) :in fields
