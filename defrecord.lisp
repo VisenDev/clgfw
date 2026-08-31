@@ -1,6 +1,7 @@
 
 
 (eval-when (:compile-toplevel)
+  
   (defclass field-metadata ()
     (name type size category accessor offset))
   
@@ -8,6 +9,42 @@
     (intern (string-upcase
              (apply #'concatenate 'string
                     (mapcar (lambda (thing) (format nil "~a" thing)) things)))))
+
+  (defun float->fixed-point (float field-metadata)
+    (with-slots (name type size category accessor offset) field-metadata
+      
+      )
+    )
+
+  (defun fixed-point->float (fixed-point field-metadata)
+    (with-slots (name type size category accessor offset) field-metadata
+      
+      )
+    )
+
+  (defun value->uint (value field-metadata)
+    (with-slots (name type size category accessor offset) field-metadata
+      (ecase category
+        (:bool `(if ,value 1 0))
+        (:char `(char-code ,value))
+        (:uint value)
+        (:int  `(ldb (byte ,size ,offset) ,value)) ;; converts int to uint
+        (:fixed-point (float->fixed-point value field-metadata)))))
+
+  (defun uint->int (uint size)
+    `(if (logbitp (1- ,uint) ,uint)
+        (- ,uint (ash 1 ,size))
+        ,uint))
+
+  (defun uint->value (uint field-metadata)
+    (with-slots (name type size category accessor offset) field-metadata
+      (ecase category
+        (:bool `(if (= ,uint 0) nil t))
+        (:char `(code-char ,uint))
+        (:uint value)
+        (:int (uint->int uint size))
+        (:fixed-point (float->fixed-point uint field-metadata))))
+    )
   
   (defun fields->metadata (record-name fields)
     (loop
@@ -40,6 +77,8 @@
           (incf total-offset size))
         meta))))
 
+
+
 (defmacro defrecord (name &body fields)
   "An experiment in compound value types for common lisp using bigints"
   (let* ((field-metadatas (fields->metadata name fields))
@@ -48,22 +87,26 @@
     (mapcar
      (lambda (meta)
        (with-slots (name type size category accessor offset) meta
-         (push `(define-setf-expander foo (object &environment env)
-                  (multiple-value-bind (temps vals stores store-form access-form)
-                      (get-setf-expansion `(ldb (byte 1 0) ,object) env)
-                    (values temps
-                            vals
-                            stores
-                            `(let ((,(first stores)
-                                     (if ,(first stores) 1 0)))
-                               ,store-form)
-                            access-form)))
-               writers)
+         
+         (push
+          `(define-setf-expander ,accessor (object &environment env)
+             (multiple-value-bind (temps vals stores store-form access-form)
+                 (get-setf-expansion `(ldb (byte ,,size ,,offset) ,object) env)
+               (let ((store (first stores)))
+                 (values temps
+                         vals
+                         stores
+                         `(let ((,store
+                                  ,(field-value->storage-form category store)))
+                            ,store-form)
+                         access-form))))
+          writers)
+         
          (push `(defun ,(nth i field-accessors) (,name)
-                   (let ((value (ldb (byte ,size ,offset ) ,name)))
-                     ,(ecase category
-                        (:bool '(if (= value 0) nil t))
-                        (:))))
+                  (let ((value (ldb (byte ,size ,offset ) ,name)))
+                    ,(ecase category
+                       (:bool '(if (= value 0) nil t))
+                       (:))))
                writers)))
      field-metadatas)
     `(progn
