@@ -12,9 +12,6 @@
 ;;;; See the License for the specific language governing permissions and
 ;;;; limitations under the License.
 
-#+sbcl (setq sb-ext:*block-compile-default* t)
-
-
 ;;;; TODO: refactor the api so that the jscl
 ;;;; specific code that had to be added here can be
 ;;;; moved to backend-web.lisp
@@ -26,50 +23,6 @@
 (defun make-boolean (value)
   "Coerces a truthy or falsesy value to a boolean"
   (not (not value)))
-
-;;; TIMESTAMPS
-(declaim (ftype (function () integer) get-timestamp))
-(defun get-timestamp ()
-  (get-internal-real-time))
-
-(declaim (ftype (function (integer integer) integer) timestamp-difference))
-(defun timestamp-difference (start end)
-  (- end start))
-
-(defun timestamp-difference-seconds (start end)
-  (/ (timestamp-difference start end)
-     internal-time-units-per-second))
-
-
-;;; KEY
-(deftype key ()
-  '(member
-    :quote :comma :minus :period :slash
-    :zero :one :two :three :four :five :six :seven :eight :nine
-    :semicolon :equal
-    :a :b :c :d :e :f :g :h :i :j :k :l :m
-    :n :o :p :q :r :s :t :u :v :w :x :y :z
-    :left-bracket :backslash :right-bracket :backtick
-    :space :escape :enter :tab :backspace :insert :delete
-    :right :left :down :up :page-up :page-down :home
-    :end :caps-lock :scroll-lock :num-lock :print-screen :pause
-    :f1 :f2 :f3 :f4 :f5 :f6 :f7 :f8 :f9 :f10 :f11 :f12
-    :left-shift :right-shift
-    :left-control :right-control
-    :left-alt :right-alt
-    :left-super :right-super
-    :left-meta :right-meta
-    :left-hyper :right-hyper
-    :kb-menu
-    :keypad-0 :keypad-1 :keypad-2
-    :keypad-3 :keypad-4 :keypad-5
-    :keypad-6 :keypad-7 :keypad-8
-    :keypad-9 :keypad-decimal :keypad-divide
-    :keypad-multiply :keypad-subtract
-    :keypad-add :keypad-enter :keypad-equal))
-
-(deftype mouse-button () '(member :left :right :middle))
-
 
 ;;; A BACKEND SHOULD CALL THESE FUNCTIONS WHEN THESE EVENTS OCCUR
 (defgeneric callback-on-mouse-move    (handler x y))
@@ -96,17 +49,21 @@
    which backend have priority. The testing parameter is used to
    tell clgfw that the backend is currently being developed and
    experimented with so it should temporarily take priority"
-  (setf (gethash class-name *backends*) (list :priority (if testing most-positive-fixnum
-                                                            priority)
-                                              :class-name class-name)))
+  (setf (gethash class-name *backends*)
+        (list :priority (if testing most-positive-fixnum
+                            priority)
+              :class-name class-name)))
 
 ;;; A BACKEND SHOULD BE A CLASS THAT IMPLEMENT THESE FUNCTIONS
-(defgeneric backend-init-window               (ctx width height title callback-handler-instance))
-(defgeneric backend-close-window              (ctx))
-(defgeneric backend-window-should-close-p     (ctx))
-(defgeneric backend-begin-drawing             (ctx))
-(defgeneric backend-end-drawing               (ctx))
-(defgeneric backend-draw-rectangle            (ctx x y w h color))
+(defgeneric backend-init-window               (ctx width height title
+                                               callback-handler-instance))
+(defgeneric backend-run                       (ctx main-function-callback))
+;; (defgeneric backend-close-window              (ctx))
+;; (defgeneric backend-window-should-close-p     (ctx))
+;; (defgeneric backend-begin-drawing             (ctx))
+;; (defgeneric backend-end-drawing               (ctx))
+(defgeneric backend-draw-rectangle            (ctx x y w h color
+                                               &key angle-degrees))
 (defgeneric backend-set-preferred-text-height (ctx text-height))
 (defgeneric backend-get-text-height           (ctx))
 (defgeneric backend-measure-text-width        (ctx text))
@@ -117,7 +74,8 @@
 (defgeneric backend-check-for-input           (ctx))
 (defgeneric backend-draw-rectangle-on-canvas  (ctx canvas x y w h color))
 (defgeneric backend-draw-text-on-canvas       (ctx canvas x y color text))
-(defgeneric backend-draw-canvas-on-canvas     (ctx dst dst-x dst-y src &optional tint))
+(defgeneric backend-draw-canvas-on-canvas     (ctx dst dst-x dst-y src
+                                               &optional tint))
 (deftype redraw-frequency-type () `(member :target-fps :on-input))
 
 (defclass window-state ()
@@ -157,9 +115,9 @@
                                                                :fill-pointer 0))
    (redraw-frequency :accessor redraw-frequency
                      :initform :on-input :type redraw-frequency-type)
-   (last-frame-timestamp :accessor last-frame-timestamp :initform (get-timestamp))
+   (last-frame-timestamp :accessor last-frame-timestamp :initform (timestamp-get))
    (current-frame-timestamp :accessor current-frame-timestamp
-                            :initform (get-timestamp))
+                            :initform (timestamp-get))
    (delta-time-seconds :accessor delta-time-seconds :initform 0)
    (input-happened-p :accessor input-happened-p :initform t)
    (draw-on-canvas? :accessor draw-on-canvas? :initform nil
@@ -308,7 +266,7 @@
       window-state
     
     (setf last-frame-timestamp current-frame-timestamp)
-    (setf current-frame-timestamp (get-timestamp))
+    (setf current-frame-timestamp (timestamp-get))
     (setf delta-time-seconds
           (timestamp-difference-seconds 
            last-frame-timestamp
@@ -333,7 +291,7 @@
 
 (defun get-seconds-passed-in-frame (window-state)
   (with-slots (current-frame-timestamp) window-state
-    (timestamp-difference-seconds current-frame-timestamp (get-timestamp))))
+    (timestamp-difference-seconds current-frame-timestamp (timestamp-get))))
 
 (defun get-target-seconds-per-frame (window-state)
   (with-slots (target-fps) window-state
@@ -527,196 +485,4 @@
                     (close-window ,state))))
        (#j:window:requestAnimationFrame #',callback))))
 
-(defun key->char (key)
-  "Returns the corresponding character if possible or nil otherwise"
-  (case key
-    (:a #\a)
-    (:b #\b)
-    (:c #\c)
-    (:d #\d)
-    (:e #\e)
-    (:f #\f)
-    (:g #\g)
-    (:h #\h)
-    (:i #\i)
-    (:j #\j)
-    (:k #\k)
-    (:l #\l)
-    (:m #\m)
-    (:n #\n)
-    (:o #\o)
-    (:p #\p)
-    (:q #\q)
-    (:r #\r)
-    (:s #\s)
-    (:t #\t)
-    (:u #\u)
-    (:v #\v)
-    (:w #\w)
-    (:x #\x)
-    (:y #\y)
-    (:z #\z)
 
-    (:zero  #\0)
-    (:one   #\1)
-    (:two   #\2)
-    (:three #\3)
-    (:four  #\4)
-    (:five  #\5)
-    (:six   #\6)
-    (:seven #\7)
-    (:eight #\8)
-    (:nine  #\9)
-
-    (:quote        #\')
-    (:comma        #\,)
-    (:minus        #\-)
-    (:period       #\.)
-    (:slash        #\/)
-    (:semicolon    #\;)
-    (:equal        #\=)
-    (:left-bracket #\[)
-    (:right-bracket #\])
-    (:backslash    #\\)
-    (:backtick     #\`)
-    (:space        #\Space)
-
-    (:escape #\Esc)))
-
-
-(defun char->key (char)
-  "Convert an ascii terminal input character into a flat list of keys/modifiers.
-   The list represents all possible keys/modifiers that could have produced CHAR."
-  (case char
-    ;; letters
-    (#\a '(:a))
-    (#\b '(:b))
-    (#\c '(:c))
-    (#\d '(:d))
-    (#\e '(:e))
-    (#\f '(:f))
-    (#\g '(:g))
-    (#\h '(:h))
-    (#\i '(:i))
-    (#\j '(:j))
-    (#\k '(:k))
-    (#\l '(:l))
-    (#\m '(:m))
-    (#\n '(:n))
-    (#\o '(:o))
-    (#\p '(:p))
-    (#\q '(:q))
-    (#\r '(:r))
-    (#\s '(:s))
-    (#\t '(:t))
-    (#\u '(:u))
-    (#\v '(:v))
-    (#\w '(:w))
-    (#\x '(:x))
-    (#\y '(:y))
-    (#\z '(:z))
-
-    ;; shifted letters
-    (#\A '(:a :left-shift))
-    (#\B '(:b :left-shift))
-    (#\C '(:c :left-shift))
-    (#\D '(:d :left-shift))
-    (#\E '(:e :left-shift))
-    (#\F '(:f :left-shift))
-    (#\G '(:g :left-shift))
-    (#\H '(:h :left-shift))
-    (#\I '(:i :left-shift))
-    (#\J '(:j :left-shift))
-    (#\K '(:k :left-shift))
-    (#\L '(:l :left-shift))
-    (#\M '(:m :left-shift))
-    (#\N '(:n :left-shift))
-    (#\O '(:o :left-shift))
-    (#\P '(:p :left-shift))
-    (#\Q '(:q :left-shift))
-    (#\R '(:r :left-shift))
-    (#\S '(:s :left-shift))
-    (#\T '(:t :left-shift))
-    (#\U '(:u :left-shift))
-    (#\V '(:v :left-shift))
-    (#\W '(:w :left-shift))
-    (#\X '(:x :left-shift))
-    (#\Y '(:y :left-shift))
-    (#\Z '(:z :left-shift))
-
-    ;; digits
-    (#\0 '(:zero))
-    (#\1 '(:one))
-    (#\2 '(:two))
-    (#\3 '(:three))
-    (#\4 '(:four))
-    (#\5 '(:five))
-    (#\6 '(:six))
-    (#\7 '(:seven))
-    (#\8 '(:eight))
-    (#\9 '(:nine))
-
-    ;; shifted digits
-    (#\) '(:zero :left-shift))
-    (#\! '(:one  :left-shift))
-    (#\@ '(:two  :left-shift))
-    (#\# '(:three :left-shift))
-    (#\$ '(:four :left-shift))
-    (#\% '(:five :left-shift))
-    (#\^ '(:six  :left-shift))
-    (#\& '(:seven :left-shift))
-    (#\* '(:eight :left-shift))
-    (#\( '(:nine :left-shift))
-
-    ;; punctuation
-    (#\' '(:quote))
-    (#\, '(:comma))
-    (#\- '(:minus))
-    (#\. '(:period))
-    (#\/ '(:slash))
-    (#\; '(:semicolon))
-    (#\= '(:equal))
-    (#\[ '(:left-bracket))
-    (#\] '(:right-bracket))
-    (#\\ '(:backslash))
-    (#\` '(:backtick))
-    (#\Space '(:space))
-
-    ;; shifted punctuation
-    (#\" '(:quote :left-shift))
-    (#\< '(:comma :left-shift))
-    (#\_ '(:minus :left-shift))
-    (#\> '(:period :left-shift))
-    (#\? '(:slash :left-shift))
-    (#\: '(:semicolon :left-shift))
-    (#\+ '(:equal :left-shift))
-    (#\{ '(:left-bracket :left-shift))
-    (#\} '(:right-bracket :left-shift))
-    (#\| '(:backslash :left-shift))
-    (#\~ '(:backtick :left-shift))
-
-    ;; special keys
-    (#\Tab        '(:tab))
-    (#\Newline   '(:enter))
-    (#\Return    '(:enter))
-    (#\Backspace '(:backspace))
-    (#\Esc       '(:escape
-                   :left-bracket :left-control
-                   :three :left-control))
-
-    ;; control aliases
-    (#\Nul '(:two :left-control))       ; Ctrl+2
-
-    (#\Fs  '(:backslash :left-control
-             :four :left-control))      ; Ctrl+\ / Ctrl+4
-
-    (#\Gs  '(:right-bracket :left-control
-             :five :left-control))      ; Ctrl+] / Ctrl+5
-
-    (#\Rs  '(:six :left-control))       ; Ctrl+6
-
-    (#\Us  '(:minus :left-control
-             :seven :left-control))     ; Ctrl+_ / Ctrl+7
-
-    (otherwise
-     nil)))
