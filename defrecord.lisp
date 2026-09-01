@@ -1,5 +1,3 @@
-
-
 (eval-when (:compile-toplevel)
   
   (defclass field-metadata ()
@@ -83,19 +81,16 @@
     (loop
       :with field-metadatas = (fields->metadata record-name fields)
       :for meta :in field-metadatas
+      :for value-conversion-form = (value->uint ''value meta)
       :do
          (with-slots (name type size category accessor offset) meta
            (incf total-size size)
            (push
-            `(define-setf-expander ,accessor (object &environment env)
-               (multiple-value-bind (temps vals stores setter getter)
-                   (get-setf-expansion object env)
-                 (values
-                  temps
-                  vals
-                  stores
-                  `(dpb (byte ,,size ,,offset) ,(first stores))
-                  `(ldb (byte ,,size ,,offset) ,(first stores)))))
+            (list 'defsetf accessor '(value) '(store)
+                  (list 'list ''setf (list 'list
+                                           ''ldb (list 'list ''byte size offset)
+                                           'store)
+                        (list value-conversion-form)))
             writers)
            
            (push `(defun ,accessor (,record-name)
