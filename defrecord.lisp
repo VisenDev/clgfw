@@ -73,64 +73,55 @@
 
 
 
-(defmacro defrecord (name &body fields)
+(defmacro defrecord (record-name &body fields)
   "An experiment in compound value types for common lisp using bigints"
-  (let* ((field-metadatas (fields->metadata name fields))
-         (readers nil)
-         (writers nil)
-         (total-size 0))
-    (mapcar
-     (lambda (meta)
-       (with-slots (name type size category accessor offset) meta
-
-         (incf total-size size)
-         
-         (let* ((store-placeholder (gensym "STORE-"))
-                (conversion-form
-                  (value->uint store-placeholder meta)))
+  (let ((total-size 0)
+        (readers nil)
+        (writers nil)
+        (set-forms nil)
+        (format-forms nil))
+    (loop
+      :with field-metadatas = (fields->metadata record-name fields)
+      :for meta :in field-metadatas
+      :do
+         (with-slots (name type size category accessor offset) meta
+           (incf total-size size)
            (push
             `(define-setf-expander ,accessor (object &environment env)
-               (multiple-value-bind
-                     (temps vals stores store-form access-form)
-                   (get-setf-expansion
-                    `(ldb (byte ,,size ,,offset) ,object)
-                    env)
-                 (let ((store (first stores)))
-                   (values temps
-                           vals
-                           stores
-                           `(let ((,store
-                                    ,(subst store
-                                            ',store-placeholder
-                                            ',conversion-form)))
-                              ,store-form)
-                           access-form))))
-            writers))
-         
-         (push `(defun ,accessor (,name)
-                  (let ((value (ldb (byte ,size ,offset ) ,name)))
-                    ,(uint->value 'value meta)))
-               readers)))
-     field-metadatas)
+               (multiple-value-bind (temps vals stores setter getter)
+                   (get-setf-expansion object env)
+                 (values
+                  temps
+                  vals
+                  stores
+                  `(dpb (byte ,,size ,,offset) ,(first stores))
+                  `(ldb (byte ,,size ,,offset) ,(first stores)))))
+            writers)
+           
+           (push `(defun ,accessor (,record-name)
+                    (let ((value (ldb (byte ,size ,offset ) ,record-name)))
+                      ,(uint->value 'value meta)))
+                 readers)
+
+           (push `(setf (,accessor result) ,name) set-forms)
+
+           (push `(format stream " ~a:~a" ',record-name
+                          (,accessor ,record-name))
+                 format-forms)))
+    
     `(progn
-       (deftype ,name () '(unsigned-byte
-                           ,total-size))
+       (deftype ,record-name () '(unsigned-byte ,total-size))
        ,@writers
        ,@readers
-       (defun ,(symbolicate 'make- name) ,(mapcar #'second fields)
+       (defun ,(symbolicate 'make- record-name) ,(mapcar #'second fields)
          (let ((result 0))
-           ,@(loop :for (type fname) :in fields
-                   :for accessor = (symbolicate name '- fname)
-                   :collect `(setf (,accessor result) ,fname))
+           ,@set-forms
            result))
-       (defun ,(symbolicate 'print- name)
-           (,name &optional (stream *standard-output*))
-         (print-unreadable-object (,name stream)
-           (format stream "~a" ',name)
-           ,@(loop :for (type fname) :in fields
-                   :for accessor = (symbolicate name '- fname)
-                   :collect `(format stream " ~a:~a" ',fname
-                                     (,accessor ,name))))))))
+       (defun ,(symbolicate 'print- record-name)
+           (,record-name &optional (stream *standard-output*))
+         (print-unreadable-object (,record-name stream)
+           (format stream "~a" ',record-name)
+           ,@format-forms)))))
 
 (defrecord color
   (u8 r)
