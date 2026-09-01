@@ -10,17 +10,11 @@
              (apply #'concatenate 'string
                     (mapcar (lambda (thing) (format nil "~a" thing)) things)))))
 
-  (defun float->fixed-point (float field-metadata)
-    (with-slots (name type size category accessor offset) field-metadata
-      
-      )
-    )
+  (defun rational->fixed-point (rational field-metadata)
+    `(round (* ,rational (ash 1 ,(/ (slot-value field-metadata 'size) 2)))))
 
-  (defun fixed-point->float (fixed-point field-metadata)
-    (with-slots (name type size category accessor offset) field-metadata
-      
-      )
-    )
+  (defun fixed-point->rational (fixed-point field-metadata)
+    `(/ ,fixed-point (ash 1 (/ ,(slot-value field-metadata 'size) 2))))
 
   (defun value->uint (value field-metadata)
     (with-slots (name type size category accessor offset) field-metadata
@@ -28,8 +22,8 @@
         (:bool `(if ,value 1 0))
         (:char `(char-code ,value))
         (:uint value)
-        (:int  `(ldb (byte ,size ,offset) ,value)) ;; converts int to uint
-        (:fixed-point (float->fixed-point value field-metadata)))))
+        (:int  `(ldb (byte ,size 0) ,value)) ;; converts int to uint
+        (:fixed-point (rational->fixed-point value field-metadata)))))
 
   (defun uint->int (uint size)
     `(if (logbitp (1- ,uint) ,uint)
@@ -41,15 +35,14 @@
       (ecase category
         (:bool `(if (= ,uint 0) nil t))
         (:char `(code-char ,uint))
-        (:uint value)
+        (:uint uint)
         (:int (uint->int uint size))
-        (:fixed-point (float->fixed-point uint field-metadata))))
-    )
+        (:fixed-point (fixed-point->rational uint field-metadata)))))
   
   (defun fields->metadata (record-name fields)
     (loop
       :with total-offset = 0
-      :for (fname ftype) :in fields
+      :for (ftype fname) :in fields
       :for i :from 0
       :for current-offset = total-offset
       :collect
@@ -57,10 +50,11 @@
         (with-slots (name type size category accessor offset) meta
           (setf name fname)
           (setf type ftype)
+
           (setf offset current-offset)
           (setf accessor (symbolicate record-name '- fname))
           (ecase ftype
-            (bool (setf size 8 category :bool))
+            (bool (setf size 1 category :bool))
             (char (setf size 8 category :char))
             (u8  (setf size  8 category :uint))
             (u16 (setf size 16 category :uint))
@@ -83,45 +77,46 @@
   "An experiment in compound value types for common lisp using bigints"
   (let* ((field-metadatas (fields->metadata name fields))
          (readers nil)
-         (writers nil))
+         (writers nil)
+         (total-size 0))
     (mapcar
      (lambda (meta)
        (with-slots (name type size category accessor offset) meta
+
+         (incf total-size size)
          
-         (push
-          `(define-setf-expander ,accessor (object &environment env)
-             (multiple-value-bind (temps vals stores store-form access-form)
-                 (get-setf-expansion `(ldb (byte ,,size ,,offset) ,object) env)
-               (let ((store (first stores)))
-                 (values temps
-                         vals
-                         stores
-                         `(let ((,store
-                                  ,(field-value->storage-form category store)))
-                            ,store-form)
-                         access-form))))
-          writers)
+         (let* ((store-placeholder (gensym "STORE-"))
+                (conversion-form
+                  (value->uint store-placeholder meta)))
+           (push
+            `(define-setf-expander ,accessor (object &environment env)
+               (multiple-value-bind
+                     (temps vals stores store-form access-form)
+                   (get-setf-expansion
+                    `(ldb (byte ,,size ,,offset) ,object)
+                    env)
+                 (let ((store (first stores)))
+                   (values temps
+                           vals
+                           stores
+                           `(let ((,store
+                                    ,(subst store
+                                            ',store-placeholder
+                                            ',conversion-form)))
+                              ,store-form)
+                           access-form))))
+            writers))
          
-         (push `(defun ,(nth i field-accessors) (,name)
+         (push `(defun ,accessor (,name)
                   (let ((value (ldb (byte ,size ,offset ) ,name)))
-                    ,(ecase category
-                       (:bool '(if (= value 0) nil t))
-                       (:))))
-               writers)))
+                    ,(uint->value 'value meta)))
+               readers)))
      field-metadatas)
     `(progn
-       (deftype ,name () '(unsigned-byte ,total-size-bytes))
-       ,@(loop :for _ :in fields
-               :for i :from 0
-               :appending
-               
-               `((defun ,(nth i field-accessors) (,name)
-                   (let ((value
-                           (ldb (byte ,(nth i field-sizes) ,(nth i field-sizes))
-                                ,name)))
-                     ,(ecase )))
-                 
-                 ))
+       (deftype ,name () '(unsigned-byte
+                           ,total-size))
+       ,@writers
+       ,@readers
        (defun ,(symbolicate 'make- name) ,(mapcar #'second fields)
          (let ((result 0))
            ,@(loop :for (type fname) :in fields
@@ -138,7 +133,13 @@
                                      (,accessor ,name))))))))
 
 (defrecord color
-  (char r)
-  (char g)
-  (char b)
-  (char a))
+  (u8 r)
+  (u8 g)
+  (u8 b)
+  (u8 a))
+
+(defrecord vec2
+  (f32 x)
+  (f32 y))
+
+(make-vec2 100 100)
