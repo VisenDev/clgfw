@@ -26,18 +26,17 @@
        (let ((w (clgfw:get-window-width ctx))
              (h (clgfw:get-window-height ctx)))
 
-         (when (clgfw:is-key-pressed ctx :q)
-           ;; TODO, add a clgfw api to quit
-           (error "Quit"))
+         (when (clgfw:is-key-pressed ctx clgfw:key-q)
+           (clgfw:request-quit ctx))
          
          (clgfw:draw-rectangle ctx 0 0 w h clgfw/color:+space+)
          
          ;; (clgfw:draw-canvas ctx 100 100 test)
          (clgfw:draw-rectangle ctx (floor x) (floor y) sz sz clgfw/color:+moon+)
-         (clgfw:draw-text ctx 10 10 clgfw/color:+white+
-                          (format nil "Width: ~a px,   Height: ~a px" w h))
-         (clgfw:draw-text ctx 10 40 clgfw/color:+skyblue+ (clgfw:get-fps-string ctx))
-         (clgfw:draw-text ctx 10 70 clgfw/color:+red+ "Press 'q' to quit!")
+         (clgfw:draw-text ctx (format nil "Width: ~a px,   Height: ~a px" w h)
+                          10 10 clgfw/color:+white+)
+         (clgfw:draw-text ctx (clgfw:get-fps-string ctx) 10 40 clgfw/color:+skyblue+)
+         (clgfw:draw-text ctx "Press 'q' to quit!" 10 70 clgfw/color:+red+)
          (clgfw:draw-rectangle ctx
                                (clgfw:get-mouse-x ctx)
                                (clgfw:get-mouse-y ctx)

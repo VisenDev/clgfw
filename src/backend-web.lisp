@@ -295,7 +295,7 @@
     (setf (jscl/ffi:oget context-2d "fillStyle")
           (color->jsstring color))
 
-    (setf (jscl/ffi:oget (slot-value ctx 'canvas-ctx) "font")
+    (setf (jscl/ffi:oget context-2d "font")
           (jscl/ffi:jsstring (format nil "~apx sans-serif"
                                      (slot-value ctx 'text-height))))
     ((jscl/ffi:oget context-2d "beginPath"))

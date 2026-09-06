@@ -80,10 +80,13 @@
                                     dst-w dst-h
                                     src-x src-y src-w src-h))
 
-(deftype canvas () 't)
+;; TODO add a draw pixels command for easily writing pixels from a parsed
+;; image to a canvas
+
 (defgeneric %backend-canvas-create             (ctx w h))
 (defgeneric %backend-canvas-destroy            (ctx canvas))
 
+(deftype canvas () 't)
 (deftype redraw-frequency-type () `(member :target-fps :on-input))
 
 (defstruct (window-state (:conc-name ws-))
