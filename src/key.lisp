@@ -1,6 +1,8 @@
 (in-package #:clgfw)
 
 ;;; MOUSE BUTTONS
+(deftype mouse-button () '(member mouse-button-left mouse-button-middle
+                           mouse-button-right))
 (defconstant mouse-button-left 'mouse-button-left)
 (defconstant mouse-button-right 'mouse-button-right)
 (defconstant mouse-button-middle 'mouse-button-middle)

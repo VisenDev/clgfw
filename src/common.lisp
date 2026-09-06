@@ -72,11 +72,14 @@
 
 (defgeneric %backend-draw-rectangle (ctx x y w h color
                                     &key angle origin-x origin-y target))
-(defgeneric %backend-draw-text (ctx x y text color
+(defgeneric %backend-draw-text (ctx text x y color
                                &key angle origin-x origin-y target))
-(defgeneric %backend-draw-canvas (ctx x y canvas
-                                 &key angle origin-x origin-y tint target))
+(defgeneric %backend-draw-canvas (ctx canvas dst-x dst-y
+                                  &key angle origin-x origin-y tint target
+                                    dst-w dst-h
+                                    src-x src-y src-w src-h))
 
+(deftype canvas () 't)
 (defgeneric %backend-canvas-create             (ctx w h))
 (defgeneric %backend-canvas-destroy            (ctx canvas))
 
@@ -326,46 +329,25 @@
                  (%backend-check-for-input backend)
              :finally (setf input-happened-p nil))))))
 
-;; (declaim (ftype (function (window-state) boolean) window-should-close-p]))
-;; (defun window-should-close-p (window-state)
-;;   (%backend-window-should-close-p (slot-value window-state 'backend)))
-
-;; (declaim (ftype (function (window-state) boolean) window-should-keep-running-p))
-;; (defun window-should-keep-running-p (window-state)
-;;   (not (%backend-window-should-close-p (slot-value window-state 'backend))))
-
-;; (declaim (ftype (function (window-state number number number number color) t)
-;;                 draw-rectangle))
-;; (defun draw-rectangle (window-state x y w h color)
-;;   (with-slots (backend draw-on-canvas?) window-state
-;;     (if draw-on-canvas?
-;;         (%backend-draw-rectangle-on-canvas backend draw-on-canvas? x y w h color)
-;;         (%backend-draw-rectangle backend x y w h color))))
-
-;; (declaim (ftype (function (window-state number number color string) t) draw-text))
-;; (defun draw-text (window-state x y color text)
-;;   (with-slots (backend draw-on-canvas?) window-state
-;;     (if draw-on-canvas?
-;;         (%backend-draw-text-on-canvas backend draw-on-canvas? x y color text)
-;;         (%backend-draw-text backend x y color text))))
-
-;; (defun draw-fps (window-state x y &optional (color (make-color 200 200 200)))
-;;   (draw-text window-state x y color (get-fps-string window-state)))
-
-;; (defun draw-fps-graph (window-state x y &key
-;;                          (history-length 60)
-;;                          (line-width 2))
-
-;;   (error "TODO")
-;;   )
-
-;; (declaim (ftype (function (window-state number number t &optional color) t)
-;;                 draw-canvas))
-;; (defun draw-canvas (window-state x y canvas &optional tint)
-;;   (with-slots (backend draw-on-canvas?) window-state
-;;     (if draw-on-canvas?
-;;         (%backend-draw-canvas-on-canvas backend draw-on-canvas? x y canvas tint)
-;;         (%backend-draw-canvas backend x y canvas tint))))
+(declaim (ftype (function (window-state number number number number color
+                                        &key (:angle number)
+                                        (:origin-x number)
+                                        (:origin-y number)
+                                        (:target canvas))
+                          t)
+                draw-rectangle))
+(defun draw-rectangle (ctx x y w h color &key angle origin-x origin-y target)
+  (%backend-draw-rectangle (slot-value ctx 'backend)
+                           x y w h color :angle angle
+                           :origin-x origin-x
+                           :origin-y origin-y
+                           :target target))
+(defun draw-text (ctx text x y color &key angle origin-x origin-y target))
+(defun draw-canvas (ctx canvas dst-x dst-y
+                    &key
+                      angle origin-x origin-y tint target
+                      dst-w dst-h
+                      src-x src-y src-w src-h))
 
 
 ;;; CANVAS
