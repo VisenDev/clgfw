@@ -56,9 +56,10 @@
               :class-name class-name)))
 
 ;;; A BACKEND SHOULD BE A CLASS THAT IMPLEMENT THESE FUNCTIONS
-(defgeneric %backend-window-create            (ctx width height title
-                                               %callback-handler-instance))
-(defgeneric %backend-window-run                (ctx draw-function-callback))
+(defgeneric %backend-window-create (ctx width height title
+                                    %callback-handler-instance))
+(defgeneric %backend-window-run (ctx draw-function-callback))
+(defgeneric %backend-request-quit (ctx))
 
 (defgeneric %backend-clipboard-get (ctx))
 (defgeneric %backend-clipboard-set (ctx string))
@@ -83,8 +84,6 @@
 (defgeneric %backend-canvas-create             (ctx w h))
 (defgeneric %backend-canvas-destroy            (ctx canvas))
 
-(defgeneric %backend-input-available-p         (ctx))
-
 (deftype redraw-frequency-type () `(member :target-fps :on-input))
 
 (defstruct (window-state (:conc-name ws-))
@@ -106,10 +105,10 @@
    :type (vector symbol 256))  ;; A vector of the keys released this frame
   (pressed-mouse-buttons (make-array 3 :element-type '(or mouse-button null)
                                  :fill-pointer 0 :initial-element nil)
-   :type (vector symbol 256))
+   :type (vector (or mouse-button null) 3))
   (released-mouse-buttons (make-array 3 :element-type '(or mouse-button null)
                                         :fill-pointer 0 :initial-element nil)
-   :type (vector symbol 256))
+   :type (vector (or mouse-button null) 3))
   (target-fps 60 :type real)
   (fps-history (make-array 60 :adjustable t
                               :fill-pointer 0)
@@ -211,8 +210,8 @@
              (getf rhs :priority)))))
 
 ;;; ==== PUBLIC INTERFACE ====
-(declaim (ftype (function (integer integer string) t)))
-(defun init-window (width height title)
+(declaim (ftype (function (integer integer string) t) window-create))
+(defun window-create (width height title)
   "Attempts to initialize a window on your platform"
   (let ((prioritized-backends (get-prioritized-backends))
         (window (make-window-state)))
@@ -221,12 +220,13 @@
         (let ((backend (handler-case
                            (%backend-window-create instance width height title
                                                    window)
+                         #-jscl
                          (error (e)
-                           (warn e)
+                           (format t "~a" e)
                            nil))))
           (when backend
             (setf (ws-backend window) backend)
-            (return-from init-window window))))))
+            (return-from window-create window))))))
   (error "No appropriate backend found :("))
 
 (declaim (ftype (function (window-state) fixnum) get-mouse-x))
@@ -316,7 +316,7 @@
   draw-rectangle))
 (defun draw-rectangle (ctx x y w h color &key (angle 0) (origin-x 0)
                                            (origin-y 0) target)
-  (%backend-draw-rectangle (slot-value ctx 'backend)
+  (%backend-draw-rectangle (ws-backend ctx)
                            x y w h color :angle angle
                            :origin-x origin-x
                            :origin-y origin-y
@@ -331,7 +331,7 @@
    t)
   draw-text))
 (defun draw-text (ctx text x y color &key (angle 0) (origin-x 0) (origin-y 0) target)
-  (%backend-draw-text ctx text x y color :angle angle :origin-x origin-x
+  (%backend-draw-text (ws-backend ctx) text x y color :angle angle :origin-x origin-x
                                          :origin-y origin-y :target target))
 
 (declaim
@@ -348,7 +348,7 @@
                       (angle 0) (origin-x 0) (origin-y 0) tint target
                       dst-w dst-h
                       (src-x 0) (src-y 0) src-w src-h)
-  (%backend-draw-canvas ctx canvas dst-x dst-y
+  (%backend-draw-canvas (ws-backend ctx) canvas dst-x dst-y
                         :angle angle :origin-x origin-x
                         :origin-y origin-y :tint tint :target target :dst-w dst-w
                         :dst-h dst-h :src-x src-x :src-y src-y :src-w src-w
@@ -391,16 +391,9 @@
      (assert (not frames-per-second))
      (setf (ws-redraw-frequency window-state) :on-input))))
 
-;; #+jscl
-;; (defmacro while-running (state &body body)
-;;   (let ((callback (gensym)))
-;;     `(labels ((,callback (timestamp)
-;;                 (%record-timestamp ,state)
-;;                 (progn
-;;                   ,@body)
-;;                 (if (window-should-keep-running-p ,state)
-;;                     (#j:window:requestAnimationFrame #',callback)
-;;                     (close-window ,state))))
-;;        (#j:window:requestAnimationFrame #',callback))))
+(defun window-run (window-state draw-function)
+  (%backend-window-run (ws-backend window-state) draw-function ))
 
+(defun request-quit (window-state)
+  (%backend-request-quit (ws-backend window-state)))
 

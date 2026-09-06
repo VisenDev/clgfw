@@ -1,4 +1,6 @@
 (jscl:compile-application (list "src/package.lisp"
+                                "src/timestamp.lisp"
+                                "src/key.lisp"
                                 "src/color.lisp"
                                 "src/color-constants.lisp"
                                 "src/common.lisp"

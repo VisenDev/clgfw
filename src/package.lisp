@@ -14,12 +14,9 @@
 
 (defpackage #:clgfw
   (:use #:cl)
-  (:export #:init-window
-           #:close-window
-           #:window-should-keeping-running-p
-           #:window-should-close-p
-           #:begin-drawing
-           #:end-drawing
+  (:export #:window-create
+           #:window-run
+           #:request-quit
            #:draw-rectangle
            #:set-preferred-text-height
            #:draw-text
@@ -91,14 +88,6 @@
            #:button
            #:key
 
-           ;; These are just wrappers around init-window/close-window, etc...
-           #:with-window
-           #:with-drawing
-           #:while-running
-           #:with-canvas
-           #:with-canvases
-           #:with-drawing-on-canvas
-
            ;; For Writing New Backends
            #:register-backend
            #:unregister-all-backends
@@ -106,31 +95,31 @@
            #:+priority-primary+
            #:+priority-secondary+
            #:+priority-last+
-           #:backend-init-window
-           #:backend-close-window
-           #:backend-window-should-close-p
-           #:backend-begin-drawing
-           #:backend-end-drawing
-           #:backend-draw-rectangle
-           #:backend-set-preferred-text-height
-           #:backend-get-text-height
-           #:backend-measure-text-width
-           #:backend-draw-text
-           #:backend-draw-canvas
-           #:backend-create-canvas
-           #:backend-destroy-canvas
-           #:backend-check-for-input
-           #:backend-draw-rectangle-on-canvas
-           #:backend-draw-text-on-canvas
-           #:backend-draw-canvas-on-canvas
+           #:%backend-window-run
+           #:%backend-window-create
+           #:%backend-draw-rectangle
+           #:%backend-set-preferred-text-height
+           #:%backend-get-text-height
+           #:%backend-measure-text-width
+           #:%backend-draw-text
+           #:%backend-draw-canvas
+           #:%backend-create-canvas
+           #:%backend-destroy-canvas
+           #:%backend-check-for-input
+           #:%backend-clipboard-get
+           #:%backend-clipboard-set
+           #:%backend-scissor-begin
+           #:%backend-scissor-end
+           #:%backend-request-quit
 
            ;; Callbacks a backend should call to update clgfw about user input
-           #:callback-on-mouse-move
-           #:callback-on-mouse-down
-           #:callback-on-mouse-up
-           #:callback-on-key-down
-           #:callback-on-key-up
-           #:callback-on-window-resize
-           #:callback-all-keys-up))
+           #:%callback-on-mouse-move
+           #:%callback-on-mouse-down
+           #:%callback-on-mouse-up
+           #:%callback-on-key-down
+           #:%callback-on-key-up
+           #:%callback-on-window-resize
+           #:%callback-on-frame-begin
+           #:%callback-on-frame-end))
 
 

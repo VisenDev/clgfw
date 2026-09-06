@@ -161,8 +161,8 @@
 (defclass backend/web ()
   ((canvas-node :reader canvas-node)
    (canvas-ctx :reader canvas-ctx)
-   (backend-window-should-close-p
-    :reader backend-window-should-close-p :initform nil)
+   (quit-requested-p
+    :reader quit-requested-p :initform nil)
    (text-height :reader text-height :initform 10)
    (callback-handler :reader callback-handler)))
 
@@ -171,8 +171,8 @@
 ;;TODO support this
 ;; (defgeneric callback-on-window-resize (handler width height))
 
-(defmethod %backend-init-window ((ctx backend/web) width height
-                                title callback-handler-instance)
+(defmethod %backend-window-create ((ctx backend/web) width height
+                                   title callback-handler-instance)
   (setf (slot-value ctx 'callback-handler)
         callback-handler-instance)
   
@@ -195,26 +195,26 @@
   ;; register event handlers
   (flet ((on-mouse-move (e)
            (%callback-on-mouse-move callback-handler-instance
-                                   (jscl/ffi:oget e "clientX")
-                                   (jscl/ffi:oget e "clientY")))
+                                    (jscl/ffi:oget e "clientX")
+                                    (jscl/ffi:oget e "clientY")))
          (on-mouse-down (e)
            (%callback-on-mouse-down callback-handler-instance
-                                   (let ((btn (jscl/ffi:oget e "button")))
-                                     (cond ((= btn 0) :left)
-                                           ((= btn 1) :middle)
-                                           ((= btn 2) :right)))))
+                                    (let ((btn (jscl/ffi:oget e "button")))
+                                      (cond ((= btn 0) :left)
+                                            ((= btn 1) :middle)
+                                            ((= btn 2) :right)))))
          (on-mouse-up (e)
            (%callback-on-mouse-up callback-handler-instance
-                                   (let ((btn (jscl/ffi:oget e "button")))
-                                     (cond ((= btn 0) :left)
-                                           ((= btn 1) :middle)
-                                           ((= btn 2) :right)))))
+                                  (let ((btn (jscl/ffi:oget e "button")))
+                                    (cond ((= btn 0) :left)
+                                          ((= btn 1) :middle)
+                                          ((= btn 2) :right)))))
          (on-key-down (e)
            (%callback-on-key-down callback-handler-instance
-                                 (js-key->lisp-key (jscl/ffi:oget e "code"))))
+                                  (js-key->lisp-key (jscl/ffi:oget e "code"))))
          (on-key-up (e)
            (%callback-on-key-up callback-handler-instance
-                               (js-key->lisp-key (jscl/ffi:oget e "code")))))
+                                (js-key->lisp-key (jscl/ffi:oget e "code")))))
 
     (#j:document:addEventListener #j"mousemove" #'on-mouse-move)
     (#j:document:addEventListener #j"mousedown" #'on-mouse-down)
@@ -245,7 +245,7 @@
                              (color-b color)
                              (color-a color))))
 
-(defmethod %backend-draw-rectangle (ctx x y w h color
+(defmethod %backend-draw-rectangle ((ctx backend/web) x y w h color
                                     &key angle (origin-x 0) (origin-y 0) target)
   (let ((context-2d (if target
                         ((jscl/ffi:oget target "getContext") #j"2d")
@@ -278,26 +278,57 @@
 (defmethod %backend-get-text-height ((ctx backend/web))
   (slot-value ctx 'text-height))
 
+(defmethod %backend-request-quit ((ctx backend/web))
+  (setf (slot-value ctx 'quit-requested-p) t))
+
 (defmethod %backend-measure-text-width ((ctx backend/web) text)
   (jscl/ffi:oget ((jscl/ffi:oget (canvas-ctx ctx) "measureText") text)
                  "width"))
 
-;; TODO, continue porting from here
-(defmethod %backend-draw-text ((ctx backend/web) x y color text)
-  (setf (jscl/ffi:oget (slot-value ctx 'canvas-ctx) "fillStyle")
-        (color->jsstring color))
-  (setf (jscl/ffi:oget (slot-value ctx 'canvas-ctx) "font")
-        (jscl/ffi:jsstring (format nil "~apx sans-serif"
-                                   (slot-value ctx 'text-height))))
-  ((jscl/ffi:oget (canvas-ctx ctx) "beginPath"))
-  ((jscl/ffi:oget (canvas-ctx ctx) "fillText") (jscl/ffi:jsstring text)
-   x (+ y (slot-value ctx 'text-height))))
+(defmethod %backend-draw-text  ((ctx backend/web) text x y color
+                                &key (angle 0) (origin-x 0) (origin-y 0) target)
+  (let ((context-2d (if target
+                        ((jscl/ffi:oget target "getContext") #j"2d")
+                        (slot-value ctx 'canvas-ctx))))
 
-(defmethod backend-draw-canvas ((ctx backend/web) x y canvas &optional tint)
-  ;; TODO handle tint
-  ((jscl/ffi:oget (slot-value ctx 'canvas-ctx) "drawImage") canvas x y))
+    ;; begin path 
+    (setf (jscl/ffi:oget context-2d "fillStyle")
+          (color->jsstring color))
 
-(defmethod backend-create-canvas ((ctx backend/web) w h)
+    (setf (jscl/ffi:oget (slot-value ctx 'canvas-ctx) "font")
+          (jscl/ffi:jsstring (format nil "~apx sans-serif"
+                                     (slot-value ctx 'text-height))))
+    ((jscl/ffi:oget context-2d "beginPath"))
+    
+    ;; translate canvas and rotate when necessary, then draw rect
+    (cond ((and angle (not (= angle 0)))
+           ((jscl/ffi:oget context-2d "save"))
+           ((jscl/ffi:oget context-2d "translate")
+            (+ x origin-x)
+            (+ y origin-y (slot-value ctx 'text-height)))
+           ((jscl/ffi:oget context-2d "rotate")
+            (* angle #.(/ pi 180)))
+           ((jscl/ffi:oget (canvas-ctx ctx) "fillText") (jscl/ffi:jsstring text)
+            0 0)
+           ((jscl/ffi:oget context-2d "restore")))
+
+          ;;else
+          (t ((jscl/ffi:oget (canvas-ctx ctx) "fillText") (jscl/ffi:jsstring text)
+              (+ x origin-x)
+              (+ y origin-y (slot-value ctx 'text-height)))))))
+
+(defmethod %backend-draw-canvas ((ctx backend/web) canvas dst-x dst-y
+                                 &key angle origin-x origin-y tint target
+                                   dst-w dst-h
+                                   src-x src-y src-w src-h)
+
+  (let ((target-canvas (or target (slot-value ctx 'canvas-ctx))))
+    ;; TODO handle tint
+    ;; TODO handle w and h
+    ;; TODO handle angle and origin-x/y
+    ((jscl/ffi:oget target-canvas "drawImage") canvas dst-x dst-y)))
+
+(defmethod %backend-create-canvas ((ctx backend/web) w h)
   (let* ((new-canvas-node (#j:document:createElement #j"canvas")))
 
     ;; todo store a reference to this canvas in our backend somewhere so we
@@ -305,41 +336,32 @@
     (setf (jscl/ffi:oget new-canvas-node "width") w)
     (setf (jscl/ffi:oget new-canvas-node "height") h)
     (setf (jscl/ffi:oget new-canvas-node "style" "display") #j"none")
-    (#j:document:body:append new-canvas-node)
+    (#J:document:body:append new-canvas-node)
     new-canvas-node))
 
-(defmethod backend-destroy-canvas ((ctx backend/web) canvas)
+(defmethod %backend-destroy-canvas ((ctx backend/web) canvas)
   ((jscl/ffi:oget canvas "remove")))
 
-(defmethod backend-check-for-input ((ctx backend/web))
+(defmethod %backend-check-for-input ((ctx backend/web))
   (slot-value ctx 'input-happened-p))
 
-(defmethod backend-draw-rectangle-on-canvas ((ctx backend/web) canvas x y w h color)
-  (let ((draw-ctx ((jscl/ffi:oget canvas "getContext") #j"2d")))
-    (setf (jscl/ffi:oget draw-ctx "fillStyle")
-          (color->jsstring color))
-    ((jscl/ffi:oget draw-ctx "beginPath"))
-    ((jscl/ffi:oget draw-ctx "rect") x y w h)
-    ((jscl/ffi:oget draw-ctx "fill"))))
-
-(defmethod backend-draw-text-on-canvas ((ctx backend/web) canvas x y color text)
-  (let ((draw-ctx ((jscl/ffi:oget canvas "getContext") #j"2d")))
-    ;; TODO set text height
-    (setf (jscl/ffi:oget draw-ctx "font")
-          (jscl/ffi:jsstring (format nil "~apx sans-serif"
-                                     (slot-value ctx 'text-height))))
-    (setf (jscl/ffi:oget draw-ctx "fillStyle") (color->jsstring color))
-    ((jscl/ffi:oget draw-ctx "beginPath"))
-    ((jscl/ffi:oget draw-ctx "fillText") (jscl/ffi:jsstring text)
-     x (+ y (slot-value ctx 'text-height)))))
+(defmethod %backend-window-run ((ctx backend/web) draw-function-callback)
+  (labels ((raw-callback (timestamp)
+             (%callback-on-frame-begin
+              (slot-value ctx 'callback-handler))
+             (funcall draw-function-callback)
+             (%callback-on-frame-end
+              (slot-value ctx 'callback-handler))
+             (if (not (quit-requested-p ctx))
+                 (#j:window:requestAnimationFrame #'raw-callback)
+                 ;; TODO: CLOSE WINDOW HEREN
+                 )))
+     (#j:window:requestAnimationFrame #'raw-callback)))
 
 
-(defmethod backend-draw-canvas-on-canvas ((ctx backend/web) dst src
-                                          dst-x dst-y
-                                          src-x src-y
-                                          src-w src-h &optional tint)
-  (error "todo")
-  ;; TODO
-  )
+;; TODO
+(defmethod %backend-clipboard-get ((ctx backend/web)))
+(defmethod %backend-clipboard-set ((ctx backend/web) string))
 
-
+(defmethod %backend-scissor-begin ((ctx backend/web) x y w h))
+(defmethod %backend-scissor-end ((ctx backend/web)))
