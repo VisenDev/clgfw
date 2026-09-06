@@ -80,8 +80,13 @@
                                     dst-w dst-h
                                     src-x src-y src-w src-h))
 
-;; TODO add a draw pixels command for easily writing pixels from a parsed
+;; TODO add a draw pixels api for easily writing pixels from a parsed
 ;; image to a canvas
+
+;; TODO add an api for taking a "screenshot" of the screen, ie,
+;; get the contents of the window as an array of pixels
+
+;; TODO: add a gamepad api
 
 (defgeneric %backend-canvas-create             (ctx w h))
 (defgeneric %backend-canvas-destroy            (ctx canvas))
