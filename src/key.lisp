@@ -1,5 +1,56 @@
 (in-package #:clgfw)
 
+(deftype gamepad-button ()
+  '(member gamepad-button-south
+           gamepad-button-east
+           gamepad-button-west
+           gamepad-button-north
+           gamepad-button-left-bumper
+           gamepad-button-right-bumper
+           gamepad-button-left-trigger
+           gamepad-button-right-trigger
+           gamepad-button-select
+           gamepad-button-start
+           gamepad-button-guide
+           gamepad-button-left-stick
+           gamepad-button-right-stick
+           gamepad-button-dpad-up
+           gamepad-button-dpad-right
+           gamepad-button-dpad-down
+           gamepad-button-dpad-left))
+
+(deftype gamepad-axis ()
+  '(member gamepad-axis-left-x
+           gamepad-axis-left-y
+           gamepad-axis-right-x
+           gamepad-axis-right-y
+           gamepad-axis-left-trigger
+           gamepad-axis-right-trigger))
+
+(defconstant gamepad-button-south          'gamepad-button-south)
+(defconstant gamepad-button-east           'gamepad-button-east)
+(defconstant gamepad-button-west           'gamepad-button-west)
+(defconstant gamepad-button-north          'gamepad-button-north)
+(defconstant gamepad-button-left-bumper    'gamepad-button-left-bumper)
+(defconstant gamepad-button-right-bumper   'gamepad-button-right-bumper)
+(defconstant gamepad-button-left-trigger   'gamepad-button-left-trigger)
+(defconstant gamepad-button-right-trigger  'gamepad-button-right-trigger)
+(defconstant gamepad-button-select         'gamepad-button-select)
+(defconstant gamepad-button-start          'gamepad-button-start)
+(defconstant gamepad-button-guide          'gamepad-button-guide)
+(defconstant gamepad-button-left-stick     'gamepad-button-left-stick)
+(defconstant gamepad-button-right-stick    'gamepad-button-right-stick)
+(defconstant gamepad-button-dpad-up        'gamepad-button-dpad-up)
+(defconstant gamepad-button-dpad-right     'gamepad-button-dpad-right)
+(defconstant gamepad-button-dpad-down      'gamepad-button-dpad-down)
+(defconstant gamepad-button-dpad-left      'gamepad-button-dpad-left)
+(defconstant gamepad-axis-left-x           'gamepad-axis-left-x)
+(defconstant gamepad-axis-left-y           'gamepad-axis-left-y)
+(defconstant gamepad-axis-right-x          'gamepad-axis-right-x)
+(defconstant gamepad-axis-right-y          'gamepad-axis-right-y)
+(defconstant gamepad-axis-left-trigger     'gamepad-axis-left-trigger)
+(defconstant gamepad-axis-right-trigger    'gamepad-axis-right-trigger)
+
 ;;; MOUSE BUTTONS
 (deftype mouse-button () '(member mouse-button-left mouse-button-middle
                            mouse-button-right))

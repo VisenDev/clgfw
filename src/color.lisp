@@ -170,7 +170,7 @@
      (make-normalized-color
       :r (* a (norm-color-r norm))
       :g (* a (norm-color-g norm))
-      :b (* a (norm-color-r norm))
+      :b (* a (norm-color-b norm))
       :a a))))
 
 (declaim (ftype (function (color color) color) color-blend))
@@ -180,9 +180,9 @@
          (nfg (color->normalized-color fg))
          
          (bg-r (norm-color-r nbg))
-         (bg-g (norm-color-r nbg))
-         (bg-b (norm-color-r nbg))
-         (bg-a (norm-color-r nbg))
+         (bg-g (norm-color-g nbg))
+         (bg-b (norm-color-b nbg))
+         (bg-a (norm-color-a nbg))
          
          (fg-r (norm-color-r nfg))
          (fg-g (norm-color-g nfg))

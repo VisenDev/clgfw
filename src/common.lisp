@@ -80,16 +80,18 @@
                                     dst-w dst-h
                                     src-x src-y src-w src-h))
 
-;; TODO add a draw pixels api for easily writing pixels from a parsed
-;; image to a canvas
-
-;; TODO add an api for taking a "screenshot" of the screen, ie,
-;; get the contents of the window as an array of pixels
-
-;; TODO: add a gamepad api
-
 (defgeneric %backend-canvas-create             (ctx w h))
 (defgeneric %backend-canvas-destroy            (ctx canvas))
+
+;; NEW APIS THAT I HAVEN'T IMPLEMENTED YET
+;; TODO: add frontend interfaces for these
+;; TODO: implement these in the web backend for now
+(defgeneric %backend-blit                  (ctx x y w h pixels &key target))
+(defgeneric %backend-read-pixels           (ctx x y w h &key target))
+(defgeneric %backend-gamepads-list         (ctx))
+(defgeneric %backend-gamepad-name          (ctx gamepad))
+(defgeneric %backend-gamepad-button-down-p (ctx gamepad button))
+(defgeneric %backend-gamepad-axis-read     (ctx gamepad axis))
 
 (deftype canvas () 't)
 (deftype redraw-frequency-type () `(member :target-fps :on-input))

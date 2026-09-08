@@ -111,6 +111,12 @@
            #:%backend-scissor-begin
            #:%backend-scissor-end
            #:%backend-request-quit
+           #:%backend-blit                 
+           #:%backend-read-pixels          
+           #:%backend-gamepads-list        
+           #:%backend-gamepad-name         
+           #:%backend-gamepad-button-down-p
+           #:%backend-gamepad-axis-read    
 
            ;; Callbacks a backend should call to update clgfw about user input
            #:%callback-on-mouse-move
@@ -235,4 +241,30 @@
            #:key-keypad-subtract
            #:key-keypad-add     
            #:key-keypad-enter   
-           #:key-keypad-equal))
+           #:key-keypad-equal
+           
+           #:gamepad-button-south
+           #:gamepad-button-east
+           #:gamepad-button-west
+           #:gamepad-button-north
+           #:gamepad-button-left-bumper
+           #:gamepad-button-right-bumper
+           #:gamepad-button-left-trigger
+           #:gamepad-button-right-trigger
+           #:gamepad-button-select
+           #:gamepad-button-start
+           #:gamepad-button-guide
+           #:gamepad-button-left-stick
+           #:gamepad-button-right-stick
+           #:gamepad-button-dpad-up
+           #:gamepad-button-dpad-right
+           #:gamepad-button-dpad-down
+           #:gamepad-button-dpad-left
+           #:gamepad-axis-left-x
+           #:gamepad-axis-left-y
+           #:gamepad-axis-right-x
+           #:gamepad-axis-right-y
+           #:gamepad-axis-left-trigger
+           #:gamepad-axis-right-trigger
+           #:gamepad-button
+           #:gamepad-axis))
