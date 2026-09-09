@@ -12,10 +12,6 @@
 ;;;; See the License for the specific language governing permissions and
 ;;;; limitations under the License.
 
-;;;; TODO: refactor the api so that the jscl
-;;;; specific code that had to be added here can be
-;;;; moved to %backend-web.lisp
-
 (in-package #:clgfw)
 
 ;;; ==== BOOLEAN ====
@@ -23,6 +19,8 @@
 (defun make-boolean (value)
   "Coerces a truthy or falsesy value to a boolean"
   (not (not value)))
+
+;; TODO: add an api to register functions that should run on shutdown
 
 ;;; A BACKEND SHOULD CALL THESE FUNCTIONS WHEN THESE EVENTS OCCUR
 ;; (defun %callback-on-mouse-move    (handler x y))
@@ -33,6 +31,7 @@
 ;; (defun %callback-on-window-resize (handler width height))
 ;; (defun %callback-on-frame-begin   (handler width height))
 ;; (defun %callback-on-frame-end     (handler width height))
+;; (defun %callback-on-text-input    (handler text))
 
 ;;; USE THESE FUNCTIONS AND CONSTANTS TO REGISTER YOUR NEW BACKEND
 (defvar *backends* (make-hash-table))

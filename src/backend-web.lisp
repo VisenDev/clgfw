@@ -168,6 +168,13 @@
 
 (register-backend 'backend/web +priority-native+)
 
+(defun target->context-2d (ctx target)
+  "If target is not null, return the target's context-2d, otherwise return
+   the window's context-2d"
+  (if target
+      ((jscl/ffi:oget target "getContext") #j"2d")
+      (canvas-ctx ctx)))
+
 ;;TODO support this
 ;; (defgeneric callback-on-window-resize (handler width height))
 
@@ -227,23 +234,12 @@
 
   ctx)
 
-;; (defmethod backend-close-window ((ctx backend/web))
-;;   ((jscl/ffi:oget (slot-value ctx 'canvas-node) "remove")))
-
-;; (defmethod backend-begin-drawing ((ctx backend/web))
-;;   (error "Calling begin-drawing directly is not supported on the
-;;            web backend. Use with-drawing instead."))
-
-;; (defmethod backend-end-drawing ((ctx backend/web))
-;;   (error "Calling end-drawing directly is not supported on the
-;;            web backend. Use with-drawing instead."))
-
 (defun color->jsstring (color)
   (jscl/ffi:jsstring (format nil "rgba(~a, ~a, ~a, ~a)" 
                              (color-r color)
                              (color-g color)
                              (color-b color)
-                             (color-a color))))
+                             (/ (color-a color) 255.0))))
 
 (defmethod %backend-draw-rectangle ((ctx backend/web) x y w h color
                                     &key angle (origin-x 0) (origin-y 0) target)
@@ -357,6 +353,111 @@
                  ;; TODO: CLOSE WINDOW HEREN
                  )))
      (#j:window:requestAnimationFrame #'raw-callback)))
+
+(defmethod %backend-blit ((ctx backend/web) x y w h pixels &key target)
+  (let* ((canvas-context (target->context-2d ctx target))
+         (image-data ((jscl/ffi:oget canvas-context "createImageData") w h))
+         (data-vector (jscl/ffi:oget image-data "data")))
+
+    ;; Write pixels to ImageData.data
+    (loop
+      :with bytes-per-color = 4
+      :for pixels-index :from 0 :below (* w h)
+      :for data-vector-index = (* logical-index bytes-per-color)
+      :for color = (aref pixels pixels-index)
+      :do (setf (jscl/ffi:oget data-vector data-vector-index)
+                (color-r color)
+                (jscl/ffi:oget data-vector (+ data-vector-index 1))
+                (color-g color)
+                (jscl/ffi:oget data-vector (+ data-vector-index 2))
+                (color-b color)
+                (jscl/ffi:oget data-vector (+ data-vector-index 3))
+                (color-a color)))
+
+    ;; Write ImageData to canvas-context
+    ((jscl/ffi:oget canvas-context "putImageData") image-data x y)))
+
+(defmethod %backend-read-pixels ((ctx backend/web) x y w h &key target)
+  (let* ((canvas-context (target->context-2d ctx target))
+         (image-data
+           ((jscl/ffi:oget context "getImageData") x y w h))
+         (data-vector (jscl/ffi:oget image-data "data"))
+         (pixels (make-array (* w h) :element-type 'color)))
+
+    ;; Loop for each pixel, read the result from the index data
+    (loop :for pixel-index :from 0 :below (* w h)
+          :for data-vector-index = (* pixel-index 4)
+          :do (setf (aref pixels pixels-index)
+                    (make-color
+                     (aref data-vector data-vector-index)
+                     (aref data-vector (+ data-vector-index 1))
+                     (aref data-vector (+ data-vector-index 2))
+                     (aref data-vector (+ data-vector-index 3))))
+          :finally (return pixels))))
+
+;;;; GAMEPADS STUFF
+
+(defun get-gamepads-list ()
+  (#j:navigator:getGamepads))
+
+(defmethod %backend-gamepads-list ((ctx backend/web))
+  (declare (ignore ctx))
+  (get-gamepads-list))
+
+(defmethod %backend-gamepad-name ((ctx backend/web) gamepad)
+  (declare (ignore ctx))
+  (jscl/ffi:clstring (jscl/ffi:oget gamepad "id")))
+
+(defun gamepad-button->js-index (button)
+  (ecase button
+    (gamepad-button-south          0)
+    (gamepad-button-east           1)
+    (gamepad-button-west           2)
+    (gamepad-button-north          3)
+    (gamepad-button-left-bumper    4)
+    (gamepad-button-right-bumper   5)
+    (gamepad-button-left-trigger   6)
+    (gamepad-button-right-trigger  7)
+    (gamepad-button-select         8)
+    (gamepad-button-start          9)
+    (gamepad-button-left-stick    10)
+    (gamepad-button-right-stick   11)
+    (gamepad-button-dpad-up       12)
+    (gamepad-button-dpad-down     13)
+    (gamepad-button-dpad-left     14)
+    (gamepad-button-dpad-right    15)
+    (gamepad-button-guide         16)))
+
+(defun gamepad-axis->js-index (axis)
+  (ecase axis
+    (gamepad-axis-left-x   0)
+    (gamepad-axis-left-y   1)
+    (gamepad-axis-right-x  2)
+    (gamepad-axis-right-y  3)))
+
+(defmethod %backend-gamepad-button-down-p ((ctx backend/web) gamepad button)
+  (declare (ignore ctx))
+  (let* ((buttons (jscl/ffi:oget gamepad "buttons"))
+         (button
+           (aref buttons (gamepad-button->js-index button))))
+    (make-boolean (jscl/ffi:oget js-button "pressed"))))
+
+(defmethod %backend-gamepad-axis-read ((ctx backend/web) gamepad axis)
+  (declare (ignore ctx))
+
+  ;; HMM DOES IT MAKE SENSE FOR TRIGGERS TO BE BUTTONS??
+  
+  (case axis
+    (gamepad-axis-left-trigger
+     (jscl/ffi:oget
+      (aref (jscl/ffi:oget gamepad "buttons") 6) "value"))
+
+    (gamepad-axis-right-trigger
+     (jscl/ffi:oget
+      (aref (jscl/ffi:oget gamepad "buttons") 7) "value"))
+
+    (otherwise
+     (aref (jscl/ffi:oget gamepad "axes") (gamepad-axis->js-index axis)))))
 
 
 ;; TODO
