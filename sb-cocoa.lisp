@@ -39,20 +39,26 @@
                  (make-alien-string class-name)))
 
 (defun subclass-allocate (parent-class subclass-name)
-  (alien-funcall (extern-alien "objc_allocateClassPair" (function Class Class c-string size_t))
+  (alien-funcall (extern-alien "objc_allocateClassPair"
+                               (function Class Class c-string size-t))
                  parent-class (make-alien-string subclass-name) 0))
 
 (defun subclass-register (subclass)
-  (alien-funcall (extern-alien "objc_registerClassPair" (function Class Class))
-                 subclass))
+  (alien-funcall
+   (extern-alien "objc_registerClassPair" (function void Class))
+   subclass))
 
 ;; OBJC_EXPORT BOOL
 ;; class_addMethod(Class _Nullable cls, SEL _Nonnull name, IMP _Nonnull imp, 
                       ;; const char * _Nullable types) 
-(defun class-add-method (class method-name method-function type-signature-string)
-  (alien-funcall (extern-alien "class_addMethod" (function bool Class SEL system-area-pointer c-string))
-                 class (make-alien-string method-name) (alien-callable-function method-function)
-                 (make-alien-string type-signature-string)))
+(defun class-add-method
+    (class method-name method-function type-signature-string)
+  (alien-funcall
+   (extern-alien
+    "class_addMethod"
+    (function sb-alien:boolean Class SEL system-area-pointer c-string))
+   class (selector-get method-name) (alien-sap (alien-callable-function method-function))
+   (make-alien-string type-signature-string)))
                                                         
 
 (defmacro message-send (return-type id selector &rest arg-type-pairs)
@@ -64,22 +70,20 @@
                                        arg-type-pairs)))
                   ,id ,selector ,@(mapcar #'first arg-type-pairs)))
 
-(define-alien-callable nsview-draw-rect-override void ((id id) (selector SEL) (rect NSRect))
-  (let ((bezier (message-send system-area-pointer (class-get "NSBezierPath") (selector-get "bezierPath"))))
+(define-alien-callable nsview-draw-rect-override
+    void ((id id) (selector SEL) (rect NSRect))
     
-  
   (with-alien ((rect (struct NSRect)))
     (setf (slot (slot rect 'origin) 'x) 100.0d0
           (slot (slot rect 'origin) 'y) 100.0d0
-          (slot (slot rect 'size) 'width) 100.0d0
+          (slot (slot rect 'size) 'width) 400.0d0
           (slot (slot rect 'size) 'height) 100.0d0)
-     (message-send void bezier (selector-get "fillRect") (rect (struct NSRect))))
-  
-  ))
+    (message-send void (class-get "NSBezierPath") (selector-get "fillRect:")
+                  (rect (struct NSRect)))))
 
 (defun make-nsview-subclass ()
-  (let ((subclass (subclass-allocate (class-name "NSView") "ClgfwView")))
-    (class-add-method subclass "drawRect" 'nsview-draw-rect-override "v@:{CGRect={CGPoint=dd}{CGSize=dd}}")
+  (let ((subclass (subclass-allocate (class-get "NSView") "ClgfwView")))
+    (class-add-method subclass "drawRect:" 'nsview-draw-rect-override "v@:{CGRect={CGPoint=dd}{CGSize=dd}}")
     (subclass-register subclass)
     subclass))
 
@@ -97,18 +101,22 @@
            
            (nswindow-class (class-get "NSWindow"))
            (window (message-send id nswindow-class (selector-get "alloc")))
+           (nsview-subclass (make-nsview-subclass))
+           (nsview-subclass-instance (message-send id nsview-subclass
+                                                   (selector-get "alloc")))
            (style 15))
 
       (message-send boolean app
                     (selector-get "setActivationPolicy:")
                     (0 long))
+
+
       (with-alien ((rect (struct NSRect)))
-        (setf (slot (slot rect 'origin) 'x) 100.0d0
-              (slot (slot rect 'origin) 'y) 100.0d0
+        (setf (slot (slot rect 'origin) 'x) 0.0d0
+              (slot (slot rect 'origin) 'y) 0.0d0
               (slot (slot rect 'size) 'width) 800.0d0
               (slot (slot rect 'size) 'height) 600.0d0)
 
-        ;; TODO: replace this with a call to initWithViewController 
         (setf window
               (message-send
                id
@@ -117,7 +125,16 @@
                (rect (struct NSRect))
                (style unsigned-long)
                (2 unsigned-long)
-               (nil boolean))))
+               (nil boolean)))
+
+        (setf nsview-subclass-instance
+              (message-send id nsview-subclass-instance
+                            (selector-get "initWithFrame:")
+                            (rect (struct NSRect))))
+        (message-send void window (selector-get "setContentView:")
+                      (nsview-subclass-instance id)))
+
+      
 
       (message-send void window (selector-get "center"))
       (message-send void window (selector-get "makeKeyAndOrderFront:")
@@ -125,4 +142,4 @@
       (message-send void app (selector-get "activateIgnoringOtherApps:")
                     (t boolean))
       (message-send void app (selector-get "run")))))
-(main)
+
